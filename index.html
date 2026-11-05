@@ -2,6 +2,7 @@
 <title>Checkpoint Social</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 /* Layout: auth a pantalla completa → app con sidebar, feed + riel derecho, perfil con cuadrícula de fotos y chat dividido en dos paneles. Bordes: blanco fino. */
 :root{
@@ -1608,13 +1609,27 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 /* ─────────── MOTOR DE SEGURIDAD (10 PUNTOS DE AUDITORÍA) ─────────── */
 // Punto 2 & 3: Variables de entorno y gestión de secretos (nunca exponer service_role ni llaves privadas en cliente)
 const ENV_CONFIG = Object.freeze({
-  SUPABASE_URL: window.__ENV__?.NEXT_PUBLIC_SUPABASE_URL || 'https://tu-proyecto.supabase.co',
-  SUPABASE_ANON_KEY: window.__ENV__?.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_anon_key_safe_for_rls',
-  RAWG_PROXY_ENDPOINT: '/api/games', // Llamada a Serverless Function en Vercel para ocultar RAWG_API_KEY
-  SESSION_TTL_MS: 24 * 60 * 60 * 1000, // 24 horas de expiración máxima de sesión (Punto 9)
-  IDLE_TIMEOUT_MS: 30 * 60 * 1000, // 30 minutos de inactividad
-  CORS_ALLOWED_ORIGINS: ['https://checkpoint.gg', 'https://checkpoint.vercel.app'] // Punto 10
+  SUPABASE_URL: window.__ENV__?.NEXT_PUBLIC_SUPABASE_URL || 'https://sjljhcojtrvzneufhpwe.supabase.co',
+  SUPABASE_ANON_KEY: window.__ENV__?.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_bVnMe-oTrPvSvfyTz1GHfA_ki8gbB7j',
+  RAWG_PROXY_ENDPOINT: '/api/games',
+  SESSION_TTL_MS: 24 * 60 * 60 * 1000,
+  IDLE_TIMEOUT_MS: 30 * 60 * 1000,
+  CORS_ALLOWED_ORIGINS: ['https://checkpoint.gg', 'https://checkpoint.pages.dev']
 });
+
+let sbClient = null;
+let sbConnected = false;
+try {
+  if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+    sbClient = window.supabase.createClient(ENV_CONFIG.SUPABASE_URL, ENV_CONFIG.SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true }
+    });
+    sbConnected = true;
+  }
+} catch (err) {
+  sbConnected = false;
+}
+const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
 
 // Punto 1 & 4: Rate Limiting por acción e IP / huella de sesión (Token Bucket)
 const RATE_LIMITS = {
@@ -2076,13 +2091,37 @@ async function doSignup2(){
   const {salt,hash}=await pbkdf(d.p,null);
   const favList=(d.fav&&d.fav.length?d.fav:['hk','hd','ce','zl']).slice(0,4);
   const langVal=pf.lang||'Español';
+  let newId = 'u_'+uid();
+  let cloudNote = '🎉 ¡Cuenta creada y sincronizada en la nube! Bienvenido a tu espacio, @'+d.a+'.';
+
+  if(sbClient){
+    try{
+      const { data, error } = await sbClient.auth.signUp({
+        email: d.e,
+        password: d.p,
+        options: { data: { alias: d.a, city: pf.city } }
+      });
+      if(error){
+        const msg = String(error.message || '').toLowerCase();
+        if(msg.includes('already registered') || msg.includes('already exists')){
+          S.busy=false;
+          S.err='Ese correo ya está registrado en la nube. Cambia a la pestaña "Iniciar sesión".';
+          return render();
+        }
+      }
+      if(data?.user?.id){
+        newId = data.user.id;
+      }
+    }catch(e){}
+  }
+
   const acc={
-    id:'u_'+uid(),a:d.a,e:d.e,salt,hash,
+    id:newId||('u_'+uid()),a:d.a,e:d.e,salt,hash,
     city:pf.city,dist:'Aquí',
     lang:langVal,langFull:langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
     mic:'Con micrófono',
     h:Math.floor(Math.random()*360),
-    badges:['Nuevo','Gamer'],
+    badges:['Cloud','Gamer'],
     act:15,fol:0,fans:0,
     cur:d.cur||'hk',
     fav:favList,
@@ -2092,18 +2131,76 @@ async function doSignup2(){
     created:Date.now()
   };
   DB.accounts.push(acc);U[acc.id]=acc;save();
+  await sbUpsertProfile(acc);
   S.busy=false;S.draft={t:true};S.step=1;S.err='';
   startSession(acc.id);
-  S.note='🎉 ¡Cuenta creada con éxito! Bienvenido a tu espacio personal, @'+acc.a+'.';
+  S.note=cloudNote;
   S.route='perfil';
   render();
+  syncFromSupabase(false);
   setTimeout(()=>{if(S.note.startsWith('🎉')){S.note='';render()}},5000);
 }
 async function doLogin(){
   const idv=$('#li-id').value.trim().toLowerCase(),pw=$('#li-pw').value;S.err='';
   if(Date.now()<S.until){S.err=`Demasiados intentos. Espera ${Math.ceil((S.until-Date.now())/1000)} segundos.`;return render()}
-  const acc=DB.accounts.find(x=>x.e===idv||x.a.toLowerCase()===idv);
   S.busy=true;render();
+
+  // 1. Intentar inicio de sesión en Supabase Cloud si está disponible
+  if(sbClient){
+    try{
+      let loginEmail = idv;
+      const localMatch = DB.accounts.find(x=>x.e===idv||x.a.toLowerCase()===idv);
+      if(!loginEmail.includes('@') && localMatch?.e){
+        loginEmail = localMatch.e;
+      }
+      if(loginEmail.includes('@')){
+        const { data, error } = await sbClient.auth.signInWithPassword({ email: loginEmail, password: pw });
+        if(!error && data?.user){
+          const uidCloud = data.user.id;
+          const { data: prof } = await sbClient.from('profiles').select('*').eq('id', uidCloud).maybeSingle();
+          const langVal = prof?.lang || localMatch?.lang || 'Español';
+          const cloudAcc = {
+            id: uidCloud,
+            a: prof?.alias || data.user.user_metadata?.alias || localMatch?.a || loginEmail.split('@')[0],
+            e: data.user.email || loginEmail,
+            salt: localMatch?.salt || '',
+            hash: localMatch?.hash || '',
+            city: prof?.city || data.user.user_metadata?.city || localMatch?.city || 'Cd. Juárez',
+            dist: 'Aquí',
+            lang: langVal,
+            langFull: langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
+            mic: prof?.mic || 'Con micrófono',
+            h: prof?.hue ?? localMatch?.h ?? 270,
+            avatarImg: prof?.avatar_url || localMatch?.avatarImg || null,
+            bannerImg: prof?.banner_url || localMatch?.bannerImg || null,
+            badges: ['Cloud','Gamer'],
+            act: 25, fol: 1, fans: 3,
+            cur: prof?.current_game || localMatch?.cur || 'hk',
+            fav: (prof?.fav_games && prof.fav_games.length) ? prof.fav_games : (localMatch?.fav || ['hk','hd','ce','zl']),
+            pl: (prof?.platforms && prof.platforms.length) ? prof.platforms : (localMatch?.pl || ['pc']),
+            sch: prof?.schedule || localMatch?.sch || 'Noches',
+            bio: prof?.bio || localMatch?.bio || 'Jugador en Checkpoint.',
+            created: Date.now()
+          };
+          U[uidCloud] = cloudAcc;
+          const idx = DB.accounts.findIndex(x=>x.id===uidCloud);
+          if(idx>=0) DB.accounts[idx] = cloudAcc;
+          else DB.accounts.push(cloudAcc);
+          save();
+          if(!prof) await sbUpsertProfile(cloudAcc);
+          S.busy=false; S.fails=0;
+          startSession(uidCloud);
+          S.route='perfil';
+          render();
+          syncFromSupabase(false);
+          return;
+        }
+      }
+    }catch(e){}
+  }
+
+  // 2. Respaldo local (PBKDF2)
+  const acc=DB.accounts.find(x=>x.e===idv||x.a.toLowerCase()===idv);
   let ok=false;
   if(acc){
     if(!acc.salt && !acc.hash){
@@ -2115,7 +2212,7 @@ async function doLogin(){
   }
   S.busy=false;
   if(ok){S.fails=0;startSession(acc.id);S.route='perfil';return render()}
-  S.fails++;S.err='Correo, alias o contraseña incorrectos.';
+  S.fails++;S.err='Correo o contraseña incorrectos (si creaste tu cuenta en otro dispositivo, inicia sesión con tu correo electrónico).';
   if(S.fails>=5){S.until=Date.now()+30000;S.fails=0;S.err='Demasiados intentos. Espera 30 segundos.'}
   render();}
 function startSession(id){
@@ -2137,8 +2234,233 @@ function renewSession(){
   S.note = '🔒 Sesión renovada por 24 horas adicionales.';
   render();
 }
-function logout(){sess=null;try{localStorage.removeItem(SESK)}catch(e){};S={...S,authTab:'login',thr:null,err:'',route:'auth'};render()}
+function logout(){
+  if(sbClient){try{sbClient.auth.signOut()}catch(e){}}
+  sess=null;
+  try{localStorage.removeItem(SESK)}catch(e){};
+  S={...S,authTab:'login',thr:null,err:'',route:'auth'};
+  render();
+}
 function deleteAccount(){const id=sess;DB.accounts=DB.accounts.filter(a=>a.id!==id);DB.posts=DB.posts.filter(p=>p.u!==id);DB.reviews=DB.reviews.filter(r=>r.u!==id);delete DB.follow[id];DB.threads=DB.threads.filter(t=>t.owner!==id);delete U[id];save();logout()}
+
+async function sbUpsertProfile(acc){
+  if(!sbClient || !acc || !isUuid(acc.id)) return;
+  try{
+    await sbClient.from('profiles').upsert({
+      id: acc.id,
+      alias: acc.a,
+      city: acc.city || 'Cd. Juárez',
+      lang: acc.lang || 'Español',
+      mic: acc.mic || 'Con micrófono',
+      hue: acc.h ?? 270,
+      avatar_url: acc.avatarImg || null,
+      banner_url: acc.bannerImg || null,
+      current_game: acc.cur || 'hk',
+      fav_games: (acc.fav && acc.fav.length) ? acc.fav.slice(0,4) : ['hk','hd','ce','zl'],
+      platforms: (acc.pl && acc.pl.length) ? acc.pl : ['pc'],
+      schedule: acc.sch || 'Noches',
+      bio: (acc.bio || '').slice(0, 160)
+    });
+  }catch(e){}
+}
+
+async function sbInsertPost(p){
+  if(!sbClient || !isUuid(sess)) return;
+  try{
+    const { data } = await sbClient.from('posts').insert({
+      user_id: sess,
+      category: p.c || 'Gameplay',
+      caption: (p.t || '').slice(0, 280),
+      image_url: p.img || null
+    }).select().single();
+    if(data && data.id){ p.id = data.id; save(); }
+  }catch(e){}
+}
+
+async function sbInsertReview(r){
+  if(!sbClient || !isUuid(sess)) return;
+  try{
+    const { data } = await sbClient.from('reviews').insert({
+      user_id: sess,
+      game_key: r.g || 'hk',
+      stars: Number(r.s) || 4,
+      ost: Number(r.o) || 4,
+      platform: r.p || 'pc',
+      body: (r.t || '').slice(0, 600)
+    }).select().single();
+    if(data && data.id){ r.id = data.id; save(); }
+  }catch(e){}
+}
+
+async function sbInsertStory(st){
+  if(!sbClient || !isUuid(sess)) return;
+  try{
+    const { data } = await sbClient.from('stories').insert({
+      user_id: sess,
+      game_key: st.g || 'hk',
+      caption: (st.txt || '').slice(0, 140),
+      image_url: st.img || null
+    }).select().single();
+    if(data && data.id){ st.id = data.id; save(); }
+  }catch(e){}
+}
+
+async function sbToggleSaved(itemId, isSavedNow){
+  if(!sbClient || !isUuid(sess)) return;
+  try{
+    if(isSavedNow){
+      await sbClient.from('saved_items').upsert({
+        user_id: sess,
+        item_id: String(itemId),
+        item_type: String(itemId).startsWith('v') ? 'review' : 'post'
+      });
+    } else {
+      await sbClient.from('saved_items').delete().eq('user_id', sess).eq('item_id', String(itemId));
+    }
+  }catch(e){}
+}
+
+async function sbInsertReport(targetId, reason){
+  if(!sbClient || !isUuid(sess)) return;
+  try{
+    await sbClient.from('reports').insert({
+      reporter_id: sess,
+      target_id: String(targetId),
+      reason: String(reason).slice(0, 120),
+      details: 'Reporte enviado desde Checkpoint Web'
+    });
+  }catch(e){}
+}
+
+async function syncFromSupabase(showToast = false){
+  if(!sbClient) return;
+  try{
+    // 1. Verificar sesión activa de Supabase Auth
+    const { data: sessionData } = await sbClient.auth.getSession();
+    const sbUser = sessionData?.session?.user;
+    if(sbUser && !sess){
+      sess = sbUser.id;
+      sessExp = Date.now() + ENV_CONFIG.SESSION_TTL_MS;
+      try{ localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp})); }catch(e){}
+    }
+
+    // 2. Sincronizar perfiles públicos desde Supabase
+    const { data: profs } = await sbClient.from('profiles').select('*').limit(100);
+    if(Array.isArray(profs)){
+      profs.forEach(row => {
+        const langVal = row.lang || 'Español';
+        const mapped = {
+          id: row.id,
+          a: row.alias || 'Gamer',
+          e: (sbUser && sbUser.id === row.id) ? (sbUser.email || '') : (U[row.id]?.e || ''),
+          city: row.city || 'Cd. Juárez',
+          dist: 'En línea',
+          lang: langVal,
+          langFull: langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
+          mic: row.mic || 'Con micrófono',
+          h: row.hue ?? 270,
+          avatarImg: row.avatar_url || U[row.id]?.avatarImg || null,
+          bannerImg: row.banner_url || U[row.id]?.bannerImg || null,
+          badges: ['Cloud','Gamer'],
+          act: 30,
+          fol: U[row.id]?.fol || 1,
+          fans: U[row.id]?.fans || 3,
+          cur: row.current_game || 'hk',
+          fav: (Array.isArray(row.fav_games) && row.fav_games.length) ? row.fav_games : ['hk','hd','ce','zl'],
+          pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms : ['pc'],
+          sch: row.schedule || 'Noches',
+          bio: row.bio || 'Jugador en Checkpoint.',
+          created: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+        };
+        U[row.id] = { ...(U[row.id] || {}), ...mapped };
+        const idx = DB.accounts.findIndex(x => x.id === row.id);
+        if(idx >= 0) DB.accounts[idx] = U[row.id];
+        else DB.accounts.push(U[row.id]);
+        if(row.id !== sess && !SEED[row.id]){
+          SEED[row.id] = U[row.id];
+        }
+      });
+    }
+
+    // 3. Sincronizar publicaciones (posts)
+    const { data: cloudPosts } = await sbClient.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
+    if(Array.isArray(cloudPosts)){
+      cloudPosts.forEach(row => {
+        if(!DB.posts.some(p => String(p.id) === String(row.id))){
+          DB.posts.push({
+            id: String(row.id),
+            u: row.user_id,
+            c: row.category || 'Gameplay',
+            t: row.caption || '',
+            d: 'Reciente',
+            l: 1,
+            img: row.image_url || null,
+            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+            h: U[row.user_id]?.h || 265
+          });
+        }
+      });
+      DB.posts.sort((a,b) => (b.ts||0) - (a.ts||0));
+    }
+
+    // 4. Sincronizar reseñas (reviews)
+    const { data: cloudRevs } = await sbClient.from('reviews').select('*').order('created_at', { ascending: false }).limit(50);
+    if(Array.isArray(cloudRevs)){
+      cloudRevs.forEach(row => {
+        if(!DB.reviews.some(r => String(r.id) === String(row.id))){
+          DB.reviews.push({
+            id: String(row.id),
+            u: row.user_id,
+            g: G[row.game_key] ? row.game_key : 'hk',
+            s: Number(row.stars) || 4,
+            o: Number(row.ost) || 4,
+            p: PL[row.platform] ? row.platform : 'pc',
+            d: 'Reciente',
+            t: row.body || '',
+            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+          });
+        }
+      });
+      DB.reviews.sort((a,b) => (b.ts||0) - (a.ts||0));
+    }
+
+    // 5. Sincronizar historias (stories)
+    const { data: cloudStories } = await sbClient.from('stories').select('*').order('created_at', { ascending: false }).limit(30);
+    if(Array.isArray(cloudStories)){
+      cloudStories.forEach(row => {
+        if(!DB.stories.some(st => String(st.id) === String(row.id))){
+          DB.stories.push({
+            id: String(row.id),
+            u: row.user_id,
+            c: 'Gameplay',
+            g: G[row.game_key] ? row.game_key : 'hk',
+            txt: row.caption || 'Jugando en Checkpoint 🔥',
+            ago: 'Reciente',
+            img: row.image_url || null,
+            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+          });
+        }
+      });
+      DB.stories.sort((a,b) => (b.ts||0) - (a.ts||0));
+    }
+
+    // 6. Sincronizar guardados privados del usuario actual
+    if(sess && isUuid(sess)){
+      const { data: cloudSaved } = await sbClient.from('saved_items').select('item_id').eq('user_id', sess);
+      if(Array.isArray(cloudSaved)){
+        cloudSaved.forEach(row => { DB.saved[row.item_id] = 1; });
+      }
+    }
+
+    save();
+    if(sess && !_thr.length) buildThreads();
+    if(showToast){
+      S.note = `☁️ Sincronizado con Supabase Cloud (${(profs||[]).length} perfiles en la nube).`;
+      setTimeout(()=>{ if(S.note.startsWith('☁️')){ S.note=''; render(); } }, 3500);
+    }
+    render();
+  }catch(e){}
+}
 
 /* ─────────── perfil ─────────── */
 function vProfile(k){
@@ -3758,8 +4080,9 @@ function saveEditProfile(){
   if(idx >= 0) DB.accounts[idx] = m;
   U[m.id] = m;
   save();
+  sbUpsertProfile(m);
   closeModal();
-  S.note = 'Perfil actualizado exitosamente.';
+  S.note = 'Perfil actualizado y sincronizado en la nube.';
   render();
 }
 function openNotifsModal(){
@@ -3986,6 +4309,7 @@ function saveUserStory(){
   DB.stories = DB.stories || [];
   DB.stories.unshift(newStory);
   save();
+  sbInsertStory(newStory);
   storyDraftImg = null;
   S.route = 'inicio';
   S.note = '¡Tu historia se ha subido a la sección de historias!';
@@ -4498,7 +4822,7 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'save':{
-     if(DB.saved[k])delete DB.saved[k];else DB.saved[k]=1;
+     if(DB.saved[k]){delete DB.saved[k];sbToggleSaved(k,false);}else{DB.saved[k]=1;sbToggleSaved(k,true);}
      save();
      const openPm=$('.pm');
      const openRev=$('.rev-detail-modal');
@@ -4513,7 +4837,8 @@ document.addEventListener('click',async e=>{
    }
    case 'reportpost':{
      const reason = el.dataset.r || 'Revisión general';
-     S.note=`✅ Reporte enviado (${reason}). El equipo de moderación lo revisará.`;
+     sbInsertReport(k, reason);
+     S.note=`✅ Reporte enviado y registrado en Supabase (${reason}).`;
      closeModal();
      render();
      setTimeout(()=>{S.note='';render()},3500);
@@ -4716,15 +5041,16 @@ document.addEventListener('submit',async e=>{
   if(f==='f-login')return doLogin();
   if(f==='f-su1')return doSignup1();
   if(f==='f-su2')return doSignup2();
-  if(f==='f-set'){const m=me(),pf=readProfile();Object.assign(m,pf,{pl:m.pl,fav:m.fav});if(!m.pl.length){S.note='Elige al menos una plataforma.';return render()}if(!pf.city){S.note='Escribe tu ciudad.';return render()}const i=DB.accounts.findIndex(a=>a.id===m.id);DB.accounts[i]=m;save();S.note='Cambios guardados.';return render()}
-  if(f==='f-up'){if(!checkRateLimit('post'))return;if(!upImg){$('#up-e').textContent='Elige una foto primero.';return}const p={id:'u'+uid(),u:sess,c:upCat,t:sanitizeInput($('#up-t').value,280),d:'ahora',l:0,img:upImg,ts:Date.now(),h:0};DB.posts.unshift(p);save();if(storeFull){DB.posts.shift();$('#up-e').textContent='No hay espacio en este navegador para más fotos.';return}closeModal();S.filt='Todo';S.ptab='posts';S.route='perfil';render();return}
-  if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}DB.reviews.unshift({id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()});save();closeModal();S.ptab='reviews';S.route='perfil';render();return}
+  if(f==='f-set'){const m=me(),pf=readProfile();Object.assign(m,pf,{pl:m.pl,fav:m.fav});if(!m.pl.length){S.note='Elige al menos una plataforma.';return render()}if(!pf.city){S.note='Escribe tu ciudad.';return render()}const i=DB.accounts.findIndex(a=>a.id===m.id);DB.accounts[i]=m;save();sbUpsertProfile(m);S.note='Cambios guardados en tu cuenta y en Supabase.';return render()}
+  if(f==='f-up'){if(!checkRateLimit('post'))return;if(!upImg){$('#up-e').textContent='Elige una foto primero.';return}const p={id:'u'+uid(),u:sess,c:upCat,t:sanitizeInput($('#up-t').value,280),d:'ahora',l:0,img:upImg,ts:Date.now(),h:0};DB.posts.unshift(p);save();if(storeFull){DB.posts.shift();$('#up-e').textContent='No hay espacio en este navegador para más fotos.';return}sbInsertPost(p);closeModal();S.filt='Todo';S.ptab='posts';S.route='perfil';render();return}
+  if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};DB.reviews.unshift(rv);save();sbInsertReview(rv);closeModal();S.ptab='reviews';S.route='perfil';render();return}
   if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;(DB.comments[id]||(DB.comments[id]=[])).push({u:sess,t:v});save();render();openPost(id);return}
   if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<2){er.textContent='Elige al menos 2 personas.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='principal';S.route='mensajes';render();setTimeout(()=>{addMsg(t,ms[0],'Hola a todos, qué buena idea');if(S.thr===t.id&&route()==='mensajes')render()},900);return}
   if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;addMsg(t,'me',v);render();autoReply(t);$('#ci')?.focus()}
 });
 if(me())buildThreads();
 render();
+syncFromSupabase(false);
 </script>
 
 </body></html>
