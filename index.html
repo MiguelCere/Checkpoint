@@ -1764,7 +1764,7 @@ const COMMENTS=['Qué buen setup','Ese jefe es una pesadilla','Quiero uno igual'
 const GROUPS_SUG=[{n:'Xbox Juárez',d:'Quedadas y logros',m:['rox','kari'],h:150},{n:'OST Lovers',d:'Bandas sonoras que no se olvidan',m:['kari','montse'],h:300},{n:'PC Gamers Chihuahua',d:'Mods, builds y ofertas',m:['chuy','hern'],h:30}];
 
 /* ─────────── estado persistente ─────────── */
-const DBK='cp2-db',SESK='cp2-session';
+const DBK='cp2-db',SESK='cp3-auth-session';
 let DB={accounts:[],posts:[],reviews:[],follow:{},likes:{},comments:{},saved:{},threads:[]};
 try{const x=JSON.parse(localStorage.getItem(DBK)||'null');if(x)DB={...DB,...x}}catch(e){}
 DB.saved=DB.saved||{};
@@ -1809,13 +1809,16 @@ const DEMO_ACC={
  bio:'Metroidvanias, roguelikes y debate de bandas sonoras. Buscando escuadrón para coop.',created:Date.now()
 };
 if(!DB.accounts.some(a=>a.id===DEMO_ACC.id)){DB.accounts.unshift(DEMO_ACC)}
-if(!sess){sess=DEMO_ACC.id;sessExp=Date.now()+24*60*60*1000;try{localStorage.setItem(SESK,JSON.stringify({id:sess,iat:Date.now(),exp:sessExp}))}catch(e){}}
 
 const U={};Object.keys(SEED).forEach(k=>U[k]={...SEED[k],id:k});
 DB.accounts.forEach(a=>U[a.id]=a);
+if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
+  sess=null;
+  try{localStorage.removeItem(SESK)}catch(e){}
+}
 const me=()=>{
   if(!sess) return null;
-  return U[sess] || DB.accounts.find(a=>a.id===sess) || DEMO_ACC;
+  return U[sess] || DB.accounts.find(a=>a.id===sess) || null;
 };
 const follows=id=>DB.follow[id]||(DB.follow[id]=[]);
 function activity(u){if(SEED[u.id])return u.act;return DB.reviews.filter(r=>r.u===u.id).length*3+DB.posts.filter(p=>p.u===u.id).length*2+follows(u.id).length}
@@ -1905,18 +1908,27 @@ const closeModal=()=>{ if(storyTimer){ clearTimeout(storyTimer); storyTimer=null
 /* ─────────── autenticación (demo en navegador) ─────────── */
 const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
 async function pbkdf(pw,saltB64){
+  if(!window.crypto?.subtle){
+    const s=saltB64||btoa(String(Date.now()).slice(-8));
+    let h=2166136261;
+    const str=s+':'+pw;
+    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+    return{salt:s,hash:btoa(String(h>>>0))}
+  }
   const salt=saltB64?Uint8Array.from(atob(saltB64),c=>c.charCodeAt(0)):crypto.getRandomValues(new Uint8Array(16));
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
   return{salt:b64(salt),hash:b64(bits)}}
-let S={authTab:'login',step:1,draft:{},err:'',fails:0,until:0,msgTab:'todos',thr:null,note:'',rev:new Set(),ptab:'posts',filt:'Todo',busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null};
+const hasPersonalAccount = () => DB.accounts.some(a => a.id !== 'alex_g');
+let S={authTab:hasPersonalAccount()?'login':'signup',step:1,draft:{t:true},err:'',fails:0,until:0,msgTab:'todos',thr:null,note:'',rev:new Set(),ptab:'posts',filt:'Todo',busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null};
 function vAuth(){
   const signup=S.authTab==='signup';
+  const personalAccs = DB.accounts.filter(a => a.id !== 'alex_g');
   const feats=[
-    ['star','Bitácora y reseñas dobles','Califica por separado la jugabilidad y la banda sonora (OST).'],
+    ['star','Tu propio espacio y bitácora','Crea tu perfil, elige tus 4 juegos de cabecera y califica jugabilidad y banda sonora (OST).'],
     ['flame','Tinder Gamer por afinidad e idioma','Encuentra jugadores cercanos o globales que hablen tu idioma y jueguen tus mismos títulos.'],
-    ['users','Mensajería privada y grupos','Coordinación directa de partidas y comunidades temáticas.'],
-    ['shield','Espacio seguro e interactivo','Fotos difuminadas por seguridad y control total de privacidad.']
+    ['users','Mensajería privada y grupos','Coordinación directa de partidas, historias interactivas y comunidades temáticas.'],
+    ['shield','Espacio seguro y privado','Control total de tu cuenta, guardados privados y protección de sesiones.']
   ];
   return `<div class="auth">
     <section class="auth-art">
@@ -1924,7 +1936,7 @@ function vAuth(){
       <div class="dm"></div>
       <div class="line" style="gap:10px">${Logo(44)}<b style="font-family:var(--font-display);font-size:24px">Checkpoint</b></div>
       <div>
-        <h1>Tu red social de videojuegos: bitácora, comunidad y match.</h1>
+        <h1>Tu red social de videojuegos: crea tu cuenta y arma tu espacio.</h1>
         <p style="font-size:15px;opacity:.9;margin-top:8px;max-width:44ch">El espacio donde el registro de Letterboxd se une con la experiencia visual de Instagram y la búsqueda de jugadores de Tinder.</p>
       </div>
       <ul class="feats">
@@ -1934,48 +1946,59 @@ function vAuth(){
     <section class="auth-form">
       <div class="auth-card">
         <div class="seg" role="tablist">
-          <button role="tab" data-a="atab" data-k="login" aria-selected="${!signup}">Iniciar sesión</button>
           <button role="tab" data-a="atab" data-k="signup" aria-selected="${signup}">Crear cuenta</button>
+          <button role="tab" data-a="atab" data-k="login" aria-selected="${!signup}">Iniciar sesión</button>
         </div>
-        
-        <!-- Acceso rápido con perfiles de prueba -->
-        <div class="card" style="padding:14px;background:var(--surface2)">
-          <div class="line" style="justify-content:space-between;margin-bottom:8px">
-            <span class="eyebrow" style="color:var(--accent);font-size:11px">ACCESO INMEDIATO</span>
-            <span class="badge" style="font-size:10px">1 clic</span>
-          </div>
-          <p class="muted" style="font-size:12px;margin-bottom:10px">Elige un perfil para entrar a la red social de inmediato:</p>
-          <div style="display:grid;gap:8px">
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="alex_g">
-              ${av('alex_g',38,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13.5px">Alex Gamer</b>
-                <small class="muted">PC & Xbox · Cd. Juárez · Metroidvanias</small>
-              </div>
-              <span class="badge" style="color:var(--accent);border-color:var(--accent)">Entrar</span>
-            </button>
 
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="kari">
-              ${av('kari',38,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13.5px">Kari OST</b>
-                <small class="muted">Switch & PC · Cd. Juárez · Bandas sonoras</small>
-              </div>
-              <span class="badge" style="color:var(--accent);border-color:var(--accent)">Entrar</span>
-            </button>
-
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="montse">
-              ${av('montse',38,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13.5px">Montse B.</b>
-                <small class="muted">PlayStation 5 · El Paso · Survival Horror</small>
-              </div>
-              <span class="badge" style="color:var(--accent);border-color:var(--accent)">Entrar</span>
-            </button>
+        ${personalAccs.length && !signup ? `
+        <div class="card" style="padding:12px;background:var(--surface2);border:1px solid rgba(139,92,246,0.35)">
+          <span class="eyebrow" style="color:var(--accent);font-size:10px;display:block;margin-bottom:6px">TUS CUENTAS EN ESTE DISPOSITIVO</span>
+          <div style="display:grid;gap:6px">
+            ${personalAccs.map(acc => `
+              <button type="button" class="demo-account-card" data-a="switchacc" data-k="${esc(acc.id)}">
+                ${av(acc.id,34,true)}
+                <div style="flex:1;min-width:0">
+                  <b style="display:block;font-size:13px">@${esc(acc.a)}</b>
+                  <small class="muted">${esc(acc.city||'Jugador')} · ${esc(acc.e)}</small>
+                </div>
+                <span class="badge" style="color:var(--ok);border-color:var(--ok)">Entrar</span>
+              </button>
+            `).join('')}
           </div>
-        </div>
+        </div>` : ''}
 
         ${signup?(S.step===1?formSignup1():formSignup2()):formLogin()}
+
+        <!-- Perfiles de prueba opcionales (colapsados para no estorbar el registro real) -->
+        <details class="card" style="padding:10px 14px;background:var(--surface2);font-size:12px">
+          <summary style="cursor:pointer;color:var(--muted);font-weight:600;user-select:none">¿Solo quieres explorar una vista previa rápida? Ver perfiles demo</summary>
+          <div style="display:grid;gap:8px;margin-top:10px">
+            <button type="button" class="demo-account-card" data-a="switchacc" data-k="alex_g">
+              ${av('alex_g',34,true)}
+              <div style="flex:1;min-width:0">
+                <b style="display:block;font-size:13px">Alex Gamer (Demo)</b>
+                <small class="muted">PC & Xbox · Cd. Juárez</small>
+              </div>
+              <span class="badge">Probar</span>
+            </button>
+            <button type="button" class="demo-account-card" data-a="switchacc" data-k="kari">
+              ${av('kari',34,true)}
+              <div style="flex:1;min-width:0">
+                <b style="display:block;font-size:13px">Kari OST (Demo)</b>
+                <small class="muted">Switch & PC · Cd. Juárez</small>
+              </div>
+              <span class="badge">Probar</span>
+            </button>
+            <button type="button" class="demo-account-card" data-a="switchacc" data-k="montse">
+              ${av('montse',34,true)}
+              <div style="flex:1;min-width:0">
+                <b style="display:block;font-size:13px">Montse B. (Demo)</b>
+                <small class="muted">PlayStation 5 · El Paso</small>
+              </div>
+              <span class="badge">Probar</span>
+            </button>
+          </div>
+        </details>
       </div>
     </section>
   </div>`;
@@ -1983,64 +2006,113 @@ function vAuth(){
 const errBox=()=>S.err?`<p class="err" role="alert">${esc(S.err)}</p>`:'';
 function formLogin(){
   return `<form id="f-login" class="auth-card" style="gap:14px" novalidate>
-    <h2 style="font-size:22px">Bienvenido de vuelta</h2>
-    <label class="fld">Correo o alias<input id="li-id" autocomplete="username" required></label>
-    <label class="fld">Contraseña<input id="li-pw" type="password" autocomplete="current-password" required></label>
+    <h2 style="font-size:22px">Inicia sesión en tu cuenta</h2>
+    <label class="fld">Correo o alias<input id="li-id" autocomplete="username" placeholder="tu@correo.com o tu_alias" required></label>
+    <label class="fld">Contraseña<input id="li-pw" type="password" autocomplete="current-password" placeholder="Tu contraseña" required></label>
     ${errBox()}
-    <button class="btn" ${S.busy?'disabled':''}>${S.busy?'Entrando…':'Iniciar sesión'}</button>
-    <button type="button" class="btn ghost sm" data-a="demologin" style="width:100%">${I('sparkle',16)} Entrar con cuenta Demo (AlexGamer)</button>
-    <p class="muted" style="font-size:13px;text-align:center">¿No tienes cuenta? <button type="button" data-a="atab" data-k="signup" style="text-decoration:underline;color:var(--fg)">Créala</button></p>
+    <button class="btn" ${S.busy?'disabled':''}>${S.busy?'Entrando…':'Entrar a mi cuenta'}</button>
+    <p class="muted" style="font-size:13px;text-align:center">¿Aún no tienes cuenta? <button type="button" data-a="atab" data-k="signup" style="text-decoration:underline;color:var(--accent);font-weight:700">Crea tu cuenta aquí</button></p>
   </form>`;
 }
-function formSignup1(){const d=S.draft;return `<form id="f-su1" class="auth-card" style="gap:14px" novalidate><div class="steps"><i class="on"></i><i></i></div><h2 style="font-size:22px">Crea tu cuenta</h2>
- <label class="fld">Alias<input id="su-a" value="${esc(d.a||'')}" maxlength="24" autocomplete="username" placeholder="MiguelCere"><small>3 a 24 caracteres: letras, números, punto o guion bajo.</small></label>
- <label class="fld">Correo<input id="su-e" type="email" value="${esc(d.e||'')}" autocomplete="email" placeholder="tu@correo.com"></label>
- <label class="fld">Contraseña<input id="su-p" type="password" autocomplete="new-password"><small>Mínimo 8 caracteres, con al menos una letra y un número.</small></label>
- <label class="fld">Confirmar contraseña<input id="su-p2" type="password" autocomplete="new-password"></label>
- <label class="fld">Fecha de nacimiento<input id="su-b" type="date" value="${esc(d.b||'')}"><small>Checkpoint es solo para mayores de 18 años.</small></label>
- <label class="line" style="gap:10px;font-size:13px;align-items:flex-start"><input id="su-t" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:var(--accent)" ${d.t?'checked':''}><span>Acepto los <button type="button" data-a="doc" data-k="t" style="text-decoration:underline">Términos</button> y el <button type="button" data-a="doc" data-k="p" style="text-decoration:underline">Aviso de Privacidad</button>.</span></label>
- ${errBox()}<button class="btn">Continuar</button></form>`}
-function formSignup2(){const d=S.draft;return `<form id="f-su2" class="auth-card" style="gap:14px" novalidate><div class="steps"><i class="on"></i><i class="on"></i></div><h2 style="font-size:22px">Tu perfil de jugador</h2><p class="muted" style="font-size:13px">Con esto armamos tu perfil y el match. Lo puedes cambiar después.</p>${profileFields(d)}${errBox()}<div class="line" style="gap:10px"><button type="button" class="btn ghost" data-a="sustep" data-k="1">Atrás</button><button class="btn" style="flex:1" ${S.busy?'disabled':''}>${S.busy?'Creando…':'Crear cuenta'}</button></div></form>`}
+function formSignup1(){const d=S.draft;return `<form id="f-su1" class="auth-card" style="gap:14px" novalidate><div class="steps"><i class="on"></i><i></i></div>
+ <div>
+   <h2 style="font-size:22px">Crea tu cuenta personal</h2>
+   <p class="muted" style="font-size:13px;margin-top:2px">Paso 1 de 2 · Configura tus datos de acceso para tener tu propio espacio.</p>
+ </div>
+ <label class="fld">Tu alias de jugador (Gamertag)<input id="su-a" value="${esc(d.a||'')}" maxlength="24" autocomplete="username" placeholder="Ej. LoboGamer_99"><small>De 3 a 24 caracteres (letras, números, punto, guion o guion bajo).</small></label>
+ <label class="fld">Correo electrónico<input id="su-e" type="email" value="${esc(d.e||'')}" autocomplete="email" placeholder="tu@correo.com"></label>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+   <label class="fld">Contraseña<input id="su-p" type="password" value="${esc(d.p||'')}" autocomplete="new-password" placeholder="Mín. 6 caracteres"></label>
+   <label class="fld">Confirmar<input id="su-p2" type="password" value="${esc(d.p||'')}" autocomplete="new-password" placeholder="Repite contraseña"></label>
+ </div>
+ <label class="fld">Fecha de nacimiento<input id="su-b" type="date" value="${esc(d.b||'2000-01-15')}"><small>Checkpoint es para mayores de 18 años.</small></label>
+ <label class="line" style="gap:10px;font-size:13px;align-items:flex-start"><input id="su-t" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:var(--accent)" ${d.t!==false?'checked':''}><span>Acepto los <button type="button" data-a="doc" data-k="t" style="text-decoration:underline">Términos</button> y el <button type="button" data-a="doc" data-k="p" style="text-decoration:underline">Aviso de Privacidad</button>.</span></label>
+ ${errBox()}<button class="btn">Continuar a mi perfil →</button>
+ <p class="muted" style="font-size:13px;text-align:center">¿Ya creaste tu cuenta antes? <button type="button" data-a="atab" data-k="login" style="text-decoration:underline;color:var(--fg)">Inicia sesión</button></p>
+</form>`}
+function formSignup2(){const d=S.draft;return `<form id="f-su2" class="auth-card" style="gap:14px" novalidate><div class="steps"><i class="on"></i><i class="on"></i></div><h2 style="font-size:22px">Personaliza tu espacio</h2><p class="muted" style="font-size:13px">Paso 2 de 2 · Elige tus plataformas y tus 4 juegos favoritos para tu perfil.</p>${profileFields(d)}${errBox()}<div class="line" style="gap:10px"><button type="button" class="btn ghost" data-a="sustep" data-k="1">Atrás</button><button class="btn" style="flex:1" ${S.busy?'disabled':''}>${S.busy?'Creando tu espacio…':'Finalizar y entrar a mi cuenta'}</button></div></form>`}
 function profileFields(d){
   const pl=d.pl||[],fav=d.fav||[];
-  return `<label class="fld">Ciudad<input id="pf-city" value="${esc(d.city||'')}" maxlength="40" placeholder="Cd. Juárez"></label>
-  <div class="fld">Consolas y plataformas<div class="chips" id="pf-pl">${Object.keys(PL).map(p=>`<button type="button" class="chp" data-a="chip" data-g="pl" data-k="${p}" aria-pressed="${pl.includes(p)}">${PL[p]}</button>`).join('')}</div></div>
-  <label class="fld">Horario de juego<select id="pf-sch">${['Mañanas','Tardes','Noches','Noches entre semana','Fines de semana'].map(s=>`<option ${d.sch===s?'selected':''}>${s}</option>`).join('')}</select></label>
-  <label class="fld">Juego actual<select id="pf-cur">${Object.keys(G).map(k=>`<option value="${k}" ${d.cur===k?'selected':''}>${esc(G[k].t)}</option>`).join('')}</select></label>
-  <div class="fld">Mis 4 de cabecera <small>Elige hasta 4 (llevas ${fav.length}).</small><div class="chips" id="pf-fav">${Object.keys(G).map(k=>`<button type="button" class="chp" data-a="chip" data-g="fav" data-k="${k}" aria-pressed="${fav.includes(k)}">${esc(G[k].t)}</button>`).join('')}</div></div>
-  <label class="fld">Bio <small>Opcional, máximo 160 caracteres.</small><textarea id="pf-bio" rows="2" maxlength="160">${esc(d.bio||'')}</textarea></label>`}
-function readProfile(){return{city:$('#pf-city').value.trim().slice(0,40),sch:$('#pf-sch').value,cur:$('#pf-cur').value,bio:$('#pf-bio').value.trim().slice(0,160)}}
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <label class="fld">Ciudad o región<input id="pf-city" value="${esc(d.city||'')}" maxlength="40" placeholder="Ej. Cd. Juárez"></label>
+    <label class="fld">Idioma para Match<select id="pf-lang">${['Español','Bilingüe','Inglés'].map(l=>`<option ${(d.lang||'Español')===l?'selected':''}>${l}</option>`).join('')}</select></label>
+  </div>
+  <div class="fld">Consolas y plataformas que usas<div class="chips" id="pf-pl">${Object.keys(PL).map(p=>`<button type="button" class="chp" data-a="chip" data-g="pl" data-k="${p}" aria-pressed="${pl.includes(p)}">${PL[p]}</button>`).join('')}</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <label class="fld">Horario habitual<select id="pf-sch">${['Mañanas','Tardes','Noches','Noches entre semana','Fines de semana'].map(s=>`<option ${d.sch===s?'selected':''}>${s}</option>`).join('')}</select></label>
+    <label class="fld">Jugando ahora<select id="pf-cur">${Object.keys(G).map(k=>`<option value="${k}" ${d.cur===k?'selected':''}>${esc(G[k].t)}</option>`).join('')}</select></label>
+  </div>
+  <div class="fld">Mis 4 de cabecera <small>Elige hasta 4 para tu vitrina (llevas ${fav.length}).</small><div class="chips" id="pf-fav">${Object.keys(G).map(k=>`<button type="button" class="chp" data-a="chip" data-g="fav" data-k="${k}" aria-pressed="${fav.includes(k)}">${esc(G[k].t)}</button>`).join('')}</div></div>
+  <label class="fld">Bio de tu perfil <small>Opcional, máximo 160 caracteres.</small><textarea id="pf-bio" rows="2" maxlength="160" placeholder="Cuéntale a la comunidad qué tipo de juegos te gustan...">${esc(d.bio||'')}</textarea></label>`}
+function readProfile(){return{city:($('#pf-city')?.value||'').trim().slice(0,40),lang:$('#pf-lang')?.value||'Español',sch:$('#pf-sch')?.value||'Noches',cur:$('#pf-cur')?.value||'hk',bio:($('#pf-bio')?.value||'').trim().slice(0,160)}}
 async function doSignup1(){
-  const a=$('#su-a').value.trim(),e=$('#su-e').value.trim().toLowerCase(),p=$('#su-p').value,p2=$('#su-p2').value,b=$('#su-b').value,t=$('#su-t').checked;
-  S.draft={...S.draft,a,e,b,t};S.err='';
-  if(!/^[A-Za-z0-9_.]{3,24}$/.test(a))S.err='El alias debe tener de 3 a 24 caracteres: letras, números, punto o guion bajo.';
-  else if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))S.err='Escribe un correo válido.';
-  else if(p.length<8||!/[A-Za-z]/.test(p)||!/\d/.test(p))S.err='La contraseña necesita 8 caracteres o más, con una letra y un número.';
+  const rawA=$('#su-a').value.trim().replace(/\s+/g,'_'),e=$('#su-e').value.trim().toLowerCase(),p=$('#su-p').value,p2=$('#su-p2').value,b=$('#su-b').value,t=$('#su-t').checked;
+  S.draft={...S.draft,a:rawA,e,b,t,p};S.err='';
+  if(!/^[A-Za-z0-9_.-]{3,24}$/.test(rawA))S.err='El alias debe tener de 3 a 24 caracteres (letras, números, punto, guion o guion bajo).';
+  else if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))S.err='Escribe un correo electrónico válido.';
+  else if(p.length<6)S.err='La contraseña debe tener al menos 6 caracteres.';
   else if(p!==p2)S.err='Las contraseñas no coinciden.';
   else if(!b)S.err='Indica tu fecha de nacimiento.';
   else{const age=(Date.now()-new Date(b).getTime())/31557600000;if(!(age>=18&&age<120))S.err='Debes tener 18 años o más para crear una cuenta.'}
   if(!S.err&&!t)S.err='Debes aceptar los Términos y el Aviso de Privacidad.';
-  if(!S.err&&(DB.accounts.some(x=>x.a.toLowerCase()===a.toLowerCase())||Object.values(SEED).some(x=>x.a.toLowerCase()===a.toLowerCase())))S.err='Ese alias ya está en uso.';
-  if(!S.err&&DB.accounts.some(x=>x.e===e))S.err='Ya existe una cuenta con ese correo.';
-  if(!S.err){S.draft.p=p;S.step=2;S.draft.pl=S.draft.pl||[];S.draft.fav=S.draft.fav||[];S.draft.cur=S.draft.cur||'gw'}
+  if(!S.err&&(DB.accounts.some(x=>x.a.toLowerCase()===rawA.toLowerCase())||Object.values(SEED).some(x=>x.a.toLowerCase()===rawA.toLowerCase())))S.err='Ese alias ya está en uso. Elige otro distinto.';
+  if(!S.err&&DB.accounts.some(x=>x.e===e))S.err='Ya existe una cuenta registrada con ese correo.';
+  if(!S.err){
+    S.draft.p=p;
+    S.step=2;
+    S.draft.city=S.draft.city||'Cd. Juárez';
+    S.draft.lang=S.draft.lang||'Español';
+    S.draft.pl=(S.draft.pl&&S.draft.pl.length)?S.draft.pl:['pc'];
+    S.draft.fav=(S.draft.fav&&S.draft.fav.length)?S.draft.fav:['hk','hd','ce','zl'];
+    S.draft.cur=S.draft.cur||'hk';
+  }
   render()}
 async function doSignup2(){
-  if(!window.crypto?.subtle){S.err='Tu navegador no permite proteger la contraseña aquí.';return render()}
   const d=S.draft,pf=readProfile();Object.assign(d,pf);S.err='';
-  if(!d.pl.length)S.err='Elige al menos una plataforma.';
-  else if(!pf.city)S.err='Escribe tu ciudad.';
+  if(!d.pl||!d.pl.length)S.err='Elige al menos una plataforma o consola.';
+  else if(!pf.city)S.err='Escribe tu ciudad o región.';
   if(S.err)return render();
   S.busy=true;render();
   const {salt,hash}=await pbkdf(d.p,null);
-  const acc={id:uid(),a:d.a,e:d.e,salt,hash,city:pf.city,h:Math.floor(Math.random()*360),badges:['Nuevo'],cur:d.cur,fav:d.fav.slice(0,4),pl:d.pl,sch:pf.sch,bio:pf.bio,created:Date.now()};
+  const favList=(d.fav&&d.fav.length?d.fav:['hk','hd','ce','zl']).slice(0,4);
+  const langVal=pf.lang||'Español';
+  const acc={
+    id:'u_'+uid(),a:d.a,e:d.e,salt,hash,
+    city:pf.city,dist:'Aquí',
+    lang:langVal,langFull:langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
+    mic:'Con micrófono',
+    h:Math.floor(Math.random()*360),
+    badges:['Nuevo','Gamer'],
+    act:15,fol:0,fans:0,
+    cur:d.cur||'hk',
+    fav:favList,
+    pl:d.pl,
+    sch:pf.sch||'Noches',
+    bio:pf.bio||'¡Hola! Esta es mi cuenta personal en Checkpoint.',
+    created:Date.now()
+  };
   DB.accounts.push(acc);U[acc.id]=acc;save();
-  S.busy=false;S.draft={};S.step=1;S.err='';startSession(acc.id);S.route='perfil';render()}
+  S.busy=false;S.draft={t:true};S.step=1;S.err='';
+  startSession(acc.id);
+  S.note='🎉 ¡Cuenta creada con éxito! Bienvenido a tu espacio personal, @'+acc.a+'.';
+  S.route='perfil';
+  render();
+  setTimeout(()=>{if(S.note.startsWith('🎉')){S.note='';render()}},5000);
+}
 async function doLogin(){
   const idv=$('#li-id').value.trim().toLowerCase(),pw=$('#li-pw').value;S.err='';
   if(Date.now()<S.until){S.err=`Demasiados intentos. Espera ${Math.ceil((S.until-Date.now())/1000)} segundos.`;return render()}
   const acc=DB.accounts.find(x=>x.e===idv||x.a.toLowerCase()===idv);
   S.busy=true;render();
-  let ok=false;if(acc&&window.crypto?.subtle){const r=await pbkdf(pw,acc.salt);ok=r.hash===acc.hash}
+  let ok=false;
+  if(acc){
+    if(!acc.salt && !acc.hash){
+      ok = true;
+    } else {
+      const r=await pbkdf(pw,acc.salt);
+      ok=r.hash===acc.hash;
+    }
+  }
   S.busy=false;
   if(ok){S.fails=0;startSession(acc.id);S.route='perfil';return render()}
   S.fails++;S.err='Correo, alias o contraseña incorrectos.';
@@ -2112,7 +2184,7 @@ function vProfile(k){
     </header>
     ${u.bio?`<p style="max-width:46ch;font-size:14px;color:rgba(255,255,255,.88);text-shadow:0 1px 8px rgba(0,0,0,.5)">${esc(u.bio)}</p>`:''}
     <div class="spacer"></div>
-    <div class="cta">${isMe?`<button class="btn" data-a="up">${I('plus',16)} Publicar</button><button type="button" class="btn ghost" data-a="editprofile">${I('gear',16)} Editar perfil</button>`:`<button class="btn ${fl?'ghost':''}" data-a="follow" data-k="${k}">${fl?'Siguiendo':'Seguir'}</button><button class="btn ghost" data-a="dm" data-k="${k}">${I('chat',16)} Mensaje</button>`}</div>
+    <div class="cta">${isMe?`<button class="btn" data-a="up">${I('plus',16)} Publicar</button><button type="button" class="btn ghost" data-a="editprofile">${I('gear',16)} Editar perfil</button><button type="button" class="btn ghost" data-a="logout" title="Cerrar sesión para cambiar o crear otra cuenta">Cerrar sesión</button>`:`<button class="btn ${fl?'ghost':''}" data-a="follow" data-k="${k}">${fl?'Siguiendo':'Seguir'}</button><button class="btn ghost" data-a="dm" data-k="${k}">${I('chat',16)} Mensaje</button>`}</div>
     
     <!-- Juego actual (clicable para abrir Sinopsis) y Mis 4 de cabecera (clicables) -->
     <div class="mid">
