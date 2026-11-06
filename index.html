@@ -1808,6 +1808,8 @@ const me=()=>{
   return U[sess] || DB.accounts.find(a=>a.id===sess) || null;
 };
 const follows=id=>DB.follow[id]||(DB.follow[id]=[]);
+const isMutualMatch=(a,b)=>Boolean(a&&b&&follows(a).includes(b)&&follows(b).includes(a));
+const myMatches=()=>otherPlayers().filter(k=>isMutualMatch(sess,k));
 function activity(u){if(SEED[u.id])return u.act;return DB.reviews.filter(r=>r.u===u.id).length*3+DB.posts.filter(p=>p.u===u.id).length*2+follows(u.id).length}
 const allPosts=()=>[...DB.posts,...SP];
 const allReviews=()=>[...DB.reviews,...SR];
@@ -2200,7 +2202,10 @@ async function sbUpsertProfile(acc){
       banner_url: acc.bannerImg || null,
       current_game: acc.cur || 'hk',
       fav_games: (acc.fav && acc.fav.length) ? acc.fav.slice(0,4) : ['hk','hd','ce','zl'],
-      platforms: (acc.pl && acc.pl.length) ? acc.pl : ['pc'],
+      platforms: [
+        ...((acc.pl && acc.pl.length) ? acc.pl.filter(x => !String(x).startsWith('like:')) : ['pc']),
+        ...(follows(acc.id).map(uidLiked => 'like:' + uidLiked))
+      ],
       schedule: acc.sch || 'Noches',
       bio: (acc.bio || '').slice(0, 160)
     });
@@ -2311,11 +2316,17 @@ async function syncFromSupabase(showToast = false){
           fans: U[row.id]?.fans || 3,
           cur: row.current_game || 'hk',
           fav: (Array.isArray(row.fav_games) && row.fav_games.length) ? row.fav_games : ['hk','hd','ce','zl'],
-          pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms : ['pc'],
+          pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms.filter(x => !String(x).startsWith('like:')) : ['pc'],
           sch: row.schedule || 'Noches',
           bio: row.bio || 'Jugador en Checkpoint.',
           created: row.created_at ? new Date(row.created_at).getTime() : Date.now()
         };
+        if(Array.isArray(row.platforms)){
+          const cloudLikes = row.platforms.filter(x => String(x).startsWith('like:')).map(x => String(x).slice(5));
+          const curFollows = follows(row.id);
+          cloudLikes.forEach(lk => { if(!curFollows.includes(lk)) curFollows.push(lk); });
+        }
+        if(!mapped.pl.length) mapped.pl = ['pc'];
         U[row.id] = { ...(U[row.id] || {}), ...mapped };
         const idx = DB.accounts.findIndex(x => x.id === row.id);
         if(idx >= 0) DB.accounts[idx] = U[row.id];
@@ -2703,9 +2714,8 @@ function openPost(id){
   const u=U[p.u]||{a:p.u,city:'Comunidad'},liked=!!DB.likes[id],saved=!!DB.saved[id],n=p.l+(liked?1:0);
   const cm=DB.comments[id]||[];
   modal(`<div class="pm">
-    <div class="pimg" data-a="zoomimg" title="Toca la imagen para hacer zoom / ampliar">
+    <div class="pimg">
       ${pimg(p)}
-      <span class="zoom-hint-badge">${I('zoom',14)} Toca para hacer zoom</span>
     </div>
     <div class="side2">
       <div class="line" style="padding:12px 16px;border-bottom:1px solid var(--edge);gap:10px;flex-wrap:nowrap">
@@ -3171,8 +3181,8 @@ function vHome(){
   for(let n=0;n<Math.max(P.length,Rv.length);n++){if(P[n])pool.push(P[n]);if(Rv[n])pool.push(Rv[n])}
   const a=pool.filter(near),b=pool.filter(x=>!near(x)),out=[];let i=0,j=0;
   while(i<a.length||j<b.length){for(let n=0;n<7&&i<a.length;n++)out.push(a[i++]);for(let n=0;n<3&&j<b.length;n++)out.push(b[j++])}
-  const people=otherPlayers().filter(k=>!fl.includes(k)).slice(0,4);
-  const connectedReal=otherPlayers().slice(0,5);
+  const people=myMatches().slice(0,6);
+  const connectedReal=myMatches().slice(0,5);
   const top=Object.keys(G).slice(0,5);
 
   const allStories = getAllStoriesList();
@@ -3199,7 +3209,7 @@ function vHome(){
             ${av(k,24,true)}
             <span>${esc(U[k]?.a||k)}</span>
           </button>
-        `).join('') : `<span class="muted" style="font-size:12px">Aún no hay otros jugadores conectados. ¡Invita a tus amigos!</span>`}
+        `).join('') : `<span class="muted" style="font-size:12px">Haz Match en el swipe 🔥 para ver aquí a tus amigos conectados.</span>`}
       </div>
     </div>
 
@@ -3277,15 +3287,15 @@ function vHome(){
             </div>
             <button class="btn sm ghost" data-a="dm" data-k="${k}" title="Chatear con ${esc(U[k].a)}">${I('chat',13)} Chat</button>
           </li>
-        `).join('') : '<li class="muted" style="font-size:12px">Esperando a que más jugadores reales se registren.</li>'}
+        `).join('') : '<li class="muted" style="font-size:12px">Tus matches aparecerán aquí cuando ambos se den Like en Match 🔥.</li>'}
       </ul>
     </div>
 
-    <!-- Sugerencias para seguir -->
+    <!-- Tus Matches Gamer (solo perfiles con los que ya hiciste Match en el swipe) -->
     <div class="card" style="padding:14px">
       <div class="line" style="justify-content:space-between;margin-bottom:12px">
-        <h3 style="font-size:13px">Sugerencias para ti</h3>
-        <button class="muted" style="font-size:11px;font-weight:700" data-a="nav" data-k="explorar">Explorar</button>
+        <h3 style="font-size:13px">Tus Matches Gamer 🔥</h3>
+        <button class="muted" style="font-size:11px;font-weight:700" data-a="nav" data-k="match">Ir al Swipe</button>
       </div>
       <ul class="rl" style="display:grid;gap:10px">
         ${people.length?people.map(k=>`
@@ -3295,9 +3305,9 @@ function vHome(){
               <button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button>
               <small>${esc(U[k].city)} · ${esc(U[k].langFull||U[k].lang)}</small>
             </div>
-            <button class="btn sm ghost" data-a="follow" data-k="${k}">${follows(sess).includes(k)?'Siguiendo':'Seguir'}</button>
+            <button class="btn sm" data-a="dm" data-k="${k}">${I('chat',13)} Chatear</button>
           </li>
-        `).join(''):'<li class="muted">Ya sigues a todos por ahora.</li>'}
+        `).join(''):`<li class="muted" style="font-size:12px;display:grid;gap:8px"><span>Los perfiles que aún no tienes agregados se descubren directamente en el swipe de <b>Match</b>.</span><button type="button" class="btn sm ghost" data-a="nav" data-k="match">${I('flame',14)} Descubrir jugadores en Match</button></li>`}
       </ul>
     </div>
 
@@ -3335,7 +3345,7 @@ function vHome(){
 }
 
 /* ─────────── explorar ─────────── */
-function vExplore(){return `<div class="view wrap"><div class="inner" style="padding-block:28px 40px"><div class="mhd" style="margin-bottom:16px"><h1 style="font-size:26px">Explorar</h1><button type="button" class="btn ghost sm" data-a="nav" data-k="match">${I('flame',14)} Ir a Match</button></div><div class="sbox" style="margin-bottom:22px;padding-left:16px">${I('search',18)}<input id="q" placeholder="Busca un juego o un jugador" maxlength="80"></div><h2 class="eyebrow" style="margin-bottom:10px">Jugadores</h2><ul class="rl" id="pl" style="margin-bottom:26px">${otherPlayers().length ? otherPlayers().map(k=>`<li data-n="${esc((U[k].a+' '+U[k].city).toLowerCase())}" style="cursor:pointer">${av(k,42,true)}<div><button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button><small>${esc(U[k].city)} · juega ${esc(G[U[k].cur]?.t||'Gaming')}</small></div><button class="btn sm ${follows(sess).includes(k)?'ghost':''}" data-a="follow" data-k="${k}">${follows(sess).includes(k)?'Siguiendo':'Seguir'}</button></li>`).join('') : '<li class="muted" style="font-size:13px">Aún no hay otros jugadores registrados en la comunidad.</li>'}</ul><h2 class="eyebrow" style="margin-bottom:10px">Juegos</h2><ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:14px">${Object.keys(G).map(k=>`<li data-n="${esc(G[k].t.toLowerCase())}"><button type="button" data-a="game" data-k="${k}" style="display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">${cover(k)}<b style="font-size:13px;color:var(--fg);display:block;margin-top:2px">${esc(G[k].t)}</b><small class="muted" style="font-size:11px;display:block">${esc(G[k].genre.split('/')[0])}</small></button></li>`).join('')}</ul><p class="muted" style="font-size:12px;margin-top:14px">Vista previa: filtra los datos de ejemplo. Con la llave de RAWG busca en todo el catálogo.</p></div>${footer()}</div>`}
+function vExplore(){return `<div class="view wrap"><div class="inner" style="padding-block:28px 40px"><div class="mhd" style="margin-bottom:16px"><h1 style="font-size:26px">Explorar</h1><button type="button" class="btn ghost sm" data-a="nav" data-k="match">${I('flame',14)} Ir a Match</button></div><div class="sbox" style="margin-bottom:22px;padding-left:16px">${I('search',18)}<input id="q" placeholder="Busca un juego o un jugador" maxlength="80"></div><h2 class="eyebrow" style="margin-bottom:10px">Tus Matches agregados</h2><ul class="rl" id="pl" style="margin-bottom:26px">${myMatches().length ? myMatches().map(k=>`<li data-n="${esc((U[k].a+' '+U[k].city).toLowerCase())}" style="cursor:pointer">${av(k,42,true)}<div><button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button><small>${esc(U[k].city)} · juega ${esc(G[U[k].cur]?.t||'Gaming')}</small></div><button class="btn sm" data-a="dm" data-k="${k}">${I('chat',14)} Mensaje</button></li>`).join('') : `<li class="muted" style="font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>Para agregar nuevos jugadores, desliza sus perfiles en la sección de Match.</span><button type="button" class="btn sm" data-a="nav" data-k="match">${I('flame',14)} Ir al Swipe de Match</button></li>`}</ul><h2 class="eyebrow" style="margin-bottom:10px">Juegos</h2><ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:14px">${Object.keys(G).map(k=>`<li data-n="${esc(G[k].t.toLowerCase())}"><button type="button" data-a="game" data-k="${k}" style="display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">${cover(k)}<b style="font-size:13px;color:var(--fg);display:block;margin-top:2px">${esc(G[k].t)}</b><small class="muted" style="font-size:11px;display:block">${esc(G[k].genre.split('/')[0])}</small></button></li>`).join('')}</ul><p class="muted" style="font-size:12px;margin-top:14px">Vista previa: filtra los datos de ejemplo. Con la llave de RAWG busca en todo el catálogo.</p></div>${footer()}</div>`}
 function hookExplore(){$('#q').addEventListener('input',e=>{const v=e.target.value.toLowerCase().trim();$$('#pl li,#gl li').forEach(li=>li.hidden=!!v&&!li.dataset.n.includes(v))})}
 
 /* ─────────── match ─────────── */
@@ -3384,6 +3394,7 @@ function vMatch(){
           <option value="switch" ${S.mPlat==='switch'?'selected':''}>Switch</option>
         </select>
       </div>
+      ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
       <div class="empty">
         ${I('flame',36)}
         <b style="color:var(--fg);font-size:16px">¡Has visto a todos los jugadores por ahora!</b>
@@ -3403,6 +3414,7 @@ function vMatch(){
       <span class="badge" style="color:#f59e0b;border-color:rgba(245,158,11,0.5)">${I('flame',13)} Tinder Gamer</span>
     </div>
     <p class="muted" style="margin:0 0 14px;font-size:13.5px">Encuentra jugadores que hablen tu idioma, compartan juegos y jueguen en tu horario.</p>
+    ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
     
     <div class="mfilters">
       <select id="mf-lang" data-a="mflang" aria-label="Filtrar por idioma">
@@ -3513,45 +3525,54 @@ function decide(y, isSuper=false){
   const mc=$('#mc');if(!mc)return;
   const k=mc.dataset.k;
   if(!k)return;
-  const u=U[k];
+  const u=U[k]||{a:k,city:'Comunidad',dist:'En línea',lang:'Español',mic:'Con micrófono',cur:'hk'};
   if(y){
-    matched.push(u.a);
     if(!follows(sess).includes(k)){
       follows(sess).push(k);
     }
-    DB.notifs = DB.notifs || [];
-    if(!DB.notifs.some(n => n.t === 'match' && n.u === k)){
-      DB.notifs.unshift({
-        id: 'nm_' + uid(),
-        u: k,
-        t: 'match',
-        txt: `¡Hiciste Match Gamer con ${u.a}! Ya pueden chatear para coordinar partida.`,
-        time: 'Justo ahora',
-        read: false
-      });
-    }
     save();
-    // Show match celebration modal!
-    modal(`<div class="match-popup">
-      <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">CHECKPOINT TINDER SOCIAL</span>
-      <h2 style="font-size:26px;color:#fff;margin:0">🔥 ¡ES UN MATCH! 🔥</h2>
-      <div class="match-avatars">
-        ${av(sess,64)}
-        <span class="flame-icon">${I('flame',26)}</span>
-        ${av(k,64)}
-      </div>
-      <p style="font-size:15px;color:var(--fg);margin:0"><b>Tú</b> y <b>${esc(u.a)}</b> se gustan para jugar juntos.</p>
-      <div class="glass" style="padding:10px 16px;font-size:13px;text-align:left;display:grid;gap:6px;width:100%;max-width:340px">
-        <div class="line" style="gap:8px"><span>🌐</span><span><b>Idioma:</b> ${esc(u.langFull||u.lang)}</span></div>
-        <div class="line" style="gap:8px"><span>📍</span><span><b>Ubicación:</b> ${esc(u.city)} (${esc(u.dist)})</span></div>
-        <div class="line" style="gap:8px"><span>🎙️</span><span><b>Comunicación:</b> ${esc(u.mic)}</span></div>
-        <div class="line" style="gap:8px"><span>🎮</span><span><b>Juego actual:</b> ${esc(G[u.cur].t)}</span></div>
-      </div>
-      <div class="line" style="gap:10px;width:100%;justify-content:center;margin-top:6px">
-        <button class="btn" data-a="dm" data-k="${k}">${I('chat',16)} Enviar mensaje directo</button>
-        <button class="btn ghost" data-a="x">Seguir buscando</button>
-      </div>
-    </div>`);
+    sbUpsertProfile(me());
+
+    // Verificar si la otra persona TAMBIÉN te dio Like (Match mutuo real)
+    const theyLikedMe = follows(k).includes(sess);
+    if(theyLikedMe){
+      if(!matched.includes(u.a)) matched.push(u.a);
+      DB.notifs = DB.notifs || [];
+      if(!DB.notifs.some(n => n.t === 'match' && n.u === k)){
+        DB.notifs.unshift({
+          id: 'nm_' + uid(),
+          u: k,
+          t: 'match',
+          txt: `¡Hiciste Match Gamer mutuo con ${u.a}! Ya pueden chatear para coordinar partida.`,
+          time: 'Justo ahora',
+          read: false
+        });
+      }
+      save();
+      modal(`<div class="match-popup">
+        <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">CHECKPOINT TINDER SOCIAL</span>
+        <h2 style="font-size:26px;color:#fff;margin:0">🔥 ¡ES UN MATCH! 🔥</h2>
+        <div class="match-avatars">
+          ${av(sess,64)}
+          <span class="flame-icon">${I('flame',26)}</span>
+          ${av(k,64)}
+        </div>
+        <p style="font-size:15px;color:var(--fg);margin:0"><b>Tú</b> y <b>${esc(u.a)}</b> se dieron Like mutuamente para jugar juntos.</p>
+        <div class="glass" style="padding:10px 16px;font-size:13px;text-align:left;display:grid;gap:6px;width:100%;max-width:340px">
+          <div class="line" style="gap:8px"><span>🌐</span><span><b>Idioma:</b> ${esc(u.langFull||u.lang)}</span></div>
+          <div class="line" style="gap:8px"><span>📍</span><span><b>Ubicación:</b> ${esc(u.city)} (${esc(u.dist||'En línea')})</span></div>
+          <div class="line" style="gap:8px"><span>🎙️</span><span><b>Comunicación:</b> ${esc(u.mic||'Con micrófono')}</span></div>
+          <div class="line" style="gap:8px"><span>🎮</span><span><b>Juego actual:</b> ${esc(G[u.cur]?.t||'Gaming')}</span></div>
+        </div>
+        <div class="line" style="gap:10px;width:100%;justify-content:center;margin-top:6px">
+          <button class="btn" data-a="dm" data-k="${k}">${I('chat',16)} Enviar mensaje directo</button>
+          <button class="btn ghost" data-a="x">Seguir buscando</button>
+        </div>
+      </div>`);
+    } else {
+      S.note = `💚 Le enviaste Like a @${u.a}. Cuando también te dé Like en Match, harán Match y se abrirá el chat.`;
+      setTimeout(()=>{ if(S.note && S.note.startsWith('💚')){ S.note=''; render(); } }, 4000);
+    }
   }else{
     mi++;
   }
@@ -3565,30 +3586,30 @@ let _thr=[];const THR=()=>_thr;
 function buildThreads(){
   _thr=[...DB.threads.filter(t=>t.owner===sess&&!BOT_IDS.has(t.u))];
 }
-const thrName=t=>t.type==='group'?t.name:U[t.u].a;
-const sentBy=(t,w)=>t.m.filter(x=>x[0]===w&&typeof x[1]==='string').length;
-function unlocked(t){const mine=sentBy(t,'me');const others=t.m.filter(x=>x[0]!=='me'&&typeof x[1]==='string').length;if(t.type==='group')return{ok:mine>=5&&others>=5,mine,theirs:others};return{ok:mine>=5&&others>=5,mine,theirs:others}}
-function threadAv(t,s=46){if(t.type==='dm')return av(t.u,s,true);const m=t.members.slice(0,3),z=s*.62;return `<span class="gav" style="width:${s}px;height:${s}px">${m.map((k,i)=>`<span class="av" style="--h:${U[k].h};width:${z}px;height:${z}px;font-size:${z*.4}px;${['left:0;top:0','right:0;top:'+(s*.2)+'px','left:'+(s*.18)+'px;bottom:0'][i]}">${esc(U[k].a[0].toUpperCase())}</span>`).join('')}</span>`}
+const thrName=t=>t.type==='group'?(t.name||'Grupo'):(U[t.u]?.a||t.u||'Jugador');
+const sentBy=(t,w)=>(t.m||[]).filter(x=>x[0]===w&&typeof x[1]==='string').length;
+function unlocked(t){const mine=sentBy(t,'me');const others=(t.m||[]).filter(x=>x[0]!=='me'&&typeof x[1]==='string').length;if(t.type==='group')return{ok:mine>=5&&others>=5,mine,theirs:others};return{ok:mine>=5&&others>=5,mine,theirs:others}}
+function threadAv(t,s=46){if(t.type==='dm')return av(t.u,s,true);const m=(t.members||[]).slice(0,3),z=s*.62;return `<span class="gav" style="width:${s}px;height:${s}px">${m.map((k,i)=>{const u=U[k]||{h:260,a:'?'};return `<span class="av" style="--h:${u.h};width:${z}px;height:${z}px;font-size:${z*.4}px;${['left:0;top:0','right:0;top:'+(s*.2)+'px','left:'+(s*.18)+'px;bottom:0'][i]}">${esc((u.a||'?')[0].toUpperCase())}</span>`}).join('')}</span>`}
 function openNewDMModal(){
-  const players = Object.keys(SEED);
+  const players = myMatches();
   modal(`<div class="hd"><h2>Nuevo mensaje privado</h2><button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button></div>
-    <div class="sbox" style="margin-bottom:12px">${I('search',16)}<input id="dm-q" placeholder="Buscar jugador por nombre o ciudad..." maxlength="30"></div>
+    <div class="sbox" style="margin-bottom:12px">${I('search',16)}<input id="dm-q" placeholder="Buscar entre tus matches..." maxlength="30"></div>
     <ul class="rl" id="dm-list" style="max-height:300px;overflow-y:auto;display:grid;gap:8px">
-      ${players.map(k=>`
-        <li data-name="${esc((U[k].a+' '+U[k].city).toLowerCase())}" style="padding:4px 0">
+      ${players.length ? players.map(k=>`
+        <li data-name="${esc(((U[k]?.a||k)+' '+(U[k]?.city||'')).toLowerCase())}" style="padding:4px 0">
           ${av(k,38,true)}
           <div>
-            <b>${esc(U[k].a)}</b>
-            <small>${esc(U[k].city)} · ${esc(G[U[k].cur]?.t||'Gaming')}</small>
+            <b>${esc(U[k]?.a||k)}</b>
+            <small>${esc(U[k]?.city||'Comunidad')} · ${esc(G[U[k]?.cur]?.t||'Gaming')}</small>
           </div>
           <button class="btn sm" data-a="dm" data-k="${k}">Chatear</button>
         </li>
-      `).join('')}
+      `).join('') : `<li class="empty" style="padding:18px">${I('flame',26)}<b>Aún no tienes Matches</b><span>Ve a la sección de Match y desliza para conectar mutuamente con otros jugadores y poder chatear.</span><button type="button" class="btn sm" data-a="nav" data-k="match" onclick="closeModal()">🔥 Ir a Match</button></li>`}
     </ul>`);
   $('#dm-q')?.addEventListener('input', e=>{
     const v=e.target.value.toLowerCase().trim();
     $$('#dm-list li').forEach(li => {
-      li.hidden = !!v && !li.dataset.name.includes(v);
+      if(li.dataset.name) li.hidden = !!v && !li.dataset.name.includes(v);
     });
   });
 }
@@ -3604,8 +3625,13 @@ function vMsgs(){
     return true;
   });
   const t=THR().find(x=>x.id===S.thr);
-  const lastTxt=t=>{const l=t.m[t.m.length-1];return !t.known?'Solicitud de mensaje':(typeof l[1]==='string'?(t.type==='group'&&l[0]!=='me'?U[l[0]].a+': ':l[0]==='me'?'Tú: ':'')+l[1]:'Foto')};
-  const online=Object.keys(SEED).slice(0,5);
+  const lastTxt=t=>{
+    if(!t.m || !t.m.length) return 'Chat abierto · Envía el primer mensaje';
+    const l=t.m[t.m.length-1];
+    if(!l) return 'Chat abierto · Envía el primer mensaje';
+    return !t.known?'Solicitud de mensaje':(typeof l[1]==='string'?(t.type==='group'&&l[0]!=='me'?(U[l[0]]?.a||l[0])+': ':l[0]==='me'?'Tú: ':'')+l[1]:'Foto');
+  };
+  const online=myMatches().slice(0,5);
   const mode=t?'show-chat':'show-list';
   return `<div class="view wrap"><div class="mapp ${mode}"><section class="mlist" aria-label="Conversaciones">
     <div class="mhd">
@@ -3665,7 +3691,8 @@ function vIdle(){
 
 function vChat(t){
   const u=unlocked(t),left=Math.max(0,5-Math.min(u.mine,u.theirs)),dm=t.type==='dm',pend=!t.known;
-  const sub=dm?`${U[t.u].city} · ${U[t.u].pl.map(p=>PL[p]).join(', ')} · ${esc(U[t.u].langFull||U[t.u].lang)}`:t.members.map(k=>U[k].a).join(', ')+', tú';
+  const targetObj = U[t.u] || {a: t.u || 'Jugador', city: 'Comunidad', pl: ['pc'], lang: 'Español', langFull: 'Español'};
+  const sub=dm?`${targetObj.city||'Comunidad'} · ${(targetObj.pl||['pc']).map(p=>PL[p]||p).join(', ')} · ${esc(targetObj.langFull||targetObj.lang||'Español')}`:(t.members||[]).map(k=>U[k]?.a||k).join(', ')+', tú';
   let prevSender = null;
   const rows=t.m.map((x,i)=>{
     const w=x[0],body=x[1],mine=w==='me',key=t.id+'-'+i;
@@ -3710,7 +3737,7 @@ function vChat(t){
     </header>
     ${S.note?`<div class="status" role="status">${esc(S.note)}</div>`:''}
     ${pend?`<div class="accept"><span>${esc(thrName(t))} aún no tiene conexión contigo.</span><button class="btn sm" data-a="accept">Aceptar</button></div>`:''}
-    <ul class="msgs" id="ms">${rows}</ul>
+    <ul class="msgs" id="ms">${rows || `<li class="empty" style="margin:auto;padding:24px">${I('chat',28)}<b style="color:var(--fg)">Conversación con @${esc(thrName(t))}</b><span>Escribe el primer mensaje aquí abajo para saludar y coordinar partida.</span></li>`}</ul>
     <form class="compose" id="f-msg">
       <button type="button" class="cb" data-a="att" ${u.ok&&!pend?'':'disabled'} aria-label="${u.ok?'Adjuntar imagen':'Imágenes bloqueadas'}" title="${u.ok?'Adjuntar imagen':`Se desbloquea con 5 mensajes de cada lado (llevan ${Math.min(u.mine,5)} y ${Math.min(u.theirs,5)})`}">${I(u.ok&&!pend?'img':'lock',18)}</button>
       <input id="ci" maxlength="1000" placeholder="Escribe un mensaje..." autocomplete="off" ${pend?'disabled':''}>
@@ -3757,19 +3784,27 @@ function autoReply(t){
 }
 
 function openDM(k){
+  if(!k) return;
+  if(!U[k]){
+    U[k] = {id:k, a:String(k), city:'Comunidad', pl:['pc'], fav:['hk','hd','ce','zl'], cur:'hk', lang:'Español', h:265};
+  }
+  if(! THR().length && DB.threads.length) buildThreads();
   let t=THR().find(x=>x.type==='dm'&&x.u===k);
   if(!t){
     t={id:'d'+uid(),type:'dm',u:k,known:1,un:0,m:[],owner:sess};
     _thr.unshift(t);
     persistThr(t);
+  } else {
+    t.known = 1;
+    persistThr(t);
   }
   S.thr=t.id;
   S.note='';
-  S.msgTab='privados';
+  S.msgTab='todos';
   S.route='mensajes';
   closeModal();
-  
   render();
+  setTimeout(()=>{ $('#ci')?.focus(); }, 60);
 }
 
 /* ─────────── ajustes ─────────── */
@@ -4655,11 +4690,7 @@ document.addEventListener('click',async e=>{
        addMsg(t, 'me', { c: 'Gameplay', i: G[k]?.h || 260, g: k });
        closeModal();
        render();
-       setTimeout(()=>{
-         const w = t.type === 'group' ? t.members[0] : t.u;
-         addMsg(t, w, '¡Uff qué buen momento, ese jefe estuvo genial!');
-         if(S.thr === t.id && route() === 'mensajes') render();
-       }, 900);
+
      }
      break;
    }
@@ -4923,11 +4954,7 @@ document.addEventListener('change',async e=>{
         addMsg(t, 'me', { img: data, g: 'hk' });
         closeModal();
         render();
-        setTimeout(()=>{
-          const w = t.type === 'group' ? t.members[0] : t.u;
-          addMsg(t, w, '¡Qué buena captura, se ve increíble!');
-          if(S.thr === t.id && route() === 'mensajes') render();
-        }, 900);
+
       }
     }catch(err){
       S.note=String(err);render();
@@ -4972,7 +4999,7 @@ document.addEventListener('submit',async e=>{
   if(f==='f-up'){if(!checkRateLimit('post'))return;if(!upImg){$('#up-e').textContent='Elige una foto primero.';return}const p={id:'u'+uid(),u:sess,c:upCat,t:sanitizeInput($('#up-t').value,280),d:'ahora',l:0,img:upImg,ts:Date.now(),h:0};DB.posts.unshift(p);save();if(storeFull){DB.posts.shift();$('#up-e').textContent='No hay espacio en este navegador para más fotos.';return}sbInsertPost(p);closeModal();S.filt='Todo';S.ptab='posts';S.route='perfil';render();return}
   if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};DB.reviews.unshift(rv);save();sbInsertReview(rv);closeModal();S.ptab='reviews';S.route='perfil';render();return}
   if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;(DB.comments[id]||(DB.comments[id]=[])).push({u:sess,t:v});save();render();openPost(id);return}
-  if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<2){er.textContent='Elige al menos 2 personas.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='principal';S.route='mensajes';render();setTimeout(()=>{addMsg(t,ms[0],'Hola a todos, qué buena idea');if(S.thr===t.id&&route()==='mensajes')render()},900);return}
+  if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<1){er.textContent='Elige al menos 1 jugador de tus matches.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='grupos';S.route='mensajes';render();return}
   if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;addMsg(t,'me',v);render();autoReply(t);$('#ci')?.focus()}
 });
 if(me())buildThreads();
