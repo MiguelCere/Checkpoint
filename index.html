@@ -1809,8 +1809,29 @@ const me=()=>{
   return U[sess] || DB.accounts.find(a=>a.id===sess) || null;
 };
 const follows=id=>DB.follow[id]||(DB.follow[id]=[]);
-const isMutualMatch=(a,b)=>Boolean(a&&b&&follows(a).includes(b)&&follows(b).includes(a));
+function hasLiked(fromId, toId){
+  if(!fromId || !toId) return false;
+  const list = follows(fromId);
+  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').toLowerCase();
+  const fromObj = U[fromId] || (fromId === sess ? me() : null);
+  return list.includes(toId) || (Boolean(toAlias) && list.includes('@' + toAlias));
+}
+function addLikeToUser(fromId, targetId){
+  if(!fromId || !targetId) return;
+  const l = follows(fromId);
+  if(!l.includes(targetId)) l.push(targetId);
+  const targetAlias = String(U[targetId]?.a || '').toLowerCase();
+  if(targetAlias && !l.includes('@' + targetAlias)) l.push('@' + targetAlias);
+}
+function removeLikeFromUser(fromId, targetId){
+  if(!fromId || !targetId) return;
+  const targetAlias = String(U[targetId]?.a || '').toLowerCase();
+  DB.follow[fromId] = follows(fromId).filter(x => x !== targetId && x !== ('@' + targetAlias));
+}
+const isMutualMatch=(a,b)=>Boolean(a&&b&&hasLiked(a,b)&&hasLiked(b,a));
 const myMatches=()=>otherPlayers().filter(k=>isMutualMatch(sess,k));
+const likesReceived=()=>otherPlayers().filter(k=>hasLiked(k,sess)&&!hasLiked(sess,k));
+const likesSent=()=>otherPlayers().filter(k=>hasLiked(sess,k)&&!hasLiked(k,sess));
 function activity(u){if(SEED[u.id])return u.act;return DB.reviews.filter(r=>r.u===u.id).length*3+DB.posts.filter(p=>p.u===u.id).length*2+follows(u.id).length}
 const allPosts=()=>[...DB.posts,...SP];
 const allReviews=()=>[...DB.reviews,...SR];
@@ -2165,10 +2186,16 @@ function logout(){
 function deleteAccount(){const id=sess;DB.accounts=DB.accounts.filter(a=>a.id!==id);DB.posts=DB.posts.filter(p=>p.u!==id);DB.reviews=DB.reviews.filter(r=>r.u!==id);delete DB.follow[id];DB.threads=DB.threads.filter(t=>t.owner!==id);delete U[id];save();logout()}
 
 async function sbUpsertProfile(acc){
-  if(!sbClient || !acc || !isUuid(acc.id)) return;
+  if(!sbClient || !acc) return;
   try{
+    let targetId = isUuid(acc.id) ? acc.id : null;
+    if(!targetId){
+      const { data: sData } = await sbClient.auth.getSession();
+      if(sData?.session?.user?.id) targetId = sData.session.user.id;
+    }
+    if(!targetId) return;
     await sbClient.from('profiles').upsert({
-      id: acc.id,
+      id: targetId,
       alias: acc.a,
       city: acc.city || 'Cd. Juárez',
       lang: acc.lang || 'Español',
@@ -2380,11 +2407,45 @@ async function syncFromSupabase(showToast = false){
       }
     }
 
+    // 7. Detectar nuevos Likes recibidos (solicitudes) y Matches mutuos
+    if(sess){
+      otherPlayers().forEach(k => {
+        const u = U[k];
+        if(!u) return;
+        if(isMutualMatch(sess, k)){
+          if(!matched.includes(u.a)) matched.push(u.a);
+          if(!DB.notifs.some(n => n.t === 'match' && n.u === k)){
+            DB.notifs.unshift({
+              id: 'nm_' + uid(),
+              u: k,
+              t: 'match',
+              txt: `¡Hiciste Match Gamer mutuo con @${u.a}! Ya pueden chatear.`,
+              time: 'Reciente',
+              read: false
+            });
+          }
+        } else if(hasLiked(k, sess) && !hasLiked(sess, k)){
+          if(!DB.notifs.some(n => n.t === 'likereq' && n.u === k)){
+            DB.notifs.unshift({
+              id: 'nl_' + uid(),
+              u: k,
+              t: 'likereq',
+              txt: `te dio Like 💚. Entra a Match → "Te dieron Like" para aceptar el Match.`,
+              time: 'Reciente',
+              read: false
+            });
+          }
+        }
+      });
+    }
+
     save();
     if(sess && !_thr.length) buildThreads();
     if(showToast){
-      S.note = `☁️ Sincronizado con Supabase Cloud (${(profs||[]).length} perfiles en la nube).`;
-      setTimeout(()=>{ if(S.note.startsWith('☁️')){ S.note=''; render(); } }, 3500);
+      const nReq = likesReceived().length;
+      const nMat = myMatches().length;
+      S.note = `☁️ Sincronizado: ${nMat} match(es) y ${nReq} solicitud(es) de Like.`;
+      setTimeout(()=>{ if(S.note && S.note.startsWith('☁️')){ S.note=''; render(); } }, 4000);
     }
     render();
   }catch(e){}
@@ -3325,30 +3386,187 @@ function hookExplore(){$('#q').addEventListener('input',e=>{const v=e.target.val
 let mi=0,matched=[];
 function candidateDeck(){
   return otherPlayers().filter(k=>{
-    if(follows(sess).includes(k)) return false;
+    if(hasLiked(sess, k)) return false;
     const u=U[k];
-    if(S.mLang==='es' && !u.lang.includes('Español')) return false;
-    if(S.mLang==='bi' && !u.langFull.includes('Bilingüe')) return false;
-    if(S.mDist==='near' && !u.dist.includes('Cercano')) return false;
-    if(S.mPlat!=='all' && !u.pl.includes(S.mPlat)) return false;
+    if(!u) return false;
+    if(S.mLang==='es' && !(u.lang||'').includes('Español')) return false;
+    if(S.mLang==='bi' && !(u.langFull||'').includes('Bilingüe')) return false;
+    if(S.mDist==='near' && !(u.dist||'').includes('Cercano') && u.city !== me()?.city) return false;
+    if(S.mPlat!=='all' && !(u.pl||[]).includes(S.mPlat)) return false;
     return true;
-  });
+  }).sort((a,b) => (hasLiked(b, sess)?1:0) - (hasLiked(a, sess)?1:0));
 }
 
 function aff(a,b){
-  const cg=a.fav.filter(x=>b.fav.includes(x)),cp=a.pl.filter(x=>b.pl.includes(x)),sc=a.sch===b.sch,sm=a.city===b.city;
-  const langMatch = a.lang === b.lang || (b.lang && b.lang.includes('Español'));
+  const aFav = a?.fav || ['hk'], bFav = b?.fav || ['hk'];
+  const aPl = a?.pl || ['pc'], bPl = b?.pl || ['pc'];
+  const cg=aFav.filter(x=>bFav.includes(x)),cp=aPl.filter(x=>bPl.includes(x)),sc=a?.sch===b?.sch,sm=a?.city===b?.city;
+  const langMatch = a?.lang === b?.lang || (b?.lang && b.lang.includes('Español'));
   return {cg,cp,sc,sm,langMatch,pct:Math.min(100,cg.length*20+cp.length*15+(sc?15:0)+(sm?15:5)+(langMatch?20:10)+10)};
 }
 
+function openMatchCelebrationModal(k){
+  const u=U[k]||{a:k,city:'Comunidad',dist:'En línea',lang:'Español',mic:'Con micrófono',cur:'hk'};
+  modal(`<div class="match-popup">
+    <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">CHECKPOINT TINDER SOCIAL</span>
+    <h2 style="font-size:26px;color:#fff;margin:0">🔥 ¡ES UN MATCH! 🔥</h2>
+    <div class="match-avatars">
+      ${av(sess,64)}
+      <span class="flame-icon">${I('flame',26)}</span>
+      ${av(k,64)}
+    </div>
+    <p style="font-size:15px;color:var(--fg);margin:0"><b>Tú</b> y <b>${esc(u.a)}</b> se dieron Like mutuamente para jugar juntos.</p>
+    <div class="glass" style="padding:10px 16px;font-size:13px;text-align:left;display:grid;gap:6px;width:100%;max-width:340px">
+      <div class="line" style="gap:8px"><span>🌐</span><span><b>Idioma:</b> ${esc(u.langFull||u.lang||'Español')}</span></div>
+      <div class="line" style="gap:8px"><span>📍</span><span><b>Ubicación:</b> ${esc(u.city||'Comunidad')} (${esc(u.dist||'En línea')})</span></div>
+      <div class="line" style="gap:8px"><span>🎙️</span><span><b>Comunicación:</b> ${esc(u.mic||'Con micrófono')}</span></div>
+      <div class="line" style="gap:8px"><span>🎮</span><span><b>Juego actual:</b> ${esc(G[u.cur]?.t||'Gaming')}</span></div>
+    </div>
+    <div class="line" style="gap:10px;width:100%;justify-content:center;margin-top:6px">
+      <button class="btn" data-a="dm" data-k="${k}">${I('chat',16)} Enviar mensaje directo</button>
+      <button class="btn ghost" data-a="x">Seguir en Match</button>
+    </div>
+  </div>`);
+}
+
 function vMatch(){
-  const d=candidateDeck(),k=d[mi];
-  if(!k){
-    return `<div class="view wrap"><div class="inner" style="max-width:440px;padding-block:28px">
-      <div class="line" style="justify-content:space-between;margin-bottom:14px">
-        <h1 style="font-size:26px">Match</h1>
-        <span class="badge" style="color:var(--accent);border-color:var(--accent)">🔥 Tinder de Jugadores</span>
+  const tab = S.matchTab || 'swipe';
+  const reqList = likesReceived();
+  const sentList = likesSent();
+  const matchList = myMatches();
+  const d = candidateDeck();
+  if(mi >= d.length) mi = 0;
+  const k = d[mi];
+
+  const headerAndTabs = `
+    <div class="line" style="justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div class="line" style="gap:8px">
+        <h1 style="font-size:25px;margin:0">Match</h1>
+        <span class="badge" style="color:#f59e0b;border-color:rgba(245,158,11,0.5)">${I('flame',13)} Tinder Gamer</span>
       </div>
+      <button type="button" class="btn sm ghost" data-a="syncmatch" title="Sincronizar likes y matches con Supabase">🔄 Actualizar</button>
+    </div>
+    <p class="muted" style="margin:0 0 12px;font-size:13px">Desliza perfiles, acepta a quienes ya te dieron Like o chatea con tus Matches.</p>
+
+    <!-- Pestañas de Match: Swipe | Te dieron Like (Solicitudes) | Posibles (Enviados) | Mis Matches -->
+    <div class="mseg-4" role="tablist" style="margin-bottom:14px">
+      <button type="button" role="tab" data-a="matchtab" data-k="swipe" aria-selected="${tab==='swipe'}">🔥 Swipe (${d.length})</button>
+      <button type="button" role="tab" data-a="matchtab" data-k="likes" aria-selected="${tab==='likes'}" style="${reqList.length?'color:#34d399;font-weight:800':''}">💚 Te dieron Like${reqList.length?` (${reqList.length})`:''}</button>
+      <button type="button" role="tab" data-a="matchtab" data-k="sent" aria-selected="${tab==='sent'}">⏳ Posibles${sentList.length?` (${sentList.length})`:''}</button>
+      <button type="button" role="tab" data-a="matchtab" data-k="matches" aria-selected="${tab==='matches'}">🤝 Matches${matchList.length?` (${matchList.length})`:''}</button>
+    </div>
+    ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
+  `;
+
+  if(tab === 'likes'){
+    return `<div class="view wrap"><div class="inner" style="max-width:480px;padding-block:24px 36px">
+      ${headerAndTabs}
+      <div class="card" style="padding:16px;display:grid;gap:12px">
+        <div>
+          <h2 style="font-size:17px;margin:0">💚 Solicitudes de Match (Te dieron Like)</h2>
+          <p class="muted" style="font-size:12.5px;margin-top:3px">Estos jugadores ya deslizaron tu perfil con Like. Si los aceptas, harán Match inmediato y se abrirá el chat.</p>
+        </div>
+        ${reqList.length ? `<ul class="rl" style="display:grid;gap:12px">
+          ${reqList.map(uidKey => {
+            const u = U[uidKey] || {a:uidKey, city:'Comunidad', cur:'hk', pl:['pc'], fav:['hk']};
+            const a = aff(me(), u);
+            return `<li class="card" style="padding:14px;background:var(--surface2);border:1px solid rgba(52,211,153,0.4);display:grid;gap:10px">
+              <div class="line" style="gap:12px">
+                ${av(uidKey, 48, true)}
+                <div style="flex:1;min-width:0">
+                  <div class="line" style="gap:6px">
+                    <button type="button" class="user-link" data-a="user" data-k="${uidKey}"><b style="font-size:15px">@${esc(u.a)}</b></button>
+                    <span class="badge" style="color:#34d399;border-color:rgba(52,211,153,0.5);font-size:10px">💚 Te dio Like · ${a.pct}% afinidad</span>
+                  </div>
+                  <small class="muted" style="display:block;margin-top:2px">${esc(u.city||'Comunidad')} · Juega ${esc(G[u.cur]?.t||'Gaming')} · ${(u.pl||['pc']).map(p=>PL[p]||p).join(', ')}</small>
+                </div>
+              </div>
+              ${u.bio ? `<p class="muted" style="font-size:12.5px;margin:0">"${esc(u.bio)}"</p>` : ''}
+              <div class="line" style="gap:8px;justify-content:flex-end">
+                <button type="button" class="btn sm ghost" data-a="user" data-k="${uidKey}">Ver perfil</button>
+                <button type="button" class="btn sm" style="background:#10b981;border-color:transparent;color:#fff" data-a="acceptmatch" data-k="${uidKey}">💚 Aceptar Match y Chatear</button>
+              </div>
+            </li>`;
+          }).join('')}
+        </ul>` : `<div class="empty" style="padding:28px 16px">
+          ${I('heart',30)}
+          <b style="color:var(--fg)">No tienes solicitudes de Like pendientes</b>
+          <span>Si un amigo te acaba de dar Like desde su celular, pulsa el botón <b>🔄 Actualizar</b> arriba o revisa la pestaña <b>⏳ Posibles</b> si tú ya le habías dado Like antes.</span>
+          <button type="button" class="btn sm" data-a="syncmatch">🔄 Sincronizar con la nube</button>
+        </div>`}
+      </div>
+    </div>${footer()}</div>`;
+  }
+
+  if(tab === 'sent'){
+    return `<div class="view wrap"><div class="inner" style="max-width:480px;padding-block:24px 36px">
+      ${headerAndTabs}
+      <div class="card" style="padding:16px;display:grid;gap:12px">
+        <div>
+          <h2 style="font-size:17px;margin:0">⏳ Posibles Matches (Likes que enviaste)</h2>
+          <p class="muted" style="font-size:12.5px;margin-top:3px">Ya les diste Like a estos perfiles (por eso ya no salen en tu baraja de Swipe). En cuanto ellos te den Like de vuelta y actualices, pasarán a <b>Matches</b>.</p>
+        </div>
+        ${sentList.length ? `<ul class="rl" style="display:grid;gap:12px">
+          ${sentList.map(uidKey => {
+            const u = U[uidKey] || {a:uidKey, city:'Comunidad', cur:'hk', pl:['pc']};
+            return `<li class="card" style="padding:14px;background:var(--surface2);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              ${av(uidKey, 46, true)}
+              <div style="flex:1;min-width:160px">
+                <button type="button" class="user-link" data-a="user" data-k="${uidKey}"><b style="font-size:15px">@${esc(u.a)}</b></button>
+                <small class="muted" style="display:block">${esc(u.city||'Comunidad')} · Juega ${esc(G[u.cur]?.t||'Gaming')}</small>
+                <span class="badge" style="margin-top:4px;font-size:10px;color:#f59e0b;border-color:rgba(245,158,11,0.4)">⏳ Esperando su Like para hacer Match</span>
+              </div>
+              <div class="line" style="gap:6px">
+                <button type="button" class="btn sm ghost" data-a="unfollow" data-k="${uidKey}" title="Regresar este perfil a tu baraja de Swipe">↩️ Volver al Swipe</button>
+                <button type="button" class="btn sm" data-a="syncmatch">🔄 Comprobar</button>
+              </div>
+            </li>`;
+          }).join('')}
+        </ul>` : `<div class="empty" style="padding:28px 16px">
+          ${I('flame',30)}
+          <b style="color:var(--fg)">No tienes Likes pendientes de respuesta</b>
+          <span>Ve a la pestaña <b>🔥 Swipe</b> para deslizar perfiles y enviar Likes.</span>
+        </div>`}
+      </div>
+    </div>${footer()}</div>`;
+  }
+
+  if(tab === 'matches'){
+    return `<div class="view wrap"><div class="inner" style="max-width:480px;padding-block:24px 36px">
+      ${headerAndTabs}
+      <div class="card" style="padding:16px;display:grid;gap:12px">
+        <div>
+          <h2 style="font-size:17px;margin:0">🤝 Tus Matches Mutuos (${matchList.length})</h2>
+          <p class="muted" style="font-size:12.5px;margin-top:3px">Jugadores con los que ambos se dieron Like. Ya están agregados y pueden enviarse mensajes directos.</p>
+        </div>
+        ${matchList.length ? `<ul class="rl" style="display:grid;gap:12px">
+          ${matchList.map(uidKey => {
+            const u = U[uidKey] || {a:uidKey, city:'Comunidad', cur:'hk', pl:['pc']};
+            return `<li class="card" style="padding:14px;background:var(--surface2);border:1px solid rgba(139,92,246,0.35);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              ${av(uidKey, 46, true)}
+              <div style="flex:1;min-width:150px">
+                <button type="button" class="user-link" data-a="user" data-k="${uidKey}"><b style="font-size:15px">@${esc(u.a)}</b></button>
+                <small class="muted" style="display:block">${esc(u.city||'Comunidad')} · Juega ${esc(G[u.cur]?.t||'Gaming')}</small>
+                <span class="badge" style="margin-top:4px;font-size:10px;color:var(--ok);border-color:var(--ok)">🔥 Match Confirmado</span>
+              </div>
+              <div class="line" style="gap:6px">
+                <button type="button" class="btn sm ghost" data-a="user" data-k="${uidKey}">Perfil</button>
+                <button type="button" class="btn sm" data-a="dm" data-k="${uidKey}">${I('chat',14)} Chatear</button>
+              </div>
+            </li>`;
+          }).join('')}
+        </ul>` : `<div class="empty" style="padding:28px 16px">
+          ${I('users',30)}
+          <b style="color:var(--fg)">Aún no tienes Matches mutuos</b>
+          <span>Revisa la pestaña <b>💚 Te dieron Like</b> o desliza perfiles en <b>🔥 Swipe</b>.</span>
+        </div>`}
+      </div>
+    </div>${footer()}</div>`;
+  }
+
+  if(!k){
+    return `<div class="view wrap"><div class="inner" style="max-width:480px;padding-block:24px 36px">
+      ${headerAndTabs}
       <div class="mfilters">
         <select id="mf-lang" data-a="mflang" aria-label="Filtrar por idioma">
           <option value="all" ${S.mLang==='all'?'selected':''}>🌐 Todos los idiomas</option>
@@ -3367,12 +3585,15 @@ function vMatch(){
           <option value="switch" ${S.mPlat==='switch'?'selected':''}>Switch</option>
         </select>
       </div>
-      ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
       <div class="empty">
         ${I('flame',36)}
-        <b style="color:var(--fg);font-size:16px">¡Has visto a todos los jugadores por ahora!</b>
-        <span>${matched.length?`Conectaste con ${esc(matched.join(', '))}.`: 'Prueba ajustando los filtros de idioma o distancia para descubrir más perfiles.'}</span>
-        <button class="btn" data-a="mrst">Reiniciar baraja</button>
+        <b style="color:var(--fg);font-size:16px">¡Ya revisaste todos los perfiles disponibles en el Swipe!</b>
+        <span>${sentList.length ? `Tienes <b>${sentList.length} perfil(es)</b> en la pestaña <b>⏳ Posibles</b> a los que ya les diste Like. Si quieres volver a verlos en la baraja o sincronizar con la nube, usa los botones de abajo:` : 'Sincroniza con la nube o reinicia tu baraja para volver a ver perfiles.'}</span>
+        <div class="line" style="justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+          ${reqList.length ? `<button type="button" class="btn sm" style="background:#10b981;border-color:transparent;color:#fff" data-a="matchtab" data-k="likes">💚 Ver quienes te dieron Like (${reqList.length})</button>` : ''}
+          ${sentList.length ? `<button type="button" class="btn sm ghost" data-a="matchtab" data-k="sent">⏳ Ver Posibles Matches (${sentList.length})</button>` : ''}
+          <button type="button" class="btn sm" data-a="mrst">🔄 Reiniciar baraja de Swipe</button>
+        </div>
       </div>
     </div>${footer()}</div>`;
   }
@@ -3380,14 +3601,10 @@ function vMatch(){
   const u=U[k],a=aff(me(),u);
   const nextKey=d[mi+1];
   const nextU=nextKey?U[nextKey]:null;
+  const likedMeAlready = hasLiked(k, sess);
 
-  return `<div class="view wrap"><div class="inner" style="max-width:440px;padding-block:24px 36px">
-    <div class="line" style="justify-content:space-between;align-items:center;margin-bottom:4px">
-      <h1 style="font-size:26px">Match</h1>
-      <span class="badge" style="color:#f59e0b;border-color:rgba(245,158,11,0.5)">${I('flame',13)} Tinder Gamer</span>
-    </div>
-    <p class="muted" style="margin:0 0 14px;font-size:13.5px">Encuentra jugadores que hablen tu idioma, compartan juegos y jueguen en tu horario.</p>
-    ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
+  return `<div class="view wrap"><div class="inner" style="max-width:480px;padding-block:24px 36px">
+    ${headerAndTabs}
     
     <div class="mfilters">
       <select id="mf-lang" data-a="mflang" aria-label="Filtrar por idioma">
@@ -3417,13 +3634,17 @@ function vMatch(){
         <div class="mhead" style="--h:${u.h}">
           ${av(k,64,true)}
           <div>
-            <h2 style="font-size:22px;color:#fff">${esc(u.a)}</h2>
-            <p style="font-size:13px;opacity:.95;display:flex;gap:5px;align-items:center">${I('pin',14)} ${esc(u.city)} <span style="opacity:.75">(${esc(u.dist)})</span></p>
+            <div class="line" style="gap:6px">
+              <h2 style="font-size:22px;color:#fff;margin:0">${esc(u.a)}</h2>
+              ${likedMeAlready ? `<span class="badge" style="background:#10b981;color:#fff;border-color:transparent;font-size:10.5px">💚 ¡Te dio Like!</span>` : ''}
+            </div>
+            <p style="font-size:13px;opacity:.95;display:flex;gap:5px;align-items:center;margin-top:3px">${I('pin',14)} ${esc(u.city)} <span style="opacity:.75">(${esc(u.dist)})</span></p>
           </div>
           <span class="pct">${a.pct}%</span>
         </div>
         
         <div class="mbody">
+          ${likedMeAlready ? `<div class="note" style="background:rgba(16,185,129,0.14);border-color:rgba(16,185,129,0.45);color:#34d399;padding:8px 12px;font-size:12.5px">💚 <b>@${esc(u.a)} ya te dio Like.</b> Si tocas el corazón verde harás Match al instante.</div>` : ''}
           <div class="line" style="gap:8px">
             <span class="badge" style="color:#38bdf8;border-color:rgba(56,189,248,0.5)">${I('globe',13)} ${esc(u.langFull||u.lang)}</span>
             <span class="badge" style="color:#34d399;border-color:rgba(52,211,153,0.5)">${I('mic',13)} ${esc(u.mic)}</span>
@@ -3433,17 +3654,17 @@ function vMatch(){
           
           <div>
             <p class="eyebrow" style="margin-bottom:5px">Juegos en común</p>
-            <p style="font-size:14px">${a.cg.length?a.cg.map(g=>`<b>${esc(G[g].t)}</b>`).join(', '):'Aún sin juegos en común en su top'}</p>
+            <p style="font-size:14px">${a.cg.length?a.cg.map(g=>`<b>${esc(G[g]?.t||g)}</b>`).join(', '):'Aún sin juegos en común en su top'}</p>
           </div>
           
           <div>
             <p class="eyebrow" style="margin-bottom:6px">Consolas y plataformas</p>
-            <div class="line">${u.pl.map(p=>`<span style="${a.cp.includes(p)?'':'opacity:.4'}">${plat(p)}</span>`).join('')}</div>
+            <div class="line">${(u.pl||['pc']).map(p=>`<span style="${a.cp.includes(p)?'':'opacity:.4'}">${plat(p)}</span>`).join('')}</div>
           </div>
           
           <div class="line" style="justify-content:space-between;padding-top:4px;border-top:1px solid var(--line)">
-            <span style="font-size:13px"><span class="muted">Horario:</span> <b>${esc(u.sch)}</b></span>
-            <span style="font-size:12px;color:var(--muted)">Jugando: <b>${esc(G[u.cur].t)}</b></span>
+            <span style="font-size:13px"><span class="muted">Horario:</span> <b>${esc(u.sch||'Noches')}</b></span>
+            <span style="font-size:12px;color:var(--muted)">Jugando: <b>${esc(G[u.cur]?.t||'Gaming')}</b></span>
           </div>
         </div>
       </div>
@@ -3500,14 +3721,11 @@ function decide(y, isSuper=false){
   if(!k)return;
   const u=U[k]||{a:k,city:'Comunidad',dist:'En línea',lang:'Español',mic:'Con micrófono',cur:'hk'};
   if(y){
-    if(!follows(sess).includes(k)){
-      follows(sess).push(k);
-    }
+    addLikeToUser(sess, k);
     save();
     sbUpsertProfile(me());
 
-    // Verificar si la otra persona TAMBIÉN te dio Like (Match mutuo real)
-    const theyLikedMe = follows(k).includes(sess);
+    const theyLikedMe = hasLiked(k, sess);
     if(theyLikedMe){
       if(!matched.includes(u.a)) matched.push(u.a);
       DB.notifs = DB.notifs || [];
@@ -3522,29 +3740,10 @@ function decide(y, isSuper=false){
         });
       }
       save();
-      modal(`<div class="match-popup">
-        <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">CHECKPOINT TINDER SOCIAL</span>
-        <h2 style="font-size:26px;color:#fff;margin:0">🔥 ¡ES UN MATCH! 🔥</h2>
-        <div class="match-avatars">
-          ${av(sess,64)}
-          <span class="flame-icon">${I('flame',26)}</span>
-          ${av(k,64)}
-        </div>
-        <p style="font-size:15px;color:var(--fg);margin:0"><b>Tú</b> y <b>${esc(u.a)}</b> se dieron Like mutuamente para jugar juntos.</p>
-        <div class="glass" style="padding:10px 16px;font-size:13px;text-align:left;display:grid;gap:6px;width:100%;max-width:340px">
-          <div class="line" style="gap:8px"><span>🌐</span><span><b>Idioma:</b> ${esc(u.langFull||u.lang)}</span></div>
-          <div class="line" style="gap:8px"><span>📍</span><span><b>Ubicación:</b> ${esc(u.city)} (${esc(u.dist||'En línea')})</span></div>
-          <div class="line" style="gap:8px"><span>🎙️</span><span><b>Comunicación:</b> ${esc(u.mic||'Con micrófono')}</span></div>
-          <div class="line" style="gap:8px"><span>🎮</span><span><b>Juego actual:</b> ${esc(G[u.cur]?.t||'Gaming')}</span></div>
-        </div>
-        <div class="line" style="gap:10px;width:100%;justify-content:center;margin-top:6px">
-          <button class="btn" data-a="dm" data-k="${k}">${I('chat',16)} Enviar mensaje directo</button>
-          <button class="btn ghost" data-a="x">Seguir buscando</button>
-        </div>
-      </div>`);
+      openMatchCelebrationModal(k);
     } else {
-      S.note = `💚 Le enviaste Like a @${u.a}. Cuando también te dé Like en Match, harán Match y se abrirá el chat.`;
-      setTimeout(()=>{ if(S.note && S.note.startsWith('💚')){ S.note=''; render(); } }, 4000);
+      S.note = `💚 Le enviaste Like a @${u.a} (guardado en la pestaña "⏳ Posibles"). Cuando también te dé Like, harán Match.`;
+      setTimeout(()=>{ if(S.note && S.note.startsWith('💚')){ S.note=''; render(); } }, 4500);
     }
   }else{
     mi++;
@@ -4640,12 +4839,75 @@ document.addEventListener('click',async e=>{
      else if(openRev)openReviewModal(k);
      break;
    }
-   case 'follow':{const l=follows(sess),i=l.indexOf(k);if(i>=0)l.splice(i,1);else l.push(k);save();render();break}
+   case 'follow':{
+     if(hasLiked(sess,k)) removeLikeFromUser(sess,k);
+     else addLikeToUser(sess,k);
+     save();sbUpsertProfile(me());render();break;
+   }
+   case 'matchtab':{
+     S.matchTab=k;
+     S.note='';
+     syncFromSupabase(false);
+     render();
+     break;
+   }
+   case 'acceptmatch':{
+     addLikeToUser(sess, k);
+     save();
+     sbUpsertProfile(me());
+     const u=U[k]||{a:k};
+     if(!matched.includes(u.a)) matched.push(u.a);
+     DB.notifs = DB.notifs || [];
+     if(!DB.notifs.some(n => n.t === 'match' && n.u === k)){
+       DB.notifs.unshift({
+         id: 'nm_' + uid(),
+         u: k,
+         t: 'match',
+         txt: `¡Aceptaste la solicitud de Match con @${u.a}! Ya pueden chatear.`,
+         time: 'Justo ahora',
+         read: false
+       });
+     }
+     save();
+     render();
+     openMatchCelebrationModal(k);
+     break;
+   }
+   case 'unfollow':{
+     removeLikeFromUser(sess, k);
+     save();
+     sbUpsertProfile(me());
+     S.matchTab='swipe';
+     mi=0;
+     S.note='↩️ Perfil devuelto a tu baraja de Swipe.';
+     render();
+     break;
+   }
+   case 'syncmatch':{
+     S.note='🔄 Sincronizando Likes y Matches con Supabase...';
+     render();
+     syncFromSupabase(true);
+     break;
+   }
    case 'dm':openDM(k);break;
    case 'up':openUpload(k==='rev'?'rev':'post');break;
    case 'utab':upTab=k;paintUpload();break;
    case 'ucat':upCat=k;$$('[data-a="ucat"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));break;
-   case 'mrst':mi=0;matched=[];render();break;
+   case 'mrst':{
+     // Reiniciar baraja devolviendo al Swipe los perfiles que aún no son Match mutuo
+     const keepMutual = follows(sess).filter(x => {
+       const matchUser = otherPlayers().find(p => p === x || ('@' + String(U[p]?.a||'').toLowerCase()) === x);
+       return matchUser && hasLiked(matchUser, sess);
+     });
+     DB.follow[sess] = keepMutual;
+     mi=0;
+     save();
+     sbUpsertProfile(me());
+     syncFromSupabase(false);
+     S.note='🔄 Baraja reiniciada: los perfiles sin Match mutuo volvieron a tu Swipe.';
+     render();
+     break;
+   }
    case 'mno':decide(false);break;
    case 'myes':decide(true);break;
    case 'mtab':S.msgTab=k;S.thr=null;render();break;
