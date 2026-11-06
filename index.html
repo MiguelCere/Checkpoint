@@ -1697,25 +1697,19 @@ const G={
  zl:{t:'Zelda: Tears of the Kingdom',y:2023,h:120,dev:'Nintendo EPD',size:'18.2 GB',date:'12 May 2023',genre:'Acción y Aventura / Sandbox de mundo abierto',multi:'Un jugador',cross:'Nintendo Switch',score:4.9,ost:4.8,meta:96,metaUser:8.5,openCritic:96,syn:'Una épica aventura por la tierra, los cielos y las profundidades subterráneas de Hyrule. Utiliza habilidades innovadoras como Ultramano y Fusión para crear armas, vehículos e ingenios mecánicos infinitos mientras salvas al reino de la destrucción.'},
  mc:{t:'Minecraft',y:2011,h:100,dev:'Mojang Studios',size:'2 GB',date:'18 Nov 2011',genre:'Sandbox / Supervivencia, Aventura y Construcción',multi:'Un jugador + Multijugador online cooperativo y servidores',cross:'Multiplataforma total (PC, Consolas, Móvil, Cross-play)',score:4.8,ost:4.9,meta:93,metaUser:8.2,openCritic:91,syn:'Explora mundos infinitos generados proceduralmente y construye desde un refugio básico hasta impresionantes metrópolis. Juega en modo creativo con recursos ilimitados o sumérgete en el modo supervivencia explorando minas y combatiendo criaturas en la noche.'}
 };
-const SEED={
- kari:{a:'kari_ost',city:'Cd. Juárez',dist:'Cercano · 3 km',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',h:330,badges:['Oído fino','Verificado'],act:54,fol:12,fans:40,cur:'hf',fav:['hf','ce','hd','p5'],pl:['switch','pc'],sch:'Fines de semana',bio:'Reseño juegos por su banda sonora. Siempre con audífonos puestos.'},
- montse:{a:'montse.b',city:'El Paso',dist:'Cercano · 9 km',lang:'Español',langFull:'Español (Bilingüe)',mic:'Con micrófono',h:190,badges:['Coleccionista'],act:71,fol:20,fans:18,cur:'sh',fav:['sh','de','ow','hk'],pl:['playstation'],sch:'Noches entre semana',bio:'Survival horror, té caliente y debates sobre lore.'},
- hern:{a:'m.hernan',city:'Chihuahua',dist:'350 km',lang:'Español',langFull:'Español (Latam)',mic:'Solo texto',h:140,badges:['Estratega'],act:22,fol:8,fans:5,cur:'hd',fav:['hd','ce','hk','hf'],pl:['pc','xbox'],sch:'Noches',bio:'Roguelikes hasta que amanezca. Partidas casuales sin prisa.'},
- dani:{a:'dani.plays',city:'Cd. Juárez',dist:'Cercano · 5 km',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',h:48,badges:['Speedrunner'],act:88,fol:30,fans:64,cur:'zl',fav:['zl','ce','hf','mc'],pl:['switch'],sch:'Tardes',bio:'Speedruns, rutas secretas y café infinito.'},
- rox:{a:'rox_xbl',city:'Cd. Juárez',dist:'Cercano · 2 km',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',h:305,badges:['Cazalogros','Xbox Ambassador'],act:120,fol:44,fans:91,cur:'gw',fav:['gw','rd','sh','ow'],pl:['xbox'],sch:'Noches entre semana',bio:'Persiguiendo el 100% de logros en cada campaña.'},
- chuy:{a:'chuy.pc',city:'El Paso',dist:'Cercano · 11 km',lang:'Español',langFull:'Español (Bilingüe)',mic:'Con micrófono',h:90,badges:['Modder'],act:35,fol:9,fans:11,cur:'mc',fav:['mc','hk','hd','de'],pl:['pc'],sch:'Fines de semana',bio:'Modeando todo lo que toco. Servidores dedicados y survival.'},
- valen:{a:'valen_rpg',city:'CDMX',dist:'Red Global',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',h:215,badges:['JRPG Fan'],act:67,fol:15,fans:52,cur:'p5',fav:['p5','de','hk','ow'],pl:['playstation','pc'],sch:'Tardes y noches',bio:'JRPGs de 100+ horas y debates de worldbuilding.'},
- mateo:{a:'mateo_coop',city:'Bogotá',dist:'Red Global',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',h:160,badges:['Team Player'],act:49,fol:11,fans:38,cur:'rd',fav:['rd','gw','hd','mc'],pl:['xbox','pc'],sch:'Fines de semana',bio:'Buscando escuadrón para cooperativo y campañas en equipo.'},
- lucia:{a:'lucia_indie',city:'Madrid',dist:'Red Global',lang:'Español',langFull:'Español (España)',mic:'Fines de semana',h:280,badges:['Indie Curator'],act:83,fol:22,fans:70,cur:'ce',fav:['ce','hk','ow','de'],pl:['pc','switch'],sch:'Tardes',bio:'Plataformas milimétricas y bandas sonoras orquestales.'}
+// Sin cuentas bot pregeneradas: solo usuarios reales registrados en Supabase / dispositivo
+const BOT_IDS = new Set(['alex_g','kari','montse','hern','dani','rox','chuy','valen','mateo','lucia']);
+const isBotAccount = (acc) => {
+  if(!acc) return true;
+  if(BOT_IDS.has(acc.id) || BOT_IDS.has(acc.a)) return true;
+  const em = String(acc.e || '').toLowerCase();
+  const al = String(acc.a || '').toLowerCase();
+  if(em.endsWith('@checkpoint.gg') || em.endsWith('@example.com') || em.endsWith('@test.com') || em.endsWith('@mailinator.com') || em.endsWith('@tempmail.com') || em.endsWith('@yopmail.com')) return true;
+  if(al.startsWith('bot_') || al.startsWith('demo_') || al === 'alex_gamer') return true;
+  return false;
 };
-const STORIES={
- kari:{u:'kari',c:'Gameplay',g:'hf',txt:'¡Rango S en el jefe rítmico! Qué gozada de banda sonora 🔥',ago:'hace 1 h'},
- montse:{u:'montse',c:'Setup',g:'sh',txt:'Noche lluviosa perfecta para Silent Hill con audífonos 🎧',ago:'hace 2 h'},
- rox:{u:'rox',c:'Loot',g:'gw',txt:'¡Edición coleccionista en mis manos! Miren esta caja de metal 😍',ago:'hace 3 h'},
- dani:{u:'dani',c:'Gameplay',g:'zl',txt:'Nuevo atajo descubierto en el santuario del trueno ⚡',ago:'hace 4 h'},
- valen:{u:'valen',c:'Gameplay',g:'p5',txt:'Palacio superado en un solo intento. El equipo está al 100 ✨',ago:'hace 5 h'},
- lucia:{u:'lucia',c:'En pausa',g:'ce',txt:'Llegué a la cumbre sin asistencias. Las manos temblando 🏔️',ago:'hace 6 h'}
-};
+const SEED={};
+const STORIES={};
 
 function getAllStoriesList(){
   const list = [];
@@ -1758,42 +1752,23 @@ function getStoryKeys(){
   return getAllStoriesList().map(st => st.id);
 }
 
-const SR=[
- {id:'r1',u:'montse',g:'sh',s:4,o:5,p:'playstation',d:'31 oct',t:'Angelo Badalamenti sigue siendo el verdadero monstruo del juego.'},
- {id:'r2',u:'kari',g:'hf',s:3.5,o:5,p:'switch',d:'29 oct',t:'Me divertí más de lo que esperaba. El ritmo manda.'},
- {id:'r3',u:'hern',g:'hd',s:5,o:4,p:'pc',d:'27 oct',t:'Morir nunca había sido tan agradable.'},
- {id:'r4',u:'dani',g:'zl',s:4.5,o:5,p:'switch',d:'25 oct',t:'Explorar sin mapa te cambia la cabeza.'},
- {id:'r5',u:'rox',g:'gw',s:4,o:3.5,p:'xbox',d:'24 oct',t:'Campaña corta, pero cada capítulo pega.'},
- {id:'r6',u:'kari',g:'ce',s:4.5,o:5,p:'switch',d:'20 oct',t:'Una escalada que de verdad te dice que sí se puede.'}];
-const SP=[
- {id:'p1',u:'kari',c:'Gameplay',h:330,t:'Combo perfecto en el jefe final.',d:'2 nov',l:21},
- {id:'p2',u:'montse',c:'Setup',h:190,t:'El rincón gamer ya está listo.',d:'2 nov',l:17},
- {id:'p3',u:'rox',c:'Loot',h:305,t:'Edición coleccionista de E-Day, por fin.',d:'1 nov',l:34},
- {id:'p4',u:'hern',c:'Loot',h:350,t:'Steelbook de Hades. Soy feliz.',d:'30 oct',l:9},
- {id:'p5',u:'dani',c:'En pausa',h:48,t:'Pausa larga: se acabó el café.',d:'29 oct',l:12},
- {id:'p6',u:'chuy',c:'Setup',h:90,t:'Cable management nivel dios.',d:'28 oct',l:8},
- {id:'p7',u:'dani',c:'Gameplay',h:120,t:'Primera vez que paso este santuario.',d:'26 oct',l:19},
- {id:'p8',u:'rox',c:'Gameplay',h:12,t:'Logro raro desbloqueado.',d:'25 oct',l:27},
- {id:'p9',u:'montse',c:'En pausa',h:200,t:'Lluvia, manta y Silent Hill.',d:'23 oct',l:22}];
-const COMMENTS=['Qué buen setup','Ese jefe es una pesadilla','Quiero uno igual','Nos vemos en la partida','Increíble, felicidades','Me lo recomendaron mucho','Esa música me tiene atrapado'];
-const GROUPS_SUG=[{n:'Xbox Juárez',d:'Quedadas y logros',m:['rox','kari'],h:150},{n:'OST Lovers',d:'Bandas sonoras que no se olvidan',m:['kari','montse'],h:300},{n:'PC Gamers Chihuahua',d:'Mods, builds y ofertas',m:['chuy','hern'],h:30}];
+const SR=[];
+const SP=[];
+const COMMENTS=[];
+const GROUPS_SUG=[];
 
-/* ─────────── estado persistente ─────────── */
-const DBK='cp2-db',SESK='cp3-auth-session';
+/* ─────────── estado persistente (solo usuarios reales) ─────────── */
+const DBK='cp4-real-db',SESK='cp4-real-session';
 let DB={accounts:[],posts:[],reviews:[],follow:{},likes:{},comments:{},saved:{},threads:[]};
 try{const x=JSON.parse(localStorage.getItem(DBK)||'null');if(x)DB={...DB,...x}}catch(e){}
+DB.accounts=(DB.accounts||[]).filter(a=>!isBotAccount(a));
+DB.posts=(DB.posts||[]).filter(p=>!BOT_IDS.has(p.u));
+DB.reviews=(DB.reviews||[]).filter(r=>!BOT_IDS.has(r.u));
+DB.stories=(DB.stories||[]).filter(st=>!BOT_IDS.has(st.u));
+DB.notifs=(DB.notifs||[]).filter(n=>!BOT_IDS.has(n.u));
+DB.threads=(DB.threads||[]).filter(t=>!BOT_IDS.has(t.u));
 DB.saved=DB.saved||{};
 DB.lists=DB.lists||[];
-DB.stories=DB.stories||[];
-DB.notifs=DB.notifs||[];
-if(!DB.notifs.length){
-  DB.notifs=[
-    {id:'n0',u:'rox',t:'match',txt:'¡Hiciste Match Gamer con rox_xbl! Envíanos un mensaje para jugar.',time:'hace 5 min',read:false},
-    {id:'n1',u:'kari',t:'like',post:'p1',txt:'le dio like a tu publicación en el feed.',time:'hace 15 min',read:false},
-    {id:'n2',u:'dani',t:'story',txt:'reaccionó con ❤️ a tu historia instantánea.',time:'hace 1 h',read:false},
-    {id:'n3',u:'montse',t:'comment',post:'r1',txt:'comentó en tu reseña de Silent Hill 2.',time:'hace 3 h',read:true}
-  ];
-}
 let storeFull=false;
 function save(){try{localStorage.setItem(DBK,JSON.stringify(DB));storeFull=false}catch(e){storeFull=true}}
 let sess=null, sessExp=0;
@@ -1816,17 +1791,14 @@ try{
   }
 }catch(e){}
 
-const DEMO_ACC={
- id:'alex_g',a:'alex_gamer',e:'alex@checkpoint.gg',salt:'',hash:'',
- city:'Cd. Juárez',dist:'Aquí',lang:'Español',langFull:'Español (Latam)',mic:'Con micrófono',
- h:270,badges:['Beta Tester','Gamer'],act:95,fol:5,fans:26,
- cur:'hk',fav:['hk','hd','de','ce'],pl:['pc','xbox'],sch:'Noches',
- bio:'Metroidvanias, roguelikes y debate de bandas sonoras. Buscando escuadrón para coop.',created:Date.now()
-};
-if(!DB.accounts.some(a=>a.id===DEMO_ACC.id)){DB.accounts.unshift(DEMO_ACC)}
-
-const U={};Object.keys(SEED).forEach(k=>U[k]={...SEED[k],id:k});
-DB.accounts.forEach(a=>U[a.id]=a);
+const U={};
+DB.accounts.forEach(a=>{
+  if(!isBotAccount(a)){
+    U[a.id]=a;
+    SEED[a.id]=a;
+  }
+});
+const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
   sess=null;
   try{localStorage.removeItem(SESK)}catch(e){}
@@ -1984,36 +1956,7 @@ function vAuth(){
 
         ${signup?(S.step===1?formSignup1():formSignup2()):formLogin()}
 
-        <!-- Perfiles de prueba opcionales (colapsados para no estorbar el registro real) -->
-        <details class="card" style="padding:10px 14px;background:var(--surface2);font-size:12px">
-          <summary style="cursor:pointer;color:var(--muted);font-weight:600;user-select:none">¿Solo quieres explorar una vista previa rápida? Ver perfiles demo</summary>
-          <div style="display:grid;gap:8px;margin-top:10px">
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="alex_g">
-              ${av('alex_g',34,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13px">Alex Gamer (Demo)</b>
-                <small class="muted">PC & Xbox · Cd. Juárez</small>
-              </div>
-              <span class="badge">Probar</span>
-            </button>
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="kari">
-              ${av('kari',34,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13px">Kari OST (Demo)</b>
-                <small class="muted">Switch & PC · Cd. Juárez</small>
-              </div>
-              <span class="badge">Probar</span>
-            </button>
-            <button type="button" class="demo-account-card" data-a="switchacc" data-k="montse">
-              ${av('montse',34,true)}
-              <div style="flex:1;min-width:0">
-                <b style="display:block;font-size:13px">Montse B. (Demo)</b>
-                <small class="muted">PlayStation 5 · El Paso</small>
-              </div>
-              <span class="badge">Probar</span>
-            </button>
-          </div>
-        </details>
+
       </div>
     </section>
   </div>`;
@@ -2348,6 +2291,7 @@ async function syncFromSupabase(showToast = false){
     const { data: profs } = await sbClient.from('profiles').select('*').limit(100);
     if(Array.isArray(profs)){
       profs.forEach(row => {
+        if(isBotAccount({id:row.id, a:row.alias, e:''})) return;
         const langVal = row.lang || 'Español';
         const mapped = {
           id: row.id,
@@ -2656,13 +2600,7 @@ function openReviewModal(id){
   const liked = !!DB.likes[id];
   const saved = !!DB.saved[id];
   const nLikes = Math.round(r.s * 8) + (liked ? 1 : 0);
-  const cm = [
-    ...[0, 1].map(i => ({
-      u: ['kari', 'montse', 'dani', 'rox', 'chuy', 'hern'][(hash(id) + i * 2) % 6],
-      t: COMMENTS[(hash(id) + i * 3) % COMMENTS.length]
-    })),
-    ...(DB.comments[id] || [])
-  ];
+  const cm = DB.comments[id] || [];
 
   modal(`
     <div class="rev-detail-modal" data-rev-id="${r.id}">
@@ -2763,7 +2701,7 @@ function openPost(id){
   if(r) return openReviewModal(id);
   const p=allPosts().find(x=>x.id===id);if(!p)return;
   const u=U[p.u]||{a:p.u,city:'Comunidad'},liked=!!DB.likes[id],saved=!!DB.saved[id],n=p.l+(liked?1:0);
-  const cm=[...[0,1].map(i=>({u:['kari','montse','dani','rox','chuy','hern'][(hash(id)+i*2)%6],t:COMMENTS[(hash(id)+i*3)%COMMENTS.length]})),...(DB.comments[id]||[])];
+  const cm=DB.comments[id]||[];
   modal(`<div class="pm">
     <div class="pimg" data-a="zoomimg" title="Toca la imagen para hacer zoom / ampliar">
       ${pimg(p)}
@@ -2919,7 +2857,7 @@ function postCard(x){
       </div>
       <button type="button" data-a="save" data-k="${p.id}" class="${saved?'saved':''}" aria-label="Guardar" title="Guardar en tu perfil privado">${I('bookmark',21)}</button>
     </div>
-    <div class="post-likes-txt"><b>${nLikes} me gusta</b>${nLikes>5?' · Les gusta a <a href="#u-rox" data-a="user" data-k="rox"><b>rox_xbl</b></a> y amigos':''}</div>
+    <div class="post-likes-txt"><b>${nLikes} me gusta</b></div>
     <p class="post-caption-txt"><a href="#u-${p.u}" data-a="user" data-k="${p.u}"><b>${esc(u.a)}</b></a> <span class="muted">${esc(p.t)}</span> <span style="opacity:.6;font-size:12px">#${esc(p.c)} #Checkpoint #Gaming</span></p>
     ${cm.length?`<div class="post-cm-preview">${cm.slice(-2).map(c=>`<div><a href="#u-${c.u}" data-a="user" data-k="${c.u}"><b>${esc(U[c.u]?.a||'Tú')}</b></a> <span>${esc(c.t)}</span></div>`).join('')}</div>`:''}
     <div style="padding:0 12px"><button type="button" data-a="post" data-k="${p.id}" class="muted" style="font-size:12.5px">${cm.length>2?`Ver los ${cm.length+2} comentarios`:'Ver comentarios y ampliar foto'}</button></div>
@@ -3233,7 +3171,8 @@ function vHome(){
   for(let n=0;n<Math.max(P.length,Rv.length);n++){if(P[n])pool.push(P[n]);if(Rv[n])pool.push(Rv[n])}
   const a=pool.filter(near),b=pool.filter(x=>!near(x)),out=[];let i=0,j=0;
   while(i<a.length||j<b.length){for(let n=0;n<7&&i<a.length;n++)out.push(a[i++]);for(let n=0;n<3&&j<b.length;n++)out.push(b[j++])}
-  const people=Object.keys(SEED).filter(k=>!fl.includes(k)).slice(0,4);
+  const people=otherPlayers().filter(k=>!fl.includes(k)).slice(0,4);
+  const connectedReal=otherPlayers().slice(0,5);
   const top=Object.keys(G).slice(0,5);
 
   const allStories = getAllStoriesList();
@@ -3255,12 +3194,12 @@ function vHome(){
         </div>
       </div>
       <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">
-        ${['kari','montse','rox','dani','valen'].map(k=>`
+        ${connectedReal.length ? connectedReal.map(k=>`
           <button type="button" data-a="dm" data-k="${k}" style="display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:99px;background:var(--surface);border:1px solid var(--edge);white-space:nowrap;font-size:12px;font-weight:600">
             ${av(k,24,true)}
             <span>${esc(U[k]?.a||k)}</span>
           </button>
-        `).join('')}
+        `).join('') : `<span class="muted" style="font-size:12px">Aún no hay otros jugadores conectados. ¡Invita a tus amigos!</span>`}
       </div>
     </div>
 
@@ -3301,8 +3240,7 @@ function vHome(){
       }).join('')}
     </ul>
 
-    ${!fl.length?`<div class="note" style="margin-bottom:16px">${I('userplus',18)}<span>Sigue a jugadores para llenar tu feed. Mostrando publicaciones destacadas de tu región e idioma.</span></div>`:''}
-    ${out.map(postCard).join('')}
+    ${out.length ? out.map(postCard).join('') : `<div class="empty" style="margin-top:8px">${I('sparkle',32)}<b style="color:var(--fg);font-size:16px">¡Comunidad 100% de jugadores reales!</b><span>Ya eliminamos todas las cuentas de bots. Sé el primero en compartir una captura de partida o escribir una reseña en el feed.</span><div class="line" style="justify-content:center;gap:10px;margin-top:6px"><button class="btn sm" data-a="up">${I('plus',15)} Subir foto</button><button class="btn sm ghost" data-a="up" data-k="rev">${I('star',15)} Escribir reseña</button></div></div>`}
   </div>
   <aside class="rail" aria-label="Panel lateral del feed">
     <div class="card" style="padding:14px">
@@ -3330,7 +3268,7 @@ function vHome(){
         <span class="badge" style="font-size:10px;color:var(--ok);border-color:rgba(52,211,153,0.3)">En línea</span>
       </div>
       <ul class="rl" style="display:grid;gap:10px">
-        ${['kari','montse','rox','dani','valen'].map(k=>`
+        ${connectedReal.length ? connectedReal.map(k=>`
           <li>
             ${av(k,36,true)}
             <div style="flex:1;min-width:0">
@@ -3339,7 +3277,7 @@ function vHome(){
             </div>
             <button class="btn sm ghost" data-a="dm" data-k="${k}" title="Chatear con ${esc(U[k].a)}">${I('chat',13)} Chat</button>
           </li>
-        `).join('')}
+        `).join('') : '<li class="muted" style="font-size:12px">Esperando a que más jugadores reales se registren.</li>'}
       </ul>
     </div>
 
@@ -3397,15 +3335,15 @@ function vHome(){
 }
 
 /* ─────────── explorar ─────────── */
-function vExplore(){return `<div class="view wrap"><div class="inner" style="padding-block:28px 40px"><div class="mhd" style="margin-bottom:16px"><h1 style="font-size:26px">Explorar</h1><button type="button" class="btn ghost sm" data-a="nav" data-k="match">${I('flame',14)} Ir a Match</button></div><div class="sbox" style="margin-bottom:22px;padding-left:16px">${I('search',18)}<input id="q" placeholder="Busca un juego o un jugador" maxlength="80"></div><h2 class="eyebrow" style="margin-bottom:10px">Jugadores</h2><ul class="rl" id="pl" style="margin-bottom:26px">${Object.keys(SEED).map(k=>`<li data-n="${esc((U[k].a+' '+U[k].city).toLowerCase())}" style="cursor:pointer">${av(k,42,true)}<div><button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button><small>${esc(U[k].city)} · juega ${esc(G[U[k].cur].t)}</small></div><button class="btn sm ${follows(sess).includes(k)?'ghost':''}" data-a="follow" data-k="${k}">${follows(sess).includes(k)?'Siguiendo':'Seguir'}</button></li>`).join('')}</ul><h2 class="eyebrow" style="margin-bottom:10px">Juegos</h2><ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:14px">${Object.keys(G).map(k=>`<li data-n="${esc(G[k].t.toLowerCase())}"><button type="button" data-a="game" data-k="${k}" style="display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">${cover(k)}<b style="font-size:13px;color:var(--fg);display:block;margin-top:2px">${esc(G[k].t)}</b><small class="muted" style="font-size:11px;display:block">${esc(G[k].genre.split('/')[0])}</small></button></li>`).join('')}</ul><p class="muted" style="font-size:12px;margin-top:14px">Vista previa: filtra los datos de ejemplo. Con la llave de RAWG busca en todo el catálogo.</p></div>${footer()}</div>`}
+function vExplore(){return `<div class="view wrap"><div class="inner" style="padding-block:28px 40px"><div class="mhd" style="margin-bottom:16px"><h1 style="font-size:26px">Explorar</h1><button type="button" class="btn ghost sm" data-a="nav" data-k="match">${I('flame',14)} Ir a Match</button></div><div class="sbox" style="margin-bottom:22px;padding-left:16px">${I('search',18)}<input id="q" placeholder="Busca un juego o un jugador" maxlength="80"></div><h2 class="eyebrow" style="margin-bottom:10px">Jugadores</h2><ul class="rl" id="pl" style="margin-bottom:26px">${otherPlayers().length ? otherPlayers().map(k=>`<li data-n="${esc((U[k].a+' '+U[k].city).toLowerCase())}" style="cursor:pointer">${av(k,42,true)}<div><button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button><small>${esc(U[k].city)} · juega ${esc(G[U[k].cur]?.t||'Gaming')}</small></div><button class="btn sm ${follows(sess).includes(k)?'ghost':''}" data-a="follow" data-k="${k}">${follows(sess).includes(k)?'Siguiendo':'Seguir'}</button></li>`).join('') : '<li class="muted" style="font-size:13px">Aún no hay otros jugadores registrados en la comunidad.</li>'}</ul><h2 class="eyebrow" style="margin-bottom:10px">Juegos</h2><ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:14px">${Object.keys(G).map(k=>`<li data-n="${esc(G[k].t.toLowerCase())}"><button type="button" data-a="game" data-k="${k}" style="display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">${cover(k)}<b style="font-size:13px;color:var(--fg);display:block;margin-top:2px">${esc(G[k].t)}</b><small class="muted" style="font-size:11px;display:block">${esc(G[k].genre.split('/')[0])}</small></button></li>`).join('')}</ul><p class="muted" style="font-size:12px;margin-top:14px">Vista previa: filtra los datos de ejemplo. Con la llave de RAWG busca en todo el catálogo.</p></div>${footer()}</div>`}
 function hookExplore(){$('#q').addEventListener('input',e=>{const v=e.target.value.toLowerCase().trim();$$('#pl li,#gl li').forEach(li=>li.hidden=!!v&&!li.dataset.n.includes(v))})}
 
 /* ─────────── match ─────────── */
 let mi=0,matched=[];
 function candidateDeck(){
-  return Object.keys(SEED).filter(k=>{
+  return otherPlayers().filter(k=>{
     if(follows(sess).includes(k)) return false;
-    const u=SEED[k];
+    const u=U[k];
     if(S.mLang==='es' && !u.lang.includes('Español')) return false;
     if(S.mLang==='bi' && !u.langFull.includes('Bilingüe')) return false;
     if(S.mDist==='near' && !u.dist.includes('Cercano')) return false;
@@ -3625,13 +3563,7 @@ function decide(y, isSuper=false){
 /* ─────────── mensajes ─────────── */
 let _thr=[];const THR=()=>_thr;
 function buildThreads(){
-  const seeds=[
-   {id:'t1',type:'dm',u:'kari',known:1,un:0,m:[['kari','Ya viste el nuevo tráiler?'],['me','Sí, se ve increíble'],['kari','Lo juegas en Xbox o PC?'],['me','Xbox, casi siempre de noche'],['kari','Yo también, coordinamos'],['me','Va, el jueves'],['kari','Dale, te mando mi setup'],['me','Va'],['kari','Listo'],['me','Quedamos'],['kari',{i:30}]]},
-   {id:'t2',type:'group',name:'Checkpoint Juárez',h:285,members:['kari','dani','rox'],known:1,un:3,m:[['rox','Alguien para la quedada del sábado?'],['dani','Yo entro, llevo el control extra'],['kari','Yo llego tarde pero llego'],['rox','Perfecto, armamos la sala a las 8']]},
-   {id:'t3',type:'dm',u:'montse',known:1,un:1,m:[['montse','Hola, vi que también te gusta Silent Hill']]},
-   {id:'t4',type:'dm',u:'hern',known:0,un:1,m:[['hern','Hola!!']]},
-   {id:'t5',type:'dm',u:'dani',known:1,un:0,m:[['dani','Te mandé la ruta del speedrun'],['me','Gracias, la reviso hoy']]}];
-  _thr=[...seeds,...DB.threads.filter(t=>t.owner===sess)];
+  _thr=[...DB.threads.filter(t=>t.owner===sess&&!BOT_IDS.has(t.u))];
 }
 const thrName=t=>t.type==='group'?t.name:U[t.u].a;
 const sentBy=(t,w)=>t.m.filter(x=>x[0]===w&&typeof x[1]==='string').length;
@@ -3821,12 +3753,7 @@ const REPLIES=[
 ];
 
 function autoReply(t){
-  setTimeout(()=>{
-    if(!THR().includes(t))return;
-    const w=t.type==='group'?t.members[Math.floor(Math.random()*t.members.length)]:t.u;
-    addMsg(t,w,REPLIES[Math.floor(Math.random()*REPLIES.length)]);
-    if(S.thr===t.id&&route()==='mensajes')render();
-  },800);
+  // Sin respuestas automáticas de bots: solo mensajes de usuarios reales
 }
 
 function openDM(k){
