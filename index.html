@@ -1758,10 +1758,11 @@ const COMMENTS=[];
 const GROUPS_SUG=[];
 
 /* ─────────── estado persistente (solo usuarios reales) ─────────── */
-const DBK='cp4-real-db',SESK='cp4-real-session';
+const DBK='cp5-secure-db',SESK='cp5-secure-session';
+try{localStorage.removeItem('cp2-db');localStorage.removeItem('cp2-session');localStorage.removeItem('cp3-auth-session');localStorage.removeItem('cp4-real-db');localStorage.removeItem('cp4-real-session');}catch(e){}
 let DB={accounts:[],posts:[],reviews:[],follow:{},likes:{},comments:{},saved:{},threads:[]};
 try{const x=JSON.parse(localStorage.getItem(DBK)||'null');if(x)DB={...DB,...x}}catch(e){}
-DB.accounts=(DB.accounts||[]).filter(a=>!isBotAccount(a));
+DB.accounts=(DB.accounts||[]).filter(a=>a&&a.salt&&a.hash&&!isBotAccount(a));
 DB.posts=(DB.posts||[]).filter(p=>!BOT_IDS.has(p.u));
 DB.reviews=(DB.reviews||[]).filter(r=>!BOT_IDS.has(r.u));
 DB.stories=(DB.stories||[]).filter(st=>!BOT_IDS.has(st.u));
@@ -1908,16 +1909,14 @@ async function pbkdf(pw,saltB64){
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
   return{salt:b64(salt),hash:b64(bits)}}
-const hasPersonalAccount = () => DB.accounts.some(a => a.id !== 'alex_g');
-let S={authTab:hasPersonalAccount()?'login':'signup',step:1,draft:{t:true},err:'',fails:0,until:0,msgTab:'todos',thr:null,note:'',rev:new Set(),ptab:'posts',filt:'Todo',busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null};
+let S={authTab:'signup',step:1,draft:{t:true},err:'',fails:0,until:0,msgTab:'todos',thr:null,note:'',rev:new Set(),ptab:'posts',filt:'Todo',busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null};
 function vAuth(){
   const signup=S.authTab==='signup';
-  const personalAccs = DB.accounts.filter(a => a.id !== 'alex_g');
   const feats=[
     ['star','Tu propio espacio y bitácora','Crea tu perfil, elige tus 4 juegos de cabecera y califica jugabilidad y banda sonora (OST).'],
     ['flame','Tinder Gamer por afinidad e idioma','Encuentra jugadores cercanos o globales que hablen tu idioma y jueguen tus mismos títulos.'],
     ['users','Mensajería privada y grupos','Coordinación directa de partidas, historias interactivas y comunidades temáticas.'],
-    ['shield','Espacio seguro y privado','Control total de tu cuenta, guardados privados y protección de sesiones.']
+    ['shield','Acceso protegido con contraseña','Cada cuenta es privada y requiere correo electrónico y contraseña para iniciar sesión.']
   ];
   return `<div class="auth">
     <section class="auth-art">
@@ -1939,26 +1938,7 @@ function vAuth(){
           <button role="tab" data-a="atab" data-k="login" aria-selected="${!signup}">Iniciar sesión</button>
         </div>
 
-        ${personalAccs.length && !signup ? `
-        <div class="card" style="padding:12px;background:var(--surface2);border:1px solid rgba(139,92,246,0.35)">
-          <span class="eyebrow" style="color:var(--accent);font-size:10px;display:block;margin-bottom:6px">TUS CUENTAS EN ESTE DISPOSITIVO</span>
-          <div style="display:grid;gap:6px">
-            ${personalAccs.map(acc => `
-              <button type="button" class="demo-account-card" data-a="switchacc" data-k="${esc(acc.id)}">
-                ${av(acc.id,34,true)}
-                <div style="flex:1;min-width:0">
-                  <b style="display:block;font-size:13px">@${esc(acc.a)}</b>
-                  <small class="muted">${esc(acc.city||'Jugador')} · ${esc(acc.e)}</small>
-                </div>
-                <span class="badge" style="color:var(--ok);border-color:var(--ok)">Entrar</span>
-              </button>
-            `).join('')}
-          </div>
-        </div>` : ''}
-
         ${signup?(S.step===1?formSignup1():formSignup2()):formLogin()}
-
-
       </div>
     </section>
   </div>`;
@@ -2144,16 +2124,12 @@ async function doLogin(){
     }catch(e){}
   }
 
-  // 2. Respaldo local (PBKDF2)
-  const acc=DB.accounts.find(x=>x.e===idv||x.a.toLowerCase()===idv);
+  // 2. Verificación estricta de contraseña cifrada (PBKDF2 SHA-256)
+  const acc=DB.accounts.find(x=>(x.e===idv||x.a.toLowerCase()===idv)&&x.salt&&x.hash);
   let ok=false;
-  if(acc){
-    if(!acc.salt && !acc.hash){
-      ok = true;
-    } else {
-      const r=await pbkdf(pw,acc.salt);
-      ok=r.hash===acc.hash;
-    }
+  if(acc && pw && acc.salt && acc.hash){
+    const r=await pbkdf(pw,acc.salt);
+    ok=(r.hash===acc.hash);
   }
   S.busy=false;
   if(ok){S.fails=0;startSession(acc.id);S.route='perfil';return render()}
@@ -2328,10 +2304,7 @@ async function syncFromSupabase(showToast = false){
         }
         if(!mapped.pl.length) mapped.pl = ['pc'];
         U[row.id] = { ...(U[row.id] || {}), ...mapped };
-        const idx = DB.accounts.findIndex(x => x.id === row.id);
-        if(idx >= 0) DB.accounts[idx] = U[row.id];
-        else DB.accounts.push(U[row.id]);
-        if(row.id !== sess && !SEED[row.id]){
+        if(row.id !== sess){
           SEED[row.id] = U[row.id];
         }
       });
@@ -4427,7 +4400,7 @@ function vSettings(){
       </div>
       <div class="line" style="gap:10px">
         <button class="btn" data-a="editprofile" style="flex:1">${I('gear',16)} Abrir editor de perfil</button>
-        <button class="btn ghost" data-a="switchmodal">${I('users',16)} Cambiar de cuenta</button>
+        <button class="btn ghost danger" data-a="logout">${I('logout',16)} Cerrar sesión</button>
       </div>
     </div>
 
@@ -4695,7 +4668,7 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'gnew':newGroupModal();break;
-   case 'demologin':startSession('alex_g');S.route='inicio';render();break;
+   case 'demologin':logout();break;
    case 'dmnew':openNewDMModal();break;
    case 'story':openStory(k);break;
    case 'mystory':openCreateStoryModal();break;
@@ -4845,34 +4818,10 @@ document.addEventListener('click',async e=>{
      paintEditProfileModal();
      break;
    }
-   case 'switchacc':{
-     startSession(k);
-     S.route = 'inicio';
-     render();
+   case 'switchacc':
+   case 'switchmodal':
+     logout();
      break;
-   }
-   case 'switchmodal':{
-     modal(`<div class="hd"><h2>Cambiar de cuenta</h2><button class="cb" data-a="x">${I('x',18)}</button></div>
-       <p class="muted" style="font-size:13px">Selecciona con qué perfil deseas interactuar:</p>
-       <div style="display:grid;gap:8px;margin-top:10px">
-         <button type="button" class="demo-account-card" data-a="switchacc" data-k="alex_g">
-           ${av('alex_g',36,true)}
-           <div style="flex:1"><b>Alex Gamer</b><small class="muted" style="display:block">PC & Xbox · Cd. Juárez</small></div>
-           ${sess==='alex_g'?'<span class="badge" style="color:var(--ok)">Activo</span>':'<span class="badge">Elegir</span>'}
-         </button>
-         <button type="button" class="demo-account-card" data-a="switchacc" data-k="kari">
-           ${av('kari',36,true)}
-           <div style="flex:1"><b>Kari OST</b><small class="muted" style="display:block">Switch & PC · Cd. Juárez</small></div>
-           ${sess==='kari'?'<span class="badge" style="color:var(--ok)">Activo</span>':'<span class="badge">Elegir</span>'}
-         </button>
-         <button type="button" class="demo-account-card" data-a="switchacc" data-k="montse">
-           ${av('montse',36,true)}
-           <div style="flex:1"><b>Montse B.</b><small class="muted" style="display:block">PlayStation 5 · El Paso</small></div>
-           ${sess==='montse'?'<span class="badge" style="color:var(--ok)">Activo</span>':'<span class="badge">Elegir</span>'}
-         </button>
-       </div>`);
-     break;
-   }
    case 'game':openGameModal(k);break;
    case 'reviewgame':{
      closeModal();
