@@ -1,5 +1,23 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0c;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Checkpoint Social</title>
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Checkpoint — Tu Red Social de Videojuegos</title>
+<meta name="description" content="Bitácora de videojuegos, reseñas con calificación de banda sonora, feed visual y Match Gamer para encontrar escuadrón.">
+<meta name="theme-color" content="#0a0a0c">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Checkpoint Social">
+<meta property="og:title" content="Checkpoint — Tu Red Social de Videojuegos">
+<meta property="og:description" content="Registra tus juegos favoritos, califica jugabilidad y OST, comparte capturas y haz Match con otros jugadores.">
+<meta property="og:image" content="/og-checkpoint.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Checkpoint — Tu Red Social de Videojuegos">
+<meta name="twitter:description" content="Bitácora de videojuegos, comunidad y Match Gamer.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0a0c'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%238b5cf6' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M22 32.5 29.5 40 43 25' fill='none' stroke='%23f4f4f5' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="alternate icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0c;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+</head><body>
+<div id="top-loader" class="top-loader" hidden></div>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -1608,6 +1626,131 @@ footer a{text-decoration:underline}
     font-size: 11.5px !important;
   }
 }
+
+/* ─── PUNTO 4: PORTADAS Y TENDENCIAS LIMPIAS SIN TEXTO GIGANTE ENCIMA ─── */
+.cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--edge);
+  background: #111;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 6px 8px;
+  color: #fff;
+  min-width: 0;
+}
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, transparent 58%, rgba(0, 0, 0, 0.88) 100%);
+  pointer-events: none;
+}
+.cover span {
+  position: relative;
+  z-index: 3;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10.5px !important;
+  line-height: 1.15 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cover small {
+  position: relative;
+  z-index: 3;
+  font-size: 9px !important;
+  opacity: 0.82;
+}
+/* Ocultar texto superpuesto en miniaturas donde el título ya aparece al lado o abajo */
+.tr-i .cover span,
+.tr-i .cover small,
+.tr-i .cover::after,
+.tr-btn .cover span,
+.tr-btn .cover small,
+.tr-btn .cover::after,
+#gl .cover span,
+#gl .cover small,
+#gl .cover::after,
+.rv-row .cover span,
+.rv-row .cover small,
+.rv-row .cover::after,
+.stack .cover span,
+.stack .cover small,
+.stack .cover::after,
+.post .poster .cover span,
+.post .poster .cover small {
+  display: none !important;
+}
+.post .poster .cover {
+  max-width: 190px;
+  margin: 4px auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── PUNTO 5: TRANSICIONES FLUIDAS (FADE-IN) Y SKELETON LOADERS ─── */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes shimmerBar {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.view {
+  animation: viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.card, .post {
+  animation: viewFadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dlg {
+  animation: modalPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.top-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 120;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), var(--ok), transparent);
+  background-size: 200% 100%;
+  animation: shimmerBar 1.4s linear infinite;
+  pointer-events: none;
+}
+.skeleton-card {
+  border-radius: 18px;
+  border: 1px solid var(--edge);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmerBar 1.5s ease-in-out infinite;
+  padding: 18px;
+  min-height: 110px;
+}
 </style>
 
 <aside class="side" id="side" aria-label="Navegación principal"></aside>
@@ -2146,7 +2289,15 @@ async function doSignup2(){
       const { data, error } = await sbClient.auth.signUp({
         email: d.e,
         password: d.p,
-        options: { data: { alias: d.a, city: pf.city } }
+        options: {
+          data: {
+            alias: d.a,
+            city: pf.city,
+            current_game: d.cur || 'hk',
+            fav_games: favList,
+            platforms: d.pl
+          }
+        }
       });
       if(error){
         const msg = String(error.message || '').toLowerCase();
@@ -2316,31 +2467,107 @@ async function sbUpsertProfile(acc){
   }catch(e){}
 }
 
+async function getActiveCloudUid(){
+  if(isUuid(sess)) return sess;
+  if(!sbClient) return null;
+  try{
+    const { data } = await sbClient.auth.getSession();
+    return data?.session?.user?.id || null;
+  }catch(e){ return null; }
+}
+
 async function sbInsertPost(p){
-  if(!sbClient || !isUuid(sess)) return;
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud) return;
   try{
     const { data } = await sbClient.from('posts').insert({
-      user_id: sess,
+      user_id: uidCloud,
       category: p.c || 'Gameplay',
       caption: (p.t || '').slice(0, 280),
       image_url: p.img || null
     }).select().single();
-    if(data && data.id){ p.id = data.id; save(); }
+    if(data && data.id){ p.id = String(data.id); p.u = uidCloud; save(); }
+  }catch(e){}
+}
+
+async function sbUpdatePost(p){
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud || !p) return false;
+  try{
+    const payload = {
+      category: p.c || 'Gameplay',
+      caption: (p.t || '').slice(0, 280)
+    };
+    if(p.img) payload.image_url = p.img;
+    const { error } = await sbClient
+      .from('posts')
+      .update(payload)
+      .eq('id', p.id)
+      .eq('user_id', uidCloud);
+    return !error;
+  }catch(e){ return false; }
+}
+
+async function sbDeletePostOrReview(itemId, isReview = false){
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud) return;
+  try{
+    const table = isReview ? 'reviews' : 'posts';
+    await sbClient.from(table).delete().eq('id', itemId).eq('user_id', uidCloud);
   }catch(e){}
 }
 
 async function sbInsertReview(r){
-  if(!sbClient || !isUuid(sess)) return;
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud) return;
   try{
     const { data } = await sbClient.from('reviews').insert({
-      user_id: sess,
+      user_id: uidCloud,
       game_key: r.g || 'hk',
       stars: Number(r.s) || 4,
       ost: Number(r.o) || 4,
       platform: r.p || 'pc',
       body: (r.t || '').slice(0, 600)
     }).select().single();
-    if(data && data.id){ r.id = data.id; save(); }
+    if(data && data.id){ r.id = String(data.id); r.u = uidCloud; save(); }
+  }catch(e){}
+}
+
+async function sbUpdateReview(r){
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud || !r) return false;
+  try{
+    const { error } = await sbClient
+      .from('reviews')
+      .update({
+        game_key: r.g || 'hk',
+        stars: Number(r.s) || 4,
+        ost: Number(r.o) || 4,
+        platform: r.p || 'pc',
+        body: (r.t || '').slice(0, 600)
+      })
+      .eq('id', r.id)
+      .eq('user_id', uidCloud);
+    return !error;
+  }catch(e){ return false; }
+}
+
+async function sbInsertUserList(lst){
+  const uidCloud = await getActiveCloudUid();
+  if(!sbClient || !uidCloud || !lst) return;
+  try{
+    const { data } = await sbClient.from('user_lists').insert({
+      user_id: uidCloud,
+      title: (lst.t || '').slice(0, 80),
+      description: (lst.d || '').slice(0, 240),
+      games: Array.isArray(lst.g) ? lst.g : []
+    }).select().single();
+    if(data && data.id){
+      lst.id = String(data.id);
+      lst.u = uidCloud;
+      lst.user_id = uidCloud;
+      save();
+    }
   }catch(e){}
 }
 
@@ -2386,6 +2613,8 @@ async function sbInsertReport(targetId, reason){
 
 async function syncFromSupabase(showToast = false){
   if(!sbClient) return;
+  const loader = $('#top-loader');
+  if(loader) loader.hidden = false;
   try{
     // 1. Verificar sesión activa de Supabase Auth
     const { data: sessionData } = await sbClient.auth.getSession();
@@ -2419,7 +2648,7 @@ async function syncFromSupabase(showToast = false){
           fol: U[row.id]?.fol || 1,
           fans: U[row.id]?.fans || 3,
           cur: row.current_game || 'hk',
-          fav: (Array.isArray(row.fav_games) && row.fav_games.length) ? row.fav_games : ['hk','hd','ce','zl'],
+          fav: (Array.isArray(row.fav_games) && row.fav_games.length) ? [...row.fav_games].slice(0, 4) : (Array.isArray(U[row.id]?.fav) ? [...U[row.id].fav].slice(0, 4) : ['hk','hd','ce','zl']),
           pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms.filter(x => !String(x).startsWith('like:')) : ['pc'],
           sch: row.schedule || 'Noches',
           bio: row.bio || 'Jugador en Checkpoint.',
@@ -2500,10 +2729,33 @@ async function syncFromSupabase(showToast = false){
       DB.stories.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
-    // 6. Sincronizar guardados privados del usuario actual
+    // 6. Sincronizar Listas y Tops personales (filtrados estrictamente por user_id de cada autor)
+    try{
+      const { data: cloudLists } = await sbClient.from('user_lists').select('*').order('created_at', { ascending: false }).limit(100);
+      if(Array.isArray(cloudLists)){
+        cloudLists.forEach(row => {
+          if(!row.user_id) return;
+          const existingIdx = (DB.lists || []).findIndex(x => String(x.id) === String(row.id));
+          const mappedList = {
+            id: String(row.id),
+            u: String(row.user_id),
+            user_id: String(row.user_id),
+            t: row.title || 'Mi Top',
+            d: row.description || '',
+            g: Array.isArray(row.games) ? [...row.games] : [],
+            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+          };
+          if(existingIdx >= 0) DB.lists[existingIdx] = mappedList;
+          else DB.lists.push(mappedList);
+        });
+      }
+    }catch(e){}
+
+    // 6b. Sincronizar guardados privados exclusivamente del usuario autenticado (user_id === sess)
     if(sess && isUuid(sess)){
       const { data: cloudSaved } = await sbClient.from('saved_items').select('item_id').eq('user_id', sess);
       if(Array.isArray(cloudSaved)){
+        DB.saved = {};
         cloudSaved.forEach(row => { DB.saved[row.item_id] = 1; });
       }
     }
@@ -2549,7 +2801,9 @@ async function syncFromSupabase(showToast = false){
       setTimeout(()=>{ if(S.note && S.note.startsWith('☁️')){ S.note=''; render(); } }, 4000);
     }
     render();
-  }catch(e){}
+  }catch(e){}finally{
+    if(loader) setTimeout(()=>{ loader.hidden = true; }, 220);
+  }
 }
 
 /* ─────────── perfil ─────────── */
@@ -2561,9 +2815,12 @@ function vProfile(k){
   const savedReviews = allReviews().filter(r => DB.saved && DB.saved[r.id]);
   const act=activity(u),lvl=Math.floor(act/25)+1,pct=(act%25)/25*100;
   const nFol=SEED[k]?u.fol:follows(k).length,nFans=SEED[k]?u.fans+(fl?1:0):Object.values(DB.follow).filter(a=>a.includes(k)).length;
-  const userCustomLists = (DB.lists || []).filter(l => l.u === k);
-  const defaultList = [{id:'dl_1',t:SEED[k]?'Juegos que me marcaron':'Mis favoritos del momento',d:SEED[k]?'Los que terminé y me quedé mirando los créditos.':'Mi selección de cabecera.',g:u.fav}];
-  const lists = userCustomLists.length ? userCustomLists : defaultList;
+  // Punto 2: Obtener estrictamente los 4 juegos de cabecera del perfil `k` (clonados para nunca mezclar referencias entre cuentas)
+  const profileOwner = U[k] || (k === sess ? me() : null) || u;
+  const ownerFavs = (Array.isArray(profileOwner.fav) && profileOwner.fav.length ? [...profileOwner.fav] : ['hk','hd','ce','zl']).slice(0, 4);
+  const ownerCur = (profileOwner.cur && G[profileOwner.cur]) ? profileOwner.cur : (ownerFavs[0] || 'hk');
+  // Punto 3: Filtrar Listas y Tops estrictamente por el `user_id` (`k`) del dueño de este perfil (sin listas compartidas por defecto)
+  const lists = (DB.lists || []).filter(l => String(l.user_id || l.u) === String(k));
   const tab=(h,i,l)=>`<button type="button" class="ib" data-a="jump" data-k="${h.slice(1)}" title="${l}" aria-label="${l}">${I(i,18)}</button>`;
   const posts=S.filt==='Todo'?mineP:mineP.filter(p=>p.c===S.filt);
   const tiles=posts.map(p=>`<li><button class="tile" data-a="post" data-k="${p.id}" aria-label="Abrir publicación de ${esc(p.c)}">${pimg(p)}<span class="cat">${I(CATS[p.c],14)}</span><span class="ov2"><span>${I('heart',18)} ${p.l+(DB.likes[p.id]?1:0)}</span><span>${I('chat',18)} ${(DB.comments[p.id]||[]).length+2}</span></span></button></li>`).join('');
@@ -2598,24 +2855,24 @@ function vProfile(k){
     <div class="spacer"></div>
     <div class="cta">${isMe?`<button class="btn" data-a="up">${I('plus',16)} Publicar</button><button type="button" class="btn ghost" data-a="editprofile">${I('gear',16)} Editar perfil</button><button type="button" class="btn ghost" data-a="logout" title="Cerrar sesión para cambiar o crear otra cuenta">Cerrar sesión</button>`:`<button class="btn ${fl?'ghost':''}" data-a="follow" data-k="${k}">${fl?'Siguiendo':'Seguir'}</button><button class="btn ghost" data-a="dm" data-k="${k}">${I('chat',16)} Mensaje</button>`}</div>
     
-    <!-- Juego actual (clicable para abrir Sinopsis) y Mis 4 de cabecera (clicables) -->
+    <!-- Juego actual (clicable para abrir Sinopsis) y Mis 4 de cabecera exclusivos del perfil k -->
     <div class="mid">
-      <div class="now" data-a="game" data-k="${u.cur}" role="button" tabindex="0" title="Ver sinopsis y ficha técnica de ${esc(G[u.cur].t)}">
-        <div class="art-w">${art(u.cur)}</div>
+      <div class="now" data-a="game" data-k="${ownerCur}" role="button" tabindex="0" title="Ver sinopsis y ficha técnica de ${esc(G[ownerCur]?.t||'Juego')}">
+        <div class="art-w">${art(ownerCur)}</div>
         <div>
-          <span class="tag">Juego actual</span>
-          <h2>${esc(G[u.cur].t)}</h2>
-          <p style="font-size:12px;opacity:.85">${G[u.cur].y} · ${esc(G[u.cur].genre.split('/')[0])}</p>
+          <span class="tag">Juego actual de @${esc(profileOwner.a||k)}</span>
+          <h2>${esc(G[ownerCur]?.t||'Hollow Knight')}</h2>
+          <p style="font-size:12px;opacity:.85">${G[ownerCur]?.y||2024} · ${esc((G[ownerCur]?.genre||'Juego').split('/')[0])}</p>
           <span class="open-game-hint">📖 Ver sinopsis y ficha técnica</span>
         </div>
       </div>
       <div>
         <div class="line" style="justify-content:space-between;margin-bottom:4px">
-          <h2 class="eyebrow" style="color:rgba(255,255,255,.9);font-family:var(--font-body)">Mis 4 de cabecera</h2>
+          <h2 class="eyebrow" style="color:rgba(255,255,255,.9);font-family:var(--font-body)">${isMe ? 'Mis 4 de cabecera' : `Los 4 de cabecera de @${esc(profileOwner.a||k)}`}</h2>
           <small style="color:rgba(255,255,255,.75);font-size:11px">Toca cualquier portada para abrir su sinopsis</small>
         </div>
         <ul class="favs">
-          ${u.fav.slice(0,4).map(f=>`<li data-a="game" data-k="${f}" style="cursor:pointer">${cover(f)}</li>`).join('')}
+          ${ownerFavs.map(f=>`<li data-a="game" data-k="${f}" style="cursor:pointer">${cover(f)}</li>`).join('')}
         </ul>
       </div>
     </div>
@@ -2663,18 +2920,18 @@ function vProfile(k){
         </div>
         ${isMe ? `<button class="btn sm" data-a="newlist">${I('plus',14)} Crear nueva lista / Top</button>` : ''}
       </div>
-      <ul class="lists">
+      ${lists.length ? `<ul class="lists">
         ${lists.map(l=>`
           <li class="glass" style="padding:16px;cursor:pointer" data-a="viewlist" data-k="${l.id}">
-            <div class="stack" style="margin-bottom:12px">${l.g.map(g=>cover(g)).join('')}</div>
+            <div class="stack" style="margin-bottom:12px">${(l.g||[]).map(g=>cover(g)).join('')}</div>
             <div class="line" style="justify-content:space-between;align-items:center">
               <h3 style="font-size:16px;color:var(--fg)">${esc(l.t)}</h3>
-              <span class="badge" style="font-size:10px">${l.g.length} juegos</span>
+              <span class="badge" style="font-size:10px">${(l.g||[]).length} juegos</span>
             </div>
             <p class="muted" style="font-size:13px;margin-top:4px">${esc(l.d)}</p>
           </li>
         `).join('')}
-      </ul>
+      </ul>` : (isMe ? `<div class="empty">${I('library',28)}<b style="color:var(--fg)">Aún no has creado listas ni Tops personales</b><span>Arma tu primer Top (ej. "Mi Top 5 de Terror", "Mejores Bandas Sonoras") exclusivo de tu perfil.</span><button type="button" class="btn sm" data-a="newlist">${I('plus',14)} Crear mi primera lista</button></div>` : `<div class="empty">${I('library',28)}<span>@${esc(profileOwner.a||k)} aún no ha publicado listas ni Tops personales.</span></div>`)}
     </div>
   </section>
 
@@ -2842,6 +3099,89 @@ function openReviewModal(id){
   `, true);
 }
 
+let editPostDraftImg = null;
+function openEditPostOrReviewModal(id){
+  const p = DB.posts.find(x => String(x.id) === String(id));
+  const r = DB.reviews.find(x => String(x.id) === String(id));
+  if(p){
+    if(String(p.u) !== String(sess)){
+      S.note = '🔒 Solo el autor puede editar esta publicación.';
+      render();
+      return;
+    }
+    editPostDraftImg = p.img || null;
+    modal(`
+      <div class="hd" style="padding:14px 18px;border-bottom:1px solid var(--edge)">
+        <h2 style="font-size:18px;margin:0">✏️ Editar publicación</h2>
+        <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+      </div>
+      <form id="f-edit-post" data-k="${esc(p.id)}" style="padding:18px;display:grid;gap:14px" novalidate>
+        <label class="fld">Categoría
+          <select id="epost-c">
+            ${Object.keys(CATS).map(c => `<option value="${c}" ${p.c===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </label>
+        <div class="fld">Cambiar imagen <small>(Opcional: toca si deseas reemplazar la foto actual)</small>
+          <label class="drop" id="epost-drop" style="aspect-ratio:4/5;max-height:220px;cursor:pointer">
+            ${p.img ? `<img src="${p.img}" alt="Foto actual">` : `<span>${I('img',26)}<br>Toca para cambiar foto</span>`}
+            <input id="epost-f" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
+          </label>
+        </div>
+        <label class="fld">Descripción / Pie de foto
+          <textarea id="epost-t" rows="3" maxlength="280" placeholder="Escribe una descripción...">${esc(p.t||'')}</textarea>
+        </label>
+        <p class="err" id="epost-e" role="alert"></p>
+        <div class="line" style="justify-content:flex-end;gap:10px">
+          <button type="button" class="btn ghost" data-a="x">Cancelar</button>
+          <button type="submit" class="btn">Guardar cambios</button>
+        </div>
+      </form>
+    `, false);
+    return;
+  }
+  if(r){
+    if(String(r.u) !== String(sess)){
+      S.note = '🔒 Solo el autor puede editar esta reseña.';
+      render();
+      return;
+    }
+    modal(`
+      <div class="hd" style="padding:14px 18px;border-bottom:1px solid var(--edge)">
+        <h2 style="font-size:18px;margin:0">✏️ Editar reseña de ${esc(G[r.g]?.t||r.g)}</h2>
+        <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+      </div>
+      <form id="f-edit-rev" data-k="${esc(r.id)}" style="padding:18px;display:grid;gap:14px" novalidate>
+        <label class="fld">Videojuego
+          <select id="erev-g">
+            ${Object.keys(G).map(gk => `<option value="${gk}" ${r.g===gk?'selected':''}>${esc(G[gk].t)}</option>`).join('')}
+          </select>
+        </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label class="fld">Jugabilidad (★ 0.5 a 5)
+            <input id="erev-s" type="number" step="0.5" min="0.5" max="5" value="${r.s||4.5}">
+          </label>
+          <label class="fld">Banda Sonora OST (0.5 a 5)
+            <input id="erev-o" type="number" step="0.5" min="0.5" max="5" value="${r.o||4.5}">
+          </label>
+        </div>
+        <label class="fld">Plataforma jugada
+          <select id="erev-p">
+            ${Object.keys(PL).map(pk => `<option value="${pk}" ${r.p===pk?'selected':''}>${PL[pk]}</option>`).join('')}
+          </select>
+        </label>
+        <label class="fld">Tu reseña
+          <textarea id="erev-t" rows="4" maxlength="600" required>${esc(r.t||'')}</textarea>
+        </label>
+        <p class="err" id="erev-e" role="alert"></p>
+        <div class="line" style="justify-content:flex-end;gap:10px">
+          <button type="button" class="btn ghost" data-a="x">Cancelar</button>
+          <button type="submit" class="btn">Guardar cambios</button>
+        </div>
+      </form>
+    `, false);
+  }
+}
+
 function openPost(id){
   const r = allReviews().find(x => x.id === id);
   if(r) return openReviewModal(id);
@@ -2859,7 +3199,7 @@ function openPost(id){
           <a href="#u-${p.u}" data-a="user" data-k="${p.u}"><b style="display:block">${esc(u.a)}</b></a>
           <div class="muted" style="font-size:12px">${esc(p.c)} · ${esc(u.city||p.d||'')}</div>
         </div>
-        <button type="button" class="cb" data-a="reportmodal" data-k="${id}" title="Reportar publicación" aria-label="Reportar">${I('flag',17)}</button>
+        ${String(p.u)===String(sess) ? `<button type="button" class="btn sm ghost" data-a="editpost" data-k="${id}" title="Editar mi publicación">✏️ Editar</button>` : `<button type="button" class="cb" data-a="reportmodal" data-k="${id}" title="Reportar publicación" aria-label="Reportar">${I('flag',17)}</button>`}
         <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
       </div>
       <div class="cm">
@@ -4681,23 +5021,24 @@ function saveUserList(){
   const newList = {
     id: 'lst_' + uid(),
     u: sess,
+    user_id: sess,
     t,
     d,
-    g: checked,
+    g: [...checked],
     ts: Date.now()
   };
 
   DB.lists = DB.lists || [];
   DB.lists.unshift(newList);
   save();
+  sbInsertUserList(newList);
   closeModal();
-  S.note = 'Lista creada exitosamente en tu perfil.';
+  S.note = 'Lista creada y guardada exclusivamente en tu perfil.';
   render();
 }
 
 function openViewListModal(listId){
-  const allL = [...(DB.lists||[]), ...[{id:'seed_1',t:'Juegos que me marcaron',d:'Los que terminé y me quedé mirando los créditos.',g:['hf','ce','hd','p5'],u:'kari'}]];
-  const l = allL.find(x => x.id === listId) || (DB.lists||[])[0];
+  const l = (DB.lists || []).find(x => String(x.id) === String(listId));
   if(!l) return;
 
   modal(`
@@ -5315,14 +5656,45 @@ document.addEventListener('click',async e=>{
    case 'storysend':{ sendStoryReply(k); break; }
    case 'morepost':{
      const isSaved = !!(DB.saved && DB.saved[k]);
+     const targetPost = allPosts().find(x => String(x.id) === String(k));
+     const targetRev = allReviews().find(x => String(x.id) === String(k));
+     const isOwner = Boolean(sess && ((targetPost && String(targetPost.u) === String(sess)) || (targetRev && String(targetRev.u) === String(sess))));
      modal(`<div class="hd"><h2>Opciones de la publicación</h2><button class="cb" data-a="x">${I('x',18)}</button></div>
        <div style="display:grid;gap:10px;margin-top:6px">
-         <button type="button" class="btn ghost" data-a="post" data-k="${k}" style="justify-content:flex-start">${I('zoom',16)} Ver publicación e imagen completa</button>
+         ${isOwner ? `
+           <button type="button" class="btn" data-a="editpost" data-k="${k}" style="justify-content:flex-start">${I('gear',16)} ✏️ Editar mi publicación</button>
+           <button type="button" class="btn danger ghost" data-a="delpost" data-k="${k}" style="justify-content:flex-start">${I('trash',16)} 🗑️ Eliminar mi publicación</button>
+         ` : ''}
+         <button type="button" class="btn ghost" data-a="post" data-k="${k}" style="justify-content:flex-start">${I('zoom',16)} Ver publicación completa</button>
          <button type="button" class="btn ghost" data-a="save" data-k="${k}" style="justify-content:flex-start">${I('bookmark',16)} ${isSaved ? 'Quitar de mis Guardados' : 'Guardar en mi colección privada'}</button>
          <button type="button" class="btn ghost" data-a="share" data-k="${k}" style="justify-content:flex-start">${I('share',16)} Compartir por mensaje directo</button>
          <button type="button" class="btn ghost" data-a="copylink" data-k="${k}" style="justify-content:flex-start">${I('link',16)} Copiar enlace de la publicación</button>
-         <button type="button" class="btn danger ghost" data-a="reportmodal" data-k="${k}" style="justify-content:flex-start">${I('flag',16)} Reportar publicación</button>
+         ${!isOwner ? `<button type="button" class="btn danger ghost" data-a="reportmodal" data-k="${k}" style="justify-content:flex-start">${I('flag',16)} Reportar publicación</button>` : ''}
        </div>`);
+     break;
+   }
+   case 'editpost':{
+     openEditPostOrReviewModal(k);
+     break;
+   }
+   case 'delpost':{
+     const pIdx = DB.posts.findIndex(x => String(x.id) === String(k) && String(x.u) === String(sess));
+     const rIdx = DB.reviews.findIndex(x => String(x.id) === String(k) && String(x.u) === String(sess));
+     if(pIdx >= 0){
+       DB.posts.splice(pIdx, 1);
+       save();
+       sbDeletePostOrReview(k, false);
+       closeModal();
+       S.note = '🗑️ Publicación eliminada.';
+       render();
+     } else if(rIdx >= 0){
+       DB.reviews.splice(rIdx, 1);
+       save();
+       sbDeletePostOrReview(k, true);
+       closeModal();
+       S.note = '🗑️ Reseña eliminada.';
+       render();
+     }
      break;
    }
    case 'reportmodal':{
@@ -5522,6 +5894,14 @@ document.addEventListener('input',e=>{
   }
 });
 document.addEventListener('change',async e=>{
+  if(e.target.id==='epost-f'){
+    const f=e.target.files[0];if(!f)return;
+    try{
+      editPostDraftImg=await cropFile(f);
+      const d=$('#epost-drop');
+      if(d)d.innerHTML=`<img src="${editPostDraftImg}" alt="Nueva vista previa"><input id="epost-f" class="sr" type="file" accept="image/jpeg,image/png,image/webp">`;
+    }catch(er){const err=$('#epost-e');if(err)err.textContent=String(er)}
+  }
   if(e.target.id==='up-f'){
     const f=e.target.files[0];if(!f)return;
     try{
@@ -5619,6 +5999,47 @@ document.addEventListener('submit',async e=>{
     return;
   }
   if(f==='f-story-rep'){sendStoryReply(e.target.dataset.k);return;}
+  if(f==='f-edit-post'){
+    const pid = e.target.dataset.k;
+    const p = DB.posts.find(x => String(x.id) === String(pid));
+    if(!p || String(p.u) !== String(sess)){
+      const er = $('#epost-e'); if(er) er.textContent = 'No tienes permiso para editar esta publicación.';
+      return;
+    }
+    p.c = $('#epost-c')?.value || p.c;
+    p.t = sanitizeInput($('#epost-t')?.value || '', 280);
+    if(editPostDraftImg) p.img = editPostDraftImg;
+    save();
+    await sbUpdatePost(p);
+    closeModal();
+    S.note = '✅ Publicación actualizada correctamente.';
+    render();
+    return;
+  }
+  if(f==='f-edit-rev'){
+    const rid = e.target.dataset.k;
+    const r = DB.reviews.find(x => String(x.id) === String(rid));
+    if(!r || String(r.u) !== String(sess)){
+      const er = $('#erev-e'); if(er) er.textContent = 'No tienes permiso para editar esta reseña.';
+      return;
+    }
+    const bodyTxt = sanitizeInput($('#erev-t')?.value || '', 600);
+    if(bodyTxt.length < 3){
+      const er = $('#erev-e'); if(er) er.textContent = 'Escribe al menos 3 caracteres en tu reseña.';
+      return;
+    }
+    r.g = $('#erev-g')?.value || r.g;
+    r.s = Math.min(5, Math.max(0.5, Number($('#erev-s')?.value) || 4.5));
+    r.o = Math.min(5, Math.max(0.5, Number($('#erev-o')?.value) || 4.5));
+    r.p = $('#erev-p')?.value || r.p;
+    r.t = bodyTxt;
+    save();
+    await sbUpdateReview(r);
+    closeModal();
+    S.note = '✅ Reseña actualizada correctamente.';
+    render();
+    return;
+  }
   if(f==='f-edit-prof')return saveEditProfile();
   if(f==='f-create-list')return saveUserList();
   if(f==='f-create-story')return saveUserStory();
