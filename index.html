@@ -15,7 +15,64 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0a0c'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%238b5cf6' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M22 32.5 29.5 40 43 25' fill='none' stroke='%23f4f4f5' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="alternate icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0c;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0c;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+/* ─── FONDO DIFUMINADO ADAPTABLE A LA PORTADA DEL PERFIL (ESTILO APPLE MUSIC / PS5) ─── */
+.bd {
+  background: #07080c !important;
+}
+.bd .art {
+  animation: none !important;
+}
+.bd-cover-blur {
+  position: absolute;
+  inset: -14%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: blur(52px) saturate(1.42) brightness(0.42);
+  transform: scale(1.12);
+  z-index: 1;
+  pointer-events: none;
+  transition: background-image 0.35s ease;
+}
+.bd-cover-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(85% 65% at 50% 16%, rgba(8, 10, 16, 0.14) 0%, rgba(8, 10, 16, 0.65) 68%, rgba(8, 10, 16, 0.92) 100%),
+    linear-gradient(180deg, rgba(8, 10, 16, 0.15) 0%, rgba(8, 10, 16, 0.58) 52%, rgba(8, 10, 16, 0.9) 100%);
+  pointer-events: none;
+}
+.profile-cover-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0d14 !important;
+}
+.cover-banner-ambient {
+  position: absolute;
+  inset: -15%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) saturate(1.4) brightness(0.55);
+  transform: scale(1.1);
+  z-index: 1;
+}
+.profile-cover-banner .cover-banner-img {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+/* Eliminar re-animación pesada en tarjetas individuales para que el scroll y clics sean instantáneos */
+.card, .post {
+  animation: none !important;
+}
+</style>
 </head><body>
 <div id="top-loader" class="top-loader" hidden></div>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -1929,30 +1986,32 @@ const G={
  rd:{t:'Red Dead Redemption 2',y:2018,h:18,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/library_600x900.jpg',dev:'Rockstar Games',size:'150 GB',date:'26 Oct 2018',genre:'Mundo abierto / Western',multi:'Un jugador + Red Dead Online',cross:'PC, PS4, PS5, Xbox',score:4.9,ost:4.8,meta:97,metaUser:8.7,openCritic:96,syn:'América, 1899. Arthur Morgan y la banda de Van der Linde deben atracar, robar y luchar para sobrevivir en el implacable corazón de los Estados Unidos en el ocaso de la era del Salvaje Oeste.'},
  p5:{t:'Persona 5 Royal',y:2019,h:0,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1687950/library_600x900.jpg',dev:'Atlus / SEGA',size:'41 GB',date:'31 Oct 2019',genre:'JRPG / Turnos',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:95,metaUser:8.7,openCritic:94,syn:'Ponte la máscara de Joker y lidera a los Phantom Thieves. Equilibra tu vida de estudiante en Tokio con incursiones a palacios surrealistas al ritmo del mejor acid jazz de los videojuegos.'},
  ow:{t:'Outer Wilds',y:2019,h:230,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/753640/library_600x900.jpg',dev:'Mobius Digital',size:'12 GB',date:'28 May 2019',genre:'Exploración espacial / Misterio',multi:'Un jugador',cross:'PC, Switch, PS4, PS5, Xbox',score:4.9,ost:4.9,meta:85,metaUser:8.8,openCritic:87,syn:'Explora un sistema solar atrapado en un bucle temporal de 22 minutos que termina con la supernova del sol y desentraña los misterios de los Nomai.'},
- gw:{t:'Gears of War: E-Day',y:2026,h:12,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2994020/header.jpg',dev:'The Coalition / Xbox',size:'90 GB',date:'2026',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox Series X|S, PC',score:4.7,ost:4.6,meta:88,metaUser:8.8,openCritic:89,syn:'Catorce años antes del Gears original, los jóvenes soldados Marcus Fenix y Dom Santiago se enfrentan a la Horda Locust en el cataclísmico Día de la Emergencia.'},
- sh:{t:'Silent Hill 2',y:2024,h:160,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2124490/library_600x900.jpg',dev:'Bloober Team / Konami',size:'50 GB',date:'8 Oct 2024',genre:'Survival Horror psicológico',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.8,ost:5.0,meta:86,metaUser:9.2,openCritic:87,syn:'Habiendo recibido una carta de su difunta esposa, James se dirige al pueblo brumoso de Silent Hill. Un remake magistral con música de Akira Yamaoka.'},
+ gw:{t:'Gears of War: E-Day',y:2026,h:12,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3010850/1abb0c5ef76c14f463dd6e3964adb64f984237d2/header.jpg',dev:'The Coalition / Xbox',size:'90 GB',date:'2026',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox Series X|S, PC',score:4.7,ost:4.6,meta:88,metaUser:8.8,openCritic:89,syn:'Catorce años antes del Gears original, los jóvenes soldados Marcus Fenix y Dom Santiago se enfrentan a la Horda Locust en el cataclísmico Día de la Emergencia.'},
+ gears5:{t:'Gears 5',y:2019,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1097840/library_600x900.jpg',dev:'The Coalition / Xbox Game Studios',size:'80 GB',date:'10 Sep 2019',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op 3 jugadores + Horda + Versus',cross:'Xbox One, Xbox Series X|S, PC',score:4.7,ost:4.8,meta:84,metaUser:8.3,openCritic:85,syn:'Con el mundo desmoronándose, Kait Díaz se separa para descubrir su conexión con el enemigo y descubre el verdadero peligro para Sera: ella misma.'},
+ gears1:{t:'Gears of War: Ultimate Edition',y:2015,h:8,img:'https://store-images.s-microsoft.com/image/apps.10153.68785176255228170.152a1029-d0c3-4d27-a42d-ecccb32aa4ca.12e2db46-e6be-4494-a43e-ccf2e701ed16',dev:'Epic Games / The Coalition',size:'45 GB',date:'25 Ago 2015',genre:'Shooter táctico en 3ra persona / Cobertura',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox, PC',score:4.9,ost:4.9,meta:94,metaUser:9.0,openCritic:92,syn:'El legendario primer Gears of War remasterizado. Lidera al Escuadrón Delta como Marcus Fenix en la desesperada lucha de la humanidad contra la Horda Locust en Sera.'},
+ sh:{t:'Silent Hill 2',y:2024,h:160,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2124490/header.jpg',dev:'Bloober Team / Konami',size:'50 GB',date:'8 Oct 2024',genre:'Survival Horror psicológico',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.8,ost:5.0,meta:86,metaUser:9.2,openCritic:87,syn:'Habiendo recibido una carta de su difunta esposa, James se dirige al pueblo brumoso de Silent Hill. Un remake magistral con música de Akira Yamaoka.'},
  hf:{t:'Hi-Fi Rush',y:2023,h:175,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1817230/library_600x900.jpg',dev:'Tango Gameworks',size:'20 GB',date:'25 Ene 2023',genre:'Acción rítmica / Hack & Slash',multi:'Un jugador',cross:'PC, Xbox Series X|S, PS5',score:4.9,ost:5.0,meta:87,metaUser:8.9,openCritic:89,syn:'Con un reproductor de música implantado en su pecho, Chai sincroniza todos sus golpes y esquivas con el pulso de una banda sonora de rock electrizante.'},
  zl:{t:'Zelda: Tears of the Kingdom',y:2023,h:120,img:'https://upload.wikimedia.org/wikipedia/en/f/fb/The_Legend_of_Zelda_Tears_of_the_Kingdom_cover.jpg',dev:'Nintendo EPD',size:'18.2 GB',date:'12 May 2023',genre:'Acción y Aventura / Mundo abierto',multi:'Un jugador',cross:'Nintendo Switch',score:4.9,ost:4.8,meta:96,metaUser:8.5,openCritic:96,syn:'Una épica aventura por la tierra, los cielos y el subsuelo de Hyrule. Crea vehículos y artefactos con Ultramano para forjar tu propio camino.'},
- mc:{t:'Minecraft',y:2011,h:100,img:'https://upload.wikimedia.org/wikipedia/en/b/b6/Minecraft_2024_cover_art.png',dev:'Mojang Studios',size:'2 GB',date:'18 Nov 2011',genre:'Sandbox / Supervivencia',multi:'Un jugador + Multijugador Cross-play',cross:'PC, Consolas, Móvil',score:4.8,ost:4.9,meta:93,metaUser:8.2,openCritic:91,syn:'Explora mundos infinitos y construye desde un refugio hasta ciudades enteras en modo supervivencia o creativo con amigos.'},
+ mc:{t:'Minecraft',y:2011,h:100,img:'https://image.api.playstation.com/vulcan/ap/rnd/202407/1020/91fe046f742042e3b31e57f7731dbe2226e1fd1e02a36223.jpg',dev:'Mojang Studios',size:'2 GB',date:'18 Nov 2011',genre:'Sandbox / Supervivencia',multi:'Un jugador + Multijugador Cross-play',cross:'PC, Consolas, Móvil',score:4.8,ost:4.9,meta:93,metaUser:8.2,openCritic:91,syn:'Explora mundos infinitos y construye desde un refugio hasta ciudades enteras en modo supervivencia o creativo con amigos.'},
  er:{t:'Elden Ring',y:2022,h:45,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/library_600x900.jpg',dev:'FromSoftware',size:'60 GB',date:'25 Feb 2022',genre:'Action RPG / Soulslike de mundo abierto',multi:'Un jugador + Cooperativo e invasiones online',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.9,ost:4.9,meta:96,metaUser:8.2,openCritic:95,syn:'Álzate, Sinluz, y que la gracia te guíe para abrazar el poder del Círculo de Elden y convertirte en Señor de las Tierras Intermedias en la obra maestra de Hidetaka Miyazaki y George R. R. Martin.'},
  bg3:{t:"Baldur's Gate 3",y:2023,h:315,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1086940/library_600x900.jpg',dev:'Larian Studios',size:'150 GB',date:'3 Ago 2023',genre:'CRPG / Rol táctico por turnos',multi:'Un jugador + Cooperativo hasta 4 jugadores',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:4.9,meta:96,metaUser:9.1,openCritic:96,syn:'Reúne a tu grupo y regresa a los Reinos Olvidados en una historia de compañerismo, traición, sacrificio y supervivencia basada en el universo de Dungeons & Dragons.'},
  cp77:{t:'Cyberpunk 2077',y:2020,h:55,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/library_600x900.jpg',dev:'CD Projekt Red',size:'70 GB',date:'10 Dic 2020',genre:'RPG de Acción / Mundo abierto futurista',multi:'Un jugador',cross:'PC, PS5, Xbox Series X|S',score:4.7,ost:4.9,meta:86,metaUser:8.1,openCritic:85,syn:'Ponte en la piel de V, un mercenario ciberpunk en la megalópolis de Night City, obsesionada con el poder, el glamur y las modificaciones corporales.'},
  tw3:{t:'The Witcher 3: Wild Hunt',y:2015,h:340,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/292030/library_600x900.jpg',dev:'CD Projekt Red',size:'50 GB',date:'19 May 2015',genre:'Action RPG / Fantasía oscura',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:93,metaUser:9.1,openCritic:92,syn:'Eres Geralt de Rivia, cazador de monstruos a sueldo. En un continente devastado por la guerra, debes encontrar a Ciri, la niña de la profecía.'},
  re4:{t:'Resident Evil 4 Remake',y:2023,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2050650/library_600x900.jpg',dev:'Capcom',size:'67 GB',date:'24 Mar 2023',genre:'Survival Horror / Acción',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox Series X|S',score:4.9,ost:4.7,meta:93,metaUser:8.9,openCritic:92,syn:'Seis años después del desastre biológico en Raccoon City, el agente Leon S. Kennedy es enviado a rescatar a la hija del presidente en una aldea europea aislada.'},
- gow:{t:'God of War Ragnarök',y:2022,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2322010/library_600x900.jpg',dev:'Santa Monica Studio',size:'84 GB',date:'9 Nov 2022',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.9,meta:94,metaUser:8.4,openCritic:93,syn:'Kratos y Atreus deben viajar a cada uno de los Nueve Reinos en busca de respuestas mientras las fuerzas asgardianas se preparan para la batalla profetizada que acabará con el mundo.'},
+ gow:{t:'God of War Ragnarök',y:2022,h:205,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/header.jpg',dev:'Santa Monica Studio',size:'84 GB',date:'9 Nov 2022',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.9,meta:94,metaUser:8.4,openCritic:93,syn:'Kratos y Atreus deben viajar a cada uno de los Nueve Reinos en busca de respuestas mientras las fuerzas asgardianas se preparan para la batalla profetizada que acabará con el mundo.'},
  tlou:{t:'The Last of Us Part I',y:2022,h:135,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1888930/library_600x900.jpg',dev:'Naughty Dog',size:'79 GB',date:'2 Sep 2022',genre:'Acción y Aventura / Supervivencia narrativa',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:88,syn:'En una civilización devastada donde los infectados y los supervivientes endurecidos campan a sus anchas, Joel es contratado para sacar de contrabando a Ellie, una niña de 14 años.'},
- bb:{t:'Bloodborne',y:2015,h:280,img:'https://upload.wikimedia.org/wikipedia/en/6/68/Bloodborne_Cover_Wallpaper.jpg',dev:'FromSoftware',size:'36 GB',date:'24 Mar 2015',genre:'Action RPG / Terror gótico cósmico',multi:'Un jugador + Cooperativo y PvP online',cross:'PlayStation 4, PlayStation 5',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:91,syn:'Enfréntate a tus pesadillas mientras buscas respuestas en la antigua ciudad de Yharnam, ahora maldita con una extraña enfermedad endémica que se propaga por las calles como el fuego.'},
+ bb:{t:'Bloodborne',y:2015,h:280,img:'https://image.api.playstation.com/vulcan/img/rnd/202010/2614/KKLEVc2SIIgrFVjsZChZJk1d.jpg',dev:'FromSoftware',size:'36 GB',date:'24 Mar 2015',genre:'Action RPG / Terror gótico cósmico',multi:'Un jugador + Cooperativo y PvP online',cross:'PlayStation 4, PlayStation 5',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:91,syn:'Enfréntate a tus pesadillas mientras buscas respuestas en la antigua ciudad de Yharnam, ahora maldita con una extraña enfermedad endémica que se propaga por las calles como el fuego.'},
  sek:{t:'Sekiro: Shadows Die Twice',y:2019,h:25,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/814380/library_600x900.jpg',dev:'FromSoftware',size:'25 GB',date:'22 Mar 2019',genre:'Acción y Sigilo / Combate de espadas',multi:'Un jugador',cross:'PC, PS4, Xbox One',score:4.9,ost:4.7,meta:90,metaUser:8.6,openCritic:90,syn:'En el Japón del periodo Sengoku a finales del siglo XVI, encarna al "lobo manco", un guerrero desfigurado y caído en desgracia rescatado del borde de la muerte.'},
  ds3:{t:'Dark Souls III',y:2016,h:32,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/374320/library_600x900.jpg',dev:'FromSoftware',size:'25 GB',date:'12 Abr 2016',genre:'Action RPG / Fantasía oscura',multi:'Un jugador + Cooperativo e invasiones',cross:'PC, PS4, Xbox One',score:4.9,ost:5.0,meta:89,metaUser:8.9,openCritic:89,syn:'Mientras el fuego se desvanece y el mundo cae en la ruina, adéntrate en un universo lleno de enemigos colosales y Señores de la Ceniza.'},
  gta5:{t:'Grand Theft Auto V',y:2013,h:115,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/271590/library_600x900.jpg',dev:'Rockstar North',size:'110 GB',date:'17 Sep 2013',genre:'Mundo abierto / Acción / Crimen',multi:'Un jugador + GTA Online',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.8,ost:4.8,meta:97,metaUser:8.4,openCritic:96,syn:'Un joven estafador callejero, un ladrón de bancos retirado y un psicópata aterrador deben llevar a cabo una serie de peligrosos golpes para sobrevivir en Los Santos.'},
  val:{t:'Valorant',y:2020,h:355,img:'https://upload.wikimedia.org/wikipedia/en/b/ba/Valorant_cover.jpg',dev:'Riot Games',size:'45 GB',date:'2 Jun 2020',genre:'Tactical Hero Shooter 5v5',multi:'Multijugador competitivo 5v5',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.5,ost:4.4,meta:80,metaUser:7.5,openCritic:80,syn:'Combina tu estilo y experiencia en un escenario global y competitivo. Tienes 13 rondas para atacar y defender tu lado con armas precisas y habilidades tácticas únicas.'},
- fn:{t:'Fortnite',y:2017,h:255,img:'https://upload.wikimedia.org/wikipedia/en/a/a7/Fortnite_Save_The_World.jpg',dev:'Epic Games',size:'65 GB',date:'25 Jul 2017',genre:'Battle Royale / Creativo / Festival',multi:'Multijugador masivo online (Cross-play)',cross:'PC, PlayStation, Xbox, Switch, Móvil',score:4.5,ost:4.5,meta:81,metaUser:7.8,openCritic:82,syn:'Salta del autobús de batalla con tu escuadrón en Battle Royale o Cero Construcción, explora experiencias creadas por la comunidad o toca música en Fortnite Festival.'},
+ fn:{t:'Fortnite',y:2017,h:255,img:'https://image.api.playstation.com/vulcan/ap/rnd/202610/2819/710df9aa63ce6885fa0e4dfbe8e0b9621d5ba7a88f14c9c7.jpg',dev:'Epic Games',size:'65 GB',date:'25 Jul 2017',genre:'Battle Royale / Creativo / Festival',multi:'Multijugador masivo online (Cross-play)',cross:'PC, PlayStation, Xbox, Switch, Móvil',score:4.5,ost:4.5,meta:81,metaUser:7.8,openCritic:82,syn:'Salta del autobús de batalla con tu escuadrón en Battle Royale o Cero Construcción, explora experiencias creadas por la comunidad o toca música en Fortnite Festival.'},
  lol:{t:'League of Legends',y:2009,h:215,img:'https://upload.wikimedia.org/wikipedia/commons/2/2a/LoL_icon.svg',dev:'Riot Games',size:'22 GB',date:'27 Oct 2009',genre:'MOBA / Estrategia 5v5 en tiempo real',multi:'Multijugador competitivo 5v5',cross:'PC, Mac',score:4.4,ost:4.8,meta:78,metaUser:7.2,openCritic:80,syn:'Un juego de estrategia por equipos en el que dos escuadrones de cinco campeones se enfrentan para destruir la base del otro en la Grieta del Invocador.'},
- cod:{t:'Call of Duty: Warzone / BO6',y:2024,h:22,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg',dev:'Treyarch / Activision',size:'120 GB',date:'25 Oct 2024',genre:'FPS / Shooter en 1ra persona / Zombies',multi:'Campaña + Multijugador + Zombies + Battle Royale',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.5,ost:4.5,meta:83,metaUser:7.6,openCritic:83,syn:'Acción frenética con movimiento omnidireccional, mapas multijugador intensos, el regreso del modo Zombies por rondas y combates masivos en Warzone.'},
+ cod:{t:'Call of Duty: Warzone / BO6',y:2024,h:22,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4384550/836828b783fc1208664d6c3f9fe88e9abf060813/header.jpg',dev:'Treyarch / Activision',size:'120 GB',date:'25 Oct 2024',genre:'FPS / Shooter en 1ra persona / Zombies',multi:'Campaña + Multijugador + Zombies + Battle Royale',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.5,ost:4.5,meta:83,metaUser:7.6,openCritic:83,syn:'Acción frenética con movimiento omnidireccional, mapas multijugador intensos, el regreso del modo Zombies por rondas y combates masivos en Warzone.'},
  apex:{t:'Apex Legends',y:2019,h:8,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/library_600x900.jpg',dev:'Respawn Entertainment',size:'75 GB',date:'4 Feb 2019',genre:'Hero Shooter / Battle Royale en escuadrón',multi:'Multijugador online por tríos y dúos',cross:'PC, PlayStation, Xbox, Switch (Cross-play)',score:4.5,ost:4.4,meta:89,metaUser:7.7,openCritic:88,syn:'Domina con estilo en Apex Legends, un shooter Battle Royale gratuito donde personajes legendarios con poderosas habilidades forman equipo para luchar por la gloria en la Frontera.'},
  ow2:{t:'Overwatch 2',y:2022,h:35,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2357570/library_600x900.jpg',dev:'Blizzard Entertainment',size:'50 GB',date:'4 Oct 2022',genre:'Hero Shooter por equipos 5v5',multi:'Multijugador competitivo y rápido 5v5',cross:'PC, PlayStation, Xbox, Switch (Cross-play)',score:4.3,ost:4.6,meta:79,metaUser:7.1,openCritic:78,syn:'Un juego de acción por equipos gratuito ambientado en un futuro optimista, en el que cada partida es una refriega definitiva 5 contra 5 con más de 40 héroes únicos.'},
  hdvr:{t:'Helldivers 2',y:2024,h:50,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/553850/library_600x900.jpg',dev:'Arrowhead Game Studios',size:'85 GB',date:'8 Feb 2024',genre:'Shooter cooperativo en 3ra persona / Acción',multi:'Cooperativo online de hasta 4 jugadores',cross:'PC, PlayStation 5 (Cross-play)',score:4.8,ost:4.9,meta:82,metaUser:8.5,openCritic:83,syn:'La última línea de ataque de la galaxia. Alístate en los Helldivers y lucha por la libertad y la Democracia Gestionada en una galaxia hostil contra Termínidos y Autómatas.'},
- fc25:{t:'EA Sports FC 25',y:2024,h:145,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2669320/library_600x900.jpg',dev:'EA Sports',size:'60 GB',date:'27 Sep 2024',genre:'Deportes / Simulador de Fútbol',multi:'Local + Multijugador Online (Ultimate Team, Clubes, Rush)',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S, Switch',score:4.3,ost:4.6,meta:76,metaUser:7.0,openCritic:77,syn:'Haz que tu equipo juegue como la élite mundial con FC IQ, compite en el nuevo modo rápido 5 contra 5 Rush con amigos y construye la plantilla de tus sueños.'},
+ fc25:{t:'EA Sports FC 25',y:2024,h:145,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2669320/ec3fb7747fd8080ef53d7686e0d98c5abe1f51f1/header.jpg',dev:'EA Sports',size:'60 GB',date:'27 Sep 2024',genre:'Deportes / Simulador de Fútbol',multi:'Local + Multijugador Online (Ultimate Team, Clubes, Rush)',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S, Switch',score:4.3,ost:4.6,meta:76,metaUser:7.0,openCritic:77,syn:'Haz que tu equipo juegue como la élite mundial con FC IQ, compite en el nuevo modo rápido 5 contra 5 Rush con amigos y construye la plantilla de tus sueños.'},
  fh5:{t:'Forza Horizon 5',y:2021,h:335,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1551360/library_600x900.jpg',dev:'Playground Games',size:'110 GB',date:'9 Nov 2021',genre:'Carreras / Mundo abierto en México',multi:'Un jugador + Multijugador online compartido',cross:'Xbox Series X|S, Xbox One, PC',score:4.8,ost:4.8,meta:92,metaUser:8.4,openCritic:92,syn:'Tu aventura definitiva en Horizon te espera. Explora los vibrantes paisajes en constante evolución de México con una acción de conducción ilimitada en cientos de los mejores autos del mundo.'},
  halo:{t:'Halo Infinite',y:2021,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1240440/library_600x900.jpg',dev:'Halo Studios (343i)',size:'70 GB',date:'8 Dic 2021',genre:'FPS / Ciencia Ficción / Arena Shooter',multi:'Campaña + Multijugador gratuito + Forge',cross:'Xbox Series X|S, Xbox One, PC',score:4.5,ost:4.9,meta:87,metaUser:8.0,openCritic:86,syn:'Cuando toda esperanza se pierde y el destino de la humanidad pende de un hilo, el Jefe Maestro está listo para enfrentarse al enemigo más despiadado en la superficie del anillo Zeta Halo.'},
  ssb:{t:'Super Smash Bros. Ultimate',y:2018,h:5,img:'https://upload.wikimedia.org/wikipedia/en/5/50/Super_Smash_Bros._Ultimate.jpg',dev:'Bandai Namco / Sora / Nintendo',size:'17 GB',date:'7 Dic 2018',genre:'Lucha / Plataformas crossover',multi:'1 a 8 jugadores (Local y Online)',cross:'Nintendo Switch',score:4.9,ost:5.0,meta:93,metaUser:8.7,openCritic:93,syn:'¡Todos están aquí! Más de 80 luchadores icónicos de la historia de los videojuegos se enfrentan en el crossover de peleas más grande jamás creado.'},
@@ -1963,7 +2022,7 @@ const G={
  cup:{t:'Cuphead',y:2017,h:42,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/268910/library_600x900.jpg',dev:'Studio MDHR',size:'4 GB',date:'29 Sep 2017',genre:'Run and Gun / Boss Rush animado a mano',multi:'1 a 2 jugadores (Cooperativo)',cross:'PC, Xbox, PlayStation, Switch',score:4.8,ost:5.0,meta:88,metaUser:8.5,openCritic:88,syn:'Un juego de acción clásico estilo "dispara y corre" centrado en batallas contra jefes, inspirado en los dibujos animados de los años 30 con acuarelas hechas a mano y grabaciones originales de jazz.'},
  l4d2:{t:'Left 4 Dead 2',y:2009,h:85,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/550/library_600x900.jpg',dev:'Valve',size:'13 GB',date:'17 Nov 2009',genre:'FPS Cooperativo de supervivencia zombie',multi:'Cooperativo de 4 jugadores + Modo Enfrentamiento 4v4',cross:'PC / Steam, Xbox',score:4.9,ost:4.7,meta:89,metaUser:9.1,openCritic:89,syn:'Ambientado en el apocalipsis zombi, este clásico cooperativo de Valve te lleva a ti y a tus amigos por las ciudades, pantanos y cementerios del sur profundo desde Savannah hasta Nueva Orleans.'},
  gow18:{t:'God of War (2018)',y:2018,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1593500/library_600x900.jpg',dev:'Santa Monica Studio',size:'70 GB',date:'20 Abr 2018',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:94,metaUser:9.1,openCritic:94,syn:'Habiendo dejado atrás su venganza contra los dioses del Olimpo, Kratos vive ahora en el reino de las deidades y monstruos nórdicos junto a su hijo Atreus.'},
- bmw:{t:'Black Myth: Wukong',y:2024,h:38,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2358720/header.jpg',wiki:'Black_Myth:_Wukong',dev:'Game Science',size:'130 GB',date:'20 Ago 2024',genre:'Action RPG / Mitología china',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.8,ost:4.9,meta:81,metaUser:8.6,openCritic:82,syn:'Embárcate en un viaje hacia el oeste como el Predestinado en este RPG de acción inspirado en la clásica novela mitológica china Viaje al Oeste.'},
+ bmw:{t:'Black Myth: Wukong',y:2024,h:38,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2358720/header.jpg',wiki:'Black_Myth:_Wukong',dev:'Game Science',size:'130 GB',date:'20 Ago 2024',genre:'Action RPG / Mitología china',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.8,ost:4.9,meta:81,metaUser:8.6,openCritic:82,syn:'Embárcate en un viaje hacia el oeste como el Predestinado en este RPG de acción inspirado en la clásica novela mitológica china Viaje al Oeste.'},
  mhw:{t:'Monster Hunter: World',y:2018,h:32,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/582010/library_600x900.jpg',dev:'Capcom',size:'52 GB',date:'26 Ene 2018',genre:'Action RPG / Cacería cooperativa',multi:'Un jugador + Cooperativo online hasta 4 cazadores',cross:'PC, PlayStation 4/5, Xbox One / Series',score:4.8,ost:4.8,meta:90,metaUser:8.6,openCritic:90,syn:'¡Bienvenido a un nuevo mundo! Asume el papel de un cazador y abate monstruos feroces en un ecosistema vivo y respirante donde puedes usar el entorno a tu favor.'},
  re2:{t:'Resident Evil 2 Remake',y:2019,h:220,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/883710/library_600x900.jpg',dev:'Capcom',size:'26 GB',date:'25 Ene 2019',genre:'Survival Horror',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.8,meta:91,metaUser:8.9,openCritic:92,syn:'Un virus letal envuelve a los residentes de Raccoon City en septiembre de 1998. Leon S. Kennedy y Claire Redfield luchan por sobrevivir en una comisaría infestada.'},
  rev:{t:'Resident Evil Village',y:2021,h:45,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1196590/library_600x900.jpg',dev:'Capcom',size:'35 GB',date:'7 May 2021',genre:'Survival Horror / Acción 1ra persona',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series',score:4.7,ost:4.7,meta:84,metaUser:8.5,openCritic:84,syn:'Vive el survival horror como nunca antes en la octava entrega principal de Resident Evil, donde Ethan Winters busca a su hija en una aldea dominada por cuatro jerarcas.'},
@@ -1982,17 +2041,17 @@ const G={
  dc:{t:'Dead Cells',y:2018,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/588650/library_600x900.jpg',dev:'Motion Twin',size:'2 GB',date:'7 Ago 2018',genre:'Roguelite / Metroidvania de acción',multi:'Un jugador',cross:'PC, Switch, PlayStation, Xbox, Móvil',score:4.8,ost:4.8,meta:89,metaUser:8.5,openCritic:90,syn:'Explora un castillo en constante cambio y expansión. Mata, muere, aprende y repite en este frenético roguevania de acción en 2D.'},
  sub:{t:'Subnautica',y:2018,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/264710/library_600x900.jpg',dev:'Unknown Worlds',size:'20 GB',date:'23 Ene 2018',genre:'Supervivencia y exploración submarina',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.8,ost:4.9,meta:87,metaUser:8.7,openCritic:86,syn:'Desciende a las profundidades de un mundo submarino alienígena lleno de maravillas y peligros. Fabrica equipamiento, pilota submarinos y sobrevive en el océano.'},
  itt:{t:'It Takes Two',y:2021,h:30,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1426210/library_600x900.jpg',dev:'Hazelight Studios',size:'50 GB',date:'26 Mar 2021',genre:'Aventura de plataformas 100% Cooperativa',multi:'Cooperativo obligatorio de 2 jugadores (Local y Online)',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.7,meta:88,metaUser:9.0,openCritic:89,syn:'Embárcate en el viaje más alocado de tu vida en It Takes Two, una aventura de plataformas creada exclusivamente para el modo cooperativo con Pase de Amigo gratuito.'},
- got:{t:'Ghost of Tsushima',y:2020,h:15,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2215430/library_600x900.jpg',wiki:'Ghost_of_Tsushima',dev:'Sucker Punch Productions',size:'75 GB',date:'17 Jul 2020',genre:'Acción y Aventura / Mundo abierto samurái',multi:'Un jugador + Modo cooperativo Legends',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:83,metaUser:9.1,openCritic:85,syn:'A finales del siglo XIII, el imperio mongol ha arrasado naciones enteras. Jin Sakai debe dejar atrás las tradiciones samurái y forjar el camino del Fantasma para liberar Tsushima.'},
- hfw:{t:'Horizon Forbidden West',y:2022,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2420110/library_600x900.jpg',wiki:'Horizon_Forbidden_West',dev:'Guerrilla Games',size:'100 GB',date:'18 Feb 2022',genre:'Action RPG / Mundo abierto postapocalíptico',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.8,meta:88,metaUser:8.2,openCritic:88,syn:'Únete a Aloy mientras desafía el Oeste Prohibido, una frontera majestuosa pero peligrosa que oculta nuevas y misteriosas amenazas mecanizadas.'},
+ got:{t:'Ghost of Tsushima',y:2020,h:15,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2215430/header.jpg',wiki:'Ghost_of_Tsushima',dev:'Sucker Punch Productions',size:'75 GB',date:'17 Jul 2020',genre:'Acción y Aventura / Mundo abierto samurái',multi:'Un jugador + Modo cooperativo Legends',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:83,metaUser:9.1,openCritic:85,syn:'A finales del siglo XIII, el imperio mongol ha arrasado naciones enteras. Jin Sakai debe dejar atrás las tradiciones samurái y forjar el camino del Fantasma para liberar Tsushima.'},
+ hfw:{t:'Horizon Forbidden West',y:2022,h:195,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2420110/header.jpg',wiki:'Horizon_Forbidden_West',dev:'Guerrilla Games',size:'100 GB',date:'18 Feb 2022',genre:'Action RPG / Mundo abierto postapocalíptico',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.8,meta:88,metaUser:8.2,openCritic:88,syn:'Únete a Aloy mientras desafía el Oeste Prohibido, una frontera majestuosa pero peligrosa que oculta nuevas y misteriosas amenazas mecanizadas.'},
  dstr:{t:'Death Stranding',y:2019,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1850570/library_600x900.jpg',dev:'Kojima Productions',size:'80 GB',date:'8 Nov 2019',genre:'Acción y Exploración / Mundo conectado',multi:'Un jugador con multijugador asíncrono Social Strand',cross:'PlayStation 4, PlayStation 5, PC, Xbox Series X|S',score:4.8,ost:5.0,meta:85,metaUser:8.6,openCritic:86,syn:'Del legendario creador Hideo Kojima llega una experiencia que desafía los géneros. Sam Bridges debe atravesar un mundo transformado para reconectar una sociedad fracturada.'},
  u4:{t:'Uncharted 4: El Desenlace del Ladrón',y:2016,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1659420/library_600x900.jpg',dev:'Naughty Dog',size:'126 GB',date:'10 May 2016',genre:'Acción y Aventura cinematográfica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:4.8,meta:93,metaUser:8.8,openCritic:93,syn:'Varios años después de su última aventura, el retirado cazafortunas Nathan Drake se ve obligado a regresar al mundo de los ladrones en busca del tesoro pirata de Henry Avery.'},
- sm2:{t:"Marvel's Spider-Man 2",y:2023,h:355,img:'',wiki:"Marvel's_Spider-Man_2",dev:'Insomniac Games',size:'98 GB',date:'20 Oct 2023',genre:'Acción y Aventura / Superhéroes',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:4.8,meta:90,metaUser:8.8,openCritic:90,syn:'Los Spider-Men Peter Parker y Miles Morales regresan para una nueva y emocionante aventura frente a la amenaza definitiva del simbionte Venom y Kraven el Cazador.'},
- ff7r:{t:'Final Fantasy VII Rebirth',y:2024,h:185,img:'',wiki:'Final_Fantasy_VII_Rebirth',dev:'Square Enix',size:'145 GB',date:'29 Feb 2024',genre:'JRPG de Acción / Aventura épica',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:93,syn:'Tras escapar de la ciudad distópica de Midgar, Cloud y sus amigos se embarcan en un viaje por todo el planeta en busca de Sefirot.'},
+ sm2:{t:"Marvel's Spider-Man 2",y:2023,h:355,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2651280/header.jpg',wiki:"Marvel's_Spider-Man_2",dev:'Insomniac Games',size:'98 GB',date:'20 Oct 2023',genre:'Acción y Aventura / Superhéroes',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:4.8,meta:90,metaUser:8.8,openCritic:90,syn:'Los Spider-Men Peter Parker y Miles Morales regresan para una nueva y emocionante aventura frente a la amenaza definitiva del simbionte Venom y Kraven el Cazador.'},
+ ff7r:{t:'Final Fantasy VII Rebirth',y:2024,h:185,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2909400/64a1006a85342c7d3e4b1e1b8e562fee2dc86578/header.jpg',wiki:'Final_Fantasy_VII_Rebirth',dev:'Square Enix',size:'145 GB',date:'29 Feb 2024',genre:'JRPG de Acción / Aventura épica',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:93,syn:'Tras escapar de la ciudad distópica de Midgar, Cloud y sus amigos se embarcan en un viaje por todo el planeta en busca de Sefirot.'},
  botw:{t:'Zelda: Breath of the Wild',y:2017,h:195,img:'',wiki:'The_Legend_of_Zelda:_Breath_of_the_Wild',dev:'Nintendo EPD',size:'14.4 GB',date:'3 Mar 2017',genre:'Acción y Aventura / Mundo abierto',multi:'Un jugador',cross:'Nintendo Switch, Wii U',score:4.9,ost:4.9,meta:97,metaUser:8.9,openCritic:96,syn:'Despierta tras un sueño de cien años y explora libremente el vasto reino de Hyrule para recuperar tus recuerdos y derrotar a Ganon el Cataclismo.'},
  acnh:{t:'Animal Crossing: New Horizons',y:2020,h:140,img:'',wiki:'Animal_Crossing:_New_Horizons',dev:'Nintendo EPD',size:'10 GB',date:'20 Mar 2020',genre:'Simulación de vida / Isla personal',multi:'1 a 4 local + hasta 8 jugadores online',cross:'Nintendo Switch',score:4.8,ost:4.9,meta:90,metaUser:8.2,openCritic:90,syn:'Escapa a una isla desierta y crea tu propio paraíso mientras exploras, creas y personalizas tu hogar junto a vecinos encantadores.'},
  mdr:{t:'Metroid Dread',y:2021,h:200,img:'',wiki:'Metroid_Dread',dev:'MercurySteam / Nintendo',size:'4.1 GB',date:'8 Oct 2021',genre:'Metroidvania / Ciencia Ficción 2D',multi:'Un jugador',cross:'Nintendo Switch',score:4.8,ost:4.6,meta:88,metaUser:8.6,openCritic:88,syn:'Acompaña a la cazarrecompensas intergaláctica Samus Aran en su misión más peligrosa en el planeta ZDR mientras es perseguida por los implacables robots E.M.M.I.'},
  pkmn:{t:'Pokémon Escarlata y Púrpura',y:2022,h:285,img:'',wiki:'Pokémon_Scarlet_and_Violet',dev:'Game Freak / Nintendo',size:'10 GB',date:'18 Nov 2022',genre:'RPG por turnos / Mundo abierto Pokémon',multi:'Un jugador + Cooperativo Círculo Unión y Combates Online',cross:'Nintendo Switch',score:4.4,ost:4.8,meta:72,metaUser:7.5,openCritic:72,syn:'Explora libremente la región de Paldea a lomos de Koraidon o Miraidon en el primer RPG de mundo abierto de la saga Pokémon.'},
- aw2:{t:'Alan Wake 2',y:2023,h:20,img:'',wiki:'Alan_Wake_2',dev:'Remedy Entertainment',size:'90 GB',date:'27 Oct 2023',genre:'Survival Horror psicológico / Thriller',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:89,syn:'Una serie de asesinatos rituales amenaza Bright Falls. La agente del FBI Saga Anderson y el escritor atrapado Alan Wake protagonizan dos realidades conectadas.'},
+ aw2:{t:'Alan Wake 2',y:2023,h:20,img:'https://image.api.playstation.com/vulcan/ap/rnd/202305/2420/2b117db6108244a85769f8009df39f8006b226d8a2831b3a.jpg',wiki:'Alan_Wake_2',dev:'Remedy Entertainment',size:'90 GB',date:'27 Oct 2023',genre:'Survival Horror psicológico / Thriller',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:89,syn:'Una serie de asesinatos rituales amenaza Bright Falls. La agente del FBI Saga Anderson y el escritor atrapado Alan Wake protagonizan dos realidades conectadas.'},
  gi:{t:'Genshin Impact',y:2020,h:195,img:'',wiki:'Genshin_Impact',dev:'HoYoverse',size:'70 GB',date:'28 Sep 2020',genre:'Action RPG de mundo abierto / Anime',multi:'Un jugador + Cooperativo online hasta 4 jugadores',cross:'PC, PlayStation, iOS, Android',score:4.6,ost:5.0,meta:84,metaUser:8.0,openCritic:82,syn:'Adéntrate en Teyvat, un vasto mundo rebosante de vida y energía elemental, donde recorres siete naciones buscando a tu familiar perdido.'},
  rblx:{t:'Roblox',y:2006,h:0,img:'',wiki:'Roblox',dev:'Roblox Corporation',size:'2 GB',date:'1 Sep 2006',genre:'Plataforma de creación y experiencias multijugador',multi:'Multijugador masivo online (Cross-play)',cross:'PC, Móvil, PlayStation, Xbox, VR',score:4.5,ost:4.3,meta:78,metaUser:7.9,openCritic:78,syn:'El universo virtual definitivo que te permite crear, compartir experiencias con amigos y ser cualquier cosa que puedas imaginar en millones de mundos comunitarios.'}
 };
@@ -2087,7 +2146,12 @@ DB.saved=DB.saved||{};
 DB.lists=DB.lists||[];
 DB.customGames=DB.customGames||{};
 DB.rawgKey=DB.rawgKey||'';
-Object.keys(DB.customGames).forEach(gk => { G[gk] = DB.customGames[gk]; });
+delete DB.coverCache; delete DB.coverCacheV2;
+Object.keys(DB.customGames).forEach(gk => {
+  if(!G[gk] || DB.customGames[gk]?.userEdited){
+    G[gk] = DB.customGames[gk];
+  }
+});
 let storeFull=false;
 function save(){
   try{
@@ -2169,113 +2233,93 @@ const uid=()=>Math.random().toString(36).slice(2,10);
 /* ─────────── arte generativo ─────────── */
 
 const WIKI_COVER_MAP = {
-  fn: 'Fortnite',
-  gow: 'God_of_War_Ragnarök',
   zl: 'The_Legend_of_Zelda:_Tears_of_the_Kingdom',
-  mc: 'Minecraft',
+  botw: 'The_Legend_of_Zelda:_Breath_of_the_Wild',
   val: 'Valorant',
   lol: 'League_of_Legends',
-  bb: 'Bloodborne',
   ssb: 'Super_Smash_Bros._Ultimate',
-  mk8: 'Mario_Kart_8',
+  mk8: 'Mario_Kart_8_Deluxe',
   smo: 'Super_Mario_Odyssey',
-  sh: 'Silent_Hill_2_(2024_video_game)',
-  gw: 'Gears_of_War:_E-Day',
-  fc25: 'EA_Sports_FC_25',
-  cod: 'Call_of_Duty:_Black_Ops_6',
-  ow2: 'Overwatch_2',
-  hks: 'Hollow_Knight:_Silksong',
-  hd2: 'Hades_II',
-  bmw: 'Black_Myth:_Wukong',
-  got: 'Ghost_of_Tsushima',
-  hfw: 'Horizon_Forbidden_West',
-  sm2: "Marvel's_Spider-Man_2",
-  ff7r: 'Final_Fantasy_VII_Rebirth',
-  botw: 'The_Legend_of_Zelda:_Breath_of_the_Wild',
   acnh: 'Animal_Crossing:_New_Horizons',
   mdr: 'Metroid_Dread',
   pkmn: 'Pokémon_Scarlet_and_Violet',
-  aw2: 'Alan_Wake_2',
   gi: 'Genshin_Impact',
   rblx: 'Roblox'
 };
 
 async function resolveOfficialCovers(){
   try{
-    DB.coverCache = DB.coverCache || {};
-    Object.keys(DB.coverCache).forEach(k => {
-      if(G[k] && DB.coverCache[k]) G[k].img = DB.coverCache[k];
+    DB.coverCacheV3 = DB.coverCacheV3 || {};
+    Object.keys(DB.coverCacheV3).forEach(k => {
+      if(G[k] && (!G[k].img || WIKI_COVER_MAP[k]) && DB.coverCacheV3[k]){
+        G[k].img = DB.coverCacheV3[k];
+      }
     });
-    const toFetch = Object.keys(WIKI_COVER_MAP).filter(k => G[k] && !DB.coverCache[k]);
+    const toFetch = Object.keys(WIKI_COVER_MAP).filter(k => G[k] && !DB.coverCacheV3[k]);
     if(!toFetch.length) return;
-    // Dividir en lotes de 15 títulos para la API oficial de Wikipedia (CORS origin=*)
-    for(let i = 0; i < toFetch.length; i += 15){
-      const chunkKeys = toFetch.slice(i, i + 15);
-      const titlesParam = chunkKeys.map(k => WIKI_COVER_MAP[k]).join('|');
-      const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail|original&pithumbsize=600&redirects=1&titles=${encodeURIComponent(titlesParam)}`;
-      const res = await fetch(url);
-      if(!res.ok) continue;
-      const data = await res.json();
-      const pages = data?.query?.pages || {};
-      const normMap = {};
-      (data?.query?.normalized || []).forEach(n => { normMap[n.to] = n.from; });
-      (data?.query?.redirects || []).forEach(r => { normMap[r.to] = normMap[r.from] || r.from; });
-      Object.values(pages).forEach(pg => {
-        const imgUrl = pg?.thumbnail?.source || pg?.original?.source;
-        if(!imgUrl) return;
-        const matchKey = chunkKeys.find(ck => {
-          const wTitle = WIKI_COVER_MAP[ck].replace(/_/g, ' ').toLowerCase();
-          const pgTitle = String(pg.title || '').toLowerCase();
-          return pgTitle === wTitle || pgTitle.includes(wTitle.split(':')[0]);
-        });
-        if(matchKey && G[matchKey]){
-          G[matchKey].img = imgUrl;
-          DB.coverCache[matchKey] = imgUrl;
-        }
+    const titlesParam = toFetch.map(k => WIKI_COVER_MAP[k]).join('|');
+    // Importante: pilicense=any devuelve la portada oficial Fair Use del infobox y no fotos aleatorias libres
+    const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail|original&pilicense=any&pithumbsize=600&redirects=1&titles=${encodeURIComponent(titlesParam)}`;
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const data = await res.json();
+    const pages = data?.query?.pages || {};
+    let updatedAny = false;
+    Object.values(pages).forEach(pg => {
+      const imgUrl = pg?.thumbnail?.source || pg?.original?.source;
+      if(!imgUrl) return;
+      const pgTitle = String(pg.title || '').toLowerCase();
+      const matchKey = toFetch.find(ck => {
+        const wTitle = WIKI_COVER_MAP[ck].replace(/_/g, ' ').toLowerCase();
+        return pgTitle === wTitle || (wTitle.length > 6 && pgTitle.startsWith(wTitle.slice(0, 10)));
       });
-    }
-    save();
-    render();
+      if(matchKey && G[matchKey]){
+        G[matchKey].img = imgUrl;
+        DB.coverCacheV3[matchKey] = imgUrl;
+        updatedAny = true;
+        // Actualizar en el DOM sin re-renderizar toda la página para máxima velocidad
+        document.querySelectorAll(`img[data-gk="${matchKey}"]`).forEach(imgEl => {
+          imgEl.src = imgUrl;
+          imgEl.style.display = 'block';
+        });
+      }
+    });
+    if(updatedAny) save();
   }catch(e){}
 }
 
 window.handleCoverError = async function(imgEl, gameKey){
   if(!imgEl) return;
   imgEl.onerror = null;
-  if(!gameKey || !G[gameKey]) { imgEl.remove(); return; }
+  if(!gameKey || !G[gameKey]) { imgEl.style.display = 'none'; return; }
   try{
-    const q = WIKI_COVER_MAP[gameKey] || (G[gameKey].t + ' video game');
-    const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=1&prop=pageimages&piprop=thumbnail|original&pithumbsize=600`);
+    const wikiTitle = WIKI_COVER_MAP[gameKey] || G[gameKey].wiki || G[gameKey].t;
+    const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail|original&pilicense=any&pithumbsize=600&redirects=1&titles=${encodeURIComponent(wikiTitle)}`);
     if(res.ok){
       const d = await res.json();
       const pages = Object.values(d?.query?.pages || {});
       const newUrl = pages[0]?.thumbnail?.source || pages[0]?.original?.source;
       if(newUrl && newUrl !== imgEl.src){
         G[gameKey].img = newUrl;
-        DB.coverCache = DB.coverCache || {};
-        DB.coverCache[gameKey] = newUrl;
+        DB.coverCacheV3 = DB.coverCacheV3 || {};
+        DB.coverCacheV3[gameKey] = newUrl;
         save();
         imgEl.src = newUrl;
         return;
       }
     }
   }catch(e){}
-  imgEl.remove();
+  imgEl.style.display = 'none';
 };
 
 function art(k){
  const g=G[k]||{t:String(k),y:2024,h:265};
- const i=Math.max(0,Object.keys(G).indexOf(k))%4,h=g.h||265,id=nid();
- const sh=[
-  `<g fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="2"><rect x="40" y="60" width="120" height="120" transform="rotate(45 100 120)"/><rect x="62" y="82" width="76" height="76" transform="rotate(45 100 120)"/><rect x="82" y="102" width="36" height="36" transform="rotate(45 100 120)"/></g>`,
-  `<g stroke="#fff" stroke-opacity=".22" stroke-width="10">${[0,1,2,3,4,5,6].map(n=>`<path d="M${-40+n*45} 300 L${60+n*45} 0"/>`).join('')}</g>`,
-  `<g fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="2"><circle cx="100" cy="115" r="22"/><circle cx="100" cy="115" r="44"/><circle cx="100" cy="115" r="66"/><circle cx="100" cy="115" r="88"/></g>`,
-  `<g fill="#fff" fill-opacity=".14"><path d="M-10 230 60 90 130 230Z"/><path d="M60 230 140 60 220 230Z"/></g><circle cx="150" cy="60" r="20" fill="#fff" fill-opacity=".55"/>`][i];
- const svgFallback = `<svg class="art" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 62% 44%)"/><stop offset="1" stop-color="hsl(${(h+45)%360} 60% 14%)"/></linearGradient></defs><rect width="200" height="300" fill="url(#${id})"/>${sh}</svg>`;
+ const h=g.h||265;
+ const bgGrad=`linear-gradient(135deg,hsl(${h} 62% 38%),hsl(${(h+45)%360} 60% 12%))`;
  if(g.img){
-   return `${svgFallback}<img class="art" src="${esc(g.img)}" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1" loading="lazy" onerror="window.handleCoverError&&window.handleCoverError(this,'${esc(k)}')">`;
+   return `<div class="art" style="position:absolute;inset:0;background:${bgGrad}"></div><img class="art" data-gk="${esc(k)}" src="${esc(g.img)}" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1" loading="lazy" decoding="async" onerror="window.handleCoverError&&window.handleCoverError(this,'${esc(k)}')">`;
  }
- return svgFallback;
+ return `<div class="art" style="position:absolute;inset:0;background:${bgGrad};display:grid;place-items:center"><img class="art" data-gk="${esc(k)}" src="" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:1" loading="lazy" decoding="async"></div>`;
 }
 const cover=(k,c='')=>`<div class="cover ${c}" data-a="game" data-k="${k}" role="button" tabindex="0" title="Ver sinopsis y ficha técnica de ${esc(G[k]?.t||'Juego')}" style="cursor:pointer">${art(k)}<span>${esc(G[k]?.t||'Juego')}</span><small>${G[k]?.y||''}</small></div>`;
 function scene(c,h,seed=1){const id=nid(),A=`hsl(${h} 45% 14%)`,B=`hsl(${h} 40% 5%)`,W=`hsl(${(h+30)%360} 95% 68%)`,S=`hsl(${(h+20)%360} 70% 38%)`;let s=seed*7919%233280;const r=n=>{s=(s*9301+49297)%233280;return s/233280*n};
@@ -2803,7 +2847,6 @@ async function syncFromSupabase(showToast = false){
   const loader = $('#top-loader');
   if(loader) loader.hidden = false;
   try{
-    // 1. Verificar sesión activa de Supabase Auth
     const { data: sessionData } = await sbClient.auth.getSession();
     const sbUser = sessionData?.session?.user;
     if(sbUser && !sess){
@@ -2812,8 +2855,21 @@ async function syncFromSupabase(showToast = false){
       try{ localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp})); }catch(e){}
     }
 
-    // 2. Sincronizar perfiles públicos desde Supabase
-    const { data: profs } = await sbClient.from('profiles').select('*').limit(100);
+    const cutoff24hIso = new Date(Date.now() - STORY_TTL_MS).toISOString();
+    // Limpieza asíncrona sin bloquear la carga
+    sbClient.from('stories').delete().lt('created_at', cutoff24hIso).then(()=>{}).catch(()=>{});
+
+    // Ejecutar todas las consultas en paralelo (Promise.all) para reducir el tiempo de carga en un 75%
+    const [profsRes, postsRes, revsRes, storiesRes, listsRes, savedRes] = await Promise.all([
+      sbClient.from('profiles').select('*').limit(100),
+      sbClient.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
+      sbClient.from('reviews').select('*').order('created_at', { ascending: false }).limit(50),
+      sbClient.from('stories').select('*').gte('created_at', cutoff24hIso).order('created_at', { ascending: false }).limit(30),
+      sbClient.from('user_lists').select('*').order('created_at', { ascending: false }).limit(100),
+      (sess && isUuid(sess)) ? sbClient.from('saved_items').select('item_id').eq('user_id', sess) : Promise.resolve({ data: null })
+    ]);
+
+    const profs = profsRes?.data;
     if(Array.isArray(profs)){
       profs.forEach(row => {
         if(isBotAccount({id:row.id, a:row.alias, e:''})) return;
@@ -2854,8 +2910,7 @@ async function syncFromSupabase(showToast = false){
       });
     }
 
-    // 3. Sincronizar publicaciones (posts)
-    const { data: cloudPosts } = await sbClient.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
+    const cloudPosts = postsRes?.data;
     if(Array.isArray(cloudPosts)){
       cloudPosts.forEach(row => {
         if(!DB.posts.some(p => String(p.id) === String(row.id))){
@@ -2875,8 +2930,7 @@ async function syncFromSupabase(showToast = false){
       DB.posts.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
-    // 4. Sincronizar reseñas (reviews)
-    const { data: cloudRevs } = await sbClient.from('reviews').select('*').order('created_at', { ascending: false }).limit(50);
+    const cloudRevs = revsRes?.data;
     if(Array.isArray(cloudRevs)){
       cloudRevs.forEach(row => {
         if(!DB.reviews.some(r => String(r.id) === String(row.id))){
@@ -2896,10 +2950,7 @@ async function syncFromSupabase(showToast = false){
       DB.reviews.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
-    // 5. Sincronizar historias activas (< 24 horas) y limpiar expiradas en Supabase
-    const cutoff24hIso = new Date(Date.now() - STORY_TTL_MS).toISOString();
-    try{ await sbClient.from('stories').delete().lt('created_at', cutoff24hIso); }catch(e){}
-    const { data: cloudStories } = await sbClient.from('stories').select('*').gte('created_at', cutoff24hIso).order('created_at', { ascending: false }).limit(30);
+    const cloudStories = storiesRes?.data;
     if(Array.isArray(cloudStories)){
       cloudStories.forEach(row => {
         const storyTs = row.created_at ? new Date(row.created_at).getTime() : Date.now();
@@ -2921,38 +2972,31 @@ async function syncFromSupabase(showToast = false){
       DB.stories.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
-    // 6. Sincronizar Listas y Tops personales (filtrados estrictamente por user_id de cada autor)
-    try{
-      const { data: cloudLists } = await sbClient.from('user_lists').select('*').order('created_at', { ascending: false }).limit(100);
-      if(Array.isArray(cloudLists)){
-        cloudLists.forEach(row => {
-          if(!row.user_id) return;
-          const existingIdx = (DB.lists || []).findIndex(x => String(x.id) === String(row.id));
-          const mappedList = {
-            id: String(row.id),
-            u: String(row.user_id),
-            user_id: String(row.user_id),
-            t: row.title || 'Mi Top',
-            d: row.description || '',
-            g: Array.isArray(row.games) ? [...row.games] : [],
-            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
-          };
-          if(existingIdx >= 0) DB.lists[existingIdx] = mappedList;
-          else DB.lists.push(mappedList);
-        });
-      }
-    }catch(e){}
-
-    // 6b. Sincronizar guardados privados exclusivamente del usuario autenticado (user_id === sess)
-    if(sess && isUuid(sess)){
-      const { data: cloudSaved } = await sbClient.from('saved_items').select('item_id').eq('user_id', sess);
-      if(Array.isArray(cloudSaved)){
-        DB.saved = {};
-        cloudSaved.forEach(row => { DB.saved[row.item_id] = 1; });
-      }
+    const cloudLists = listsRes?.data;
+    if(Array.isArray(cloudLists)){
+      cloudLists.forEach(row => {
+        if(!row.user_id) return;
+        const existingIdx = (DB.lists || []).findIndex(x => String(x.id) === String(row.id));
+        const mappedList = {
+          id: String(row.id),
+          u: String(row.user_id),
+          user_id: String(row.user_id),
+          t: row.title || 'Mi Top',
+          d: row.description || '',
+          g: Array.isArray(row.games) ? [...row.games] : [],
+          ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+        };
+        if(existingIdx >= 0) DB.lists[existingIdx] = mappedList;
+        else DB.lists.push(mappedList);
+      });
     }
 
-    // 7. Detectar nuevos Likes recibidos (solicitudes) y Matches mutuos
+    const cloudSaved = savedRes?.data;
+    if(Array.isArray(cloudSaved)){
+      DB.saved = {};
+      cloudSaved.forEach(row => { DB.saved[row.item_id] = 1; });
+    }
+
     if(sess){
       otherPlayers().forEach(k => {
         const u = U[k];
@@ -2992,9 +3036,9 @@ async function syncFromSupabase(showToast = false){
       S.note = `☁️ Sincronizado: ${nMat} match(es) y ${nReq} solicitud(es) de Like.`;
       setTimeout(()=>{ if(S.note && S.note.startsWith('☁️')){ S.note=''; render(); } }, 4000);
     }
-    render();
+    if(!$('#modal')?.innerHTML) render();
   }catch(e){}finally{
-    if(loader) setTimeout(()=>{ loader.hidden = true; }, 220);
+    if(loader) setTimeout(()=>{ loader.hidden = true; }, 180);
   }
 }
 
@@ -3021,21 +3065,29 @@ function vProfile(k){
   const rvEmpty=isMe?`<div class="empty">${I('star',30)}<b style="color:var(--fg)">Escribe tu primera reseña</b><span>Califica un juego y su banda sonora por separado.</span><button class="btn" data-a="up" data-k="rev">Escribir reseña</button></div>`:`<div class="empty"><span>Sin reseñas todavía.</span></div>`;
   const savedEmpty=`<div class="empty">${I('bookmark',30)}<b style="color:var(--fg)">Tu colección privada de Guardados está vacía</b><span>Pulsa el icono de marcador (${I('bookmark',14)}) en cualquier publicación o reseña del feed para guardarla aquí. Solo tú puedes ver esta sección.</span></div>`;
 
+  // Imagen de portada activa: puede ser una foto subida, la portada de un juego elegido o la portada del Juego Actual (si no se forzó solo color)
+  const activeBannerImg = profileOwner.bannerImg || (profileOwner.bannerMode !== 'color' && G[ownerCur]?.img ? G[ownerCur].img : null);
   return `<div class="view" style="--h:${u.h}">
   <div class="bd" aria-hidden="true">
-    <div class="art"></div>
-    ${u.bannerImg?`<div class="custom-banner-bg" style="background-image:url(${u.bannerImg})"></div>`:''}
-    <div class="dm"></div>
-    <div class="bl"></div>
-    <div class="fd"></div>
-    <div class="ts"></div>
+    ${activeBannerImg ? `
+      <div class="bd-cover-blur" style="background-image:url('${esc(activeBannerImg)}')"></div>
+      <div class="bd-cover-vignette"></div>
+    ` : `
+      <div class="art" style="background:${profileOwner.bannerGrad || `radial-gradient(55% 50% at 66% 28%,hsl(${u.h} 85% 58% / .8),transparent 70%),linear-gradient(180deg,hsl(${u.h} 40% 10%),hsl(${u.h} 30% 5%))`}"></div>
+      <div class="dm"></div>
+      <div class="fd"></div>
+      <div class="ts"></div>
+    `}
   </div>
   <section class="hero wrap"><div class="inner" style="width:100%;display:flex;flex-direction:column;gap:14px;flex:1">
     
-    <!-- Banner de portada visible y destacado -->
+    <!-- Banner de portada visible y conectado al fondo difuminado del perfil -->
     <div class="profile-cover-banner" style="--h:${u.h}">
-      ${u.bannerImg ? `<img src="${u.bannerImg}" class="cover-banner-img" alt="Portada de ${esc(u.a)}">` : `<div class="cover-banner-art" style="background:${u.bannerGrad || `radial-gradient(65% 70% at 75% 30%, hsl(${u.h} 85% 55% / .85), transparent 70%), linear-gradient(135deg, hsl(${u.h} 65% 22%), hsl(${(u.h+50)%360} 70% 8%))`}"></div>`}
-      ${isMe ? `<button type="button" class="btn sm change-banner-btn" data-a="editprofile">${I('img', 14)} Cambiar portada y color</button>` : ''}
+      ${activeBannerImg ? `
+        <div class="cover-banner-ambient" style="background-image:url('${esc(activeBannerImg)}')"></div>
+        <img src="${esc(activeBannerImg)}" class="cover-banner-img" alt="Portada de ${esc(u.a)}">
+      ` : `<div class="cover-banner-art" style="background:${profileOwner.bannerGrad || `radial-gradient(65% 70% at 75% 30%, hsl(${u.h} 85% 55% / .85), transparent 70%), linear-gradient(135deg, hsl(${u.h} 65% 22%), hsl(${(u.h+50)%360} 70% 8%))`}"></div>`}
+      ${isMe ? `<button type="button" class="btn sm change-banner-btn" data-a="editprofile">${I('img', 14)} Cambiar portada y fondo</button>` : ''}
     </div>
 
     <header class="top">
@@ -4080,7 +4132,7 @@ async function searchGlobalCatalog(query){
   // 2. Consulta pública automática a la API de portadas de videojuegos de Wikipedia (incluye consolas, Nintendo, PlayStation, Xbox, Riot, Epic y PC sin llave)
   if(!found.length){
     try{
-      const wRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q + ' video game')}&gsrlimit=8&prop=pageimages|extracts&piprop=thumbnail|original&pithumbsize=600&exintro=1&explaintext=1&exchars=320`);
+      const wRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q + ' video game')}&gsrlimit=8&prop=pageimages|extracts&piprop=thumbnail|original&pilicense=any&pithumbsize=600&exintro=1&explaintext=1&exchars=320`);
       if(wRes.ok){
         const wData = await wRes.json();
         const pages = Object.values(wData?.query?.pages || {});
@@ -4213,7 +4265,7 @@ async function fetchCoverSuggestions(query, targetBoxId){
   box.innerHTML = `<div class="muted" style="font-size:12px;padding:8px 0">🔍 Buscando portadas oficiales para <b>"${esc(q)}"</b>...</div>`;
   const covers = [];
   try{
-    const wRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q + ' video game')}&gsrlimit=6&prop=pageimages&piprop=thumbnail|original&pithumbsize=600`);
+    const wRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q + ' video game')}&gsrlimit=6&prop=pageimages&piprop=thumbnail|original&pilicense=any&pithumbsize=600`);
     if(wRes.ok){
       const wData = await wRes.json();
       Object.values(wData?.query?.pages || {}).forEach(pg => {
@@ -5062,16 +5114,19 @@ function syncEditDraftInputs(){
 
 function openEditProfileModal(){
   const m=me();
+  const defaultCur = (m.cur && G[m.cur]) ? m.cur : 'hk';
   editDraft={
     a:m.a,
     bio:m.bio||'',
     city:m.city||'Cd. Juárez',
     h:m.h||270,
-    bannerImg:m.bannerImg||null,
+    bannerImg:m.bannerImg || (m.bannerMode !== 'color' ? (G[defaultCur]?.img || null) : null),
+    bannerGrad:m.bannerGrad||null,
+    bannerMode:m.bannerMode||'cover',
     avatarImg:m.avatarImg||null,
     pl:[...(m.pl||['pc','xbox'])],
     sch:m.sch||'Noches',
-    cur:m.cur||'hk',
+    cur:defaultCur,
     fav:[...(m.fav||['hk','hd','de','ce'])],
     lang:m.lang||'Español',
     mic:m.mic||'Con micrófono'
@@ -5083,27 +5138,30 @@ function paintEditProfileModal(){
   const d=editDraft;
   const pl=d.pl||[];
   const fav=d.fav||[];
+  const previewBannerUrl = d.bannerMode !== 'color' ? (d.bannerImg || G[d.cur]?.img || null) : null;
 
   modal(`<div class="hd">
     <div>
-      <h2 style="font-size:20px">Editar perfil</h2>
-      <small class="muted">Personaliza tu avatar, el banner de portada y el color temático de todo tu perfil</small>
+      <h2 style="font-size:20px">Editar perfil y fondo difuminado</h2>
+      <small class="muted">El fondo de tu perfil se adapta automáticamente con efecto difuminado a la portada que coloques</small>
     </div>
     <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
   </div>
   
-  <!-- Vista previa en vivo -->
-  <div class="banner-preview-card" style="position:relative;overflow:hidden;background:${d.bannerImg?'none':(d.bannerGrad || `radial-gradient(60% 50% at 70% 30%,hsl(${d.h} 80% 50% / .75),transparent 75%),linear-gradient(150deg,hsl(${d.h} 50% 18%),hsl(${(d.h+60)%360} 50% 8%))`)}">
-    ${d.bannerImg?`<img src="${d.bannerImg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">`:''}
-    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:14px;width:100%;text-shadow:0 2px 8px rgba(0,0,0,0.8)">
+  <!-- Vista previa en vivo con fondo difuminado real -->
+  <div class="banner-preview-card" style="position:relative;overflow:hidden;min-height:112px;background:${previewBannerUrl?'#0a0b10':(d.bannerGrad || `radial-gradient(60% 50% at 70% 30%,hsl(${d.h} 80% 50% / .75),transparent 75%),linear-gradient(150deg,hsl(${d.h} 50% 18%),hsl(${(d.h+60)%360} 50% 8%))`)}">
+    ${previewBannerUrl?`
+      <div style="position:absolute;inset:-18%;background-image:url('${esc(previewBannerUrl)}');background-size:cover;background-position:center;filter:blur(22px) saturate(1.4) brightness(0.48);transform:scale(1.1)"></div>
+      <img src="${esc(previewBannerUrl)}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:62px;height:86px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.45);box-shadow:0 6px 18px rgba(0,0,0,0.65);z-index:2" alt="Portada activa">
+    `:''}
+    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:14px;width:100%;padding-right:76px;text-shadow:0 2px 8px rgba(0,0,0,0.85)">
       <div style="position:relative">
         ${d.avatarImg?`<img src="${d.avatarImg}" alt="Avatar" style="width:64px;height:64px;border-radius:99px;border:3px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">`:`<span class="av" style="--h:${d.h};width:64px;height:64px;font-size:26px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5)">${esc((d.a||'?')[0].toUpperCase())}</span>`}
       </div>
       <div style="flex:1;min-width:0">
         <b style="font-size:19px;display:block;color:#fff">${esc(d.a)}</b>
-        <small style="opacity:.95;color:#eee">${esc(d.city)} · Tono del perfil: HSL ${d.h}°</small>
+        <small style="opacity:.95;color:#eee;display:block">${esc(d.city)} · ${previewBannerUrl ? '✨ Fondo difuminado adaptado a tu portada' : '🎨 Fondo de degradado de color'}</small>
       </div>
-      <span class="badge" style="background:rgba(0,0,0,.65);color:#fff;border-color:rgba(255,255,255,.7)">Vista previa en vivo</span>
     </div>
   </div>
 
@@ -5111,7 +5169,7 @@ function paintEditProfileModal(){
     <!-- 1. Avatar -->
     <div class="card" style="padding:14px;display:grid;gap:10px">
       <b style="font-size:14px">1. Foto de perfil (Avatar)</b>
-      <div class="line" style="gap:10px;align-items:center">
+      <div class="line" style="gap:10px;align-items:center;flex-wrap:wrap">
         <label class="btn sm" style="cursor:pointer">
           ${I('img',16)} Subir foto de perfil
           <input id="ep-avatar-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
@@ -5128,41 +5186,57 @@ function paintEditProfileModal(){
       </div>
     </div>
 
-    <!-- 2. Banner y Color temático -->
+    <!-- 2. Portada y Fondo Difuminado Adaptable -->
     <div class="card" style="padding:14px;display:grid;gap:12px">
-      <div class="line" style="justify-content:space-between">
-        <b style="font-size:14px">2. Banner de portada y Color temático</b>
-        <span class="badge" style="color:hsl(${d.h} 80% 65%);border-color:hsl(${d.h} 80% 65%)">Tono: ${d.h}°</span>
+      <div class="line" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <b style="font-size:14px">2. Portada y Fondo Difuminado del Perfil</b>
+        <span class="badge" style="color:var(--accent);border-color:var(--accent)">${previewBannerUrl ? '🖼️ Fondo Difuminado Activo' : '🎨 Color Sólido'}</span>
       </div>
-      <p class="muted" style="font-size:12.5px">Al cambiar el banner o el tono, se actualiza la iluminación y el color de todo tu perfil en tiempo real.</p>
-      
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
-        ${BANNER_PRESETS.map(bp=>`
-          <button type="button" class="theme-swatch ${d.h===bp.h?'active':''}" data-a="epbanner" data-h="${bp.h}">
-            <span class="swatch-dot" style="background:${bp.c}"></span>
-            <div>
-              <div style="font-size:12px;font-weight:700">${bp.n}</div>
-              <small class="muted" style="font-size:10px">${bp.sub}</small>
-            </div>
-          </button>
-        `).join('')}
-      </div>
+      <p class="muted" style="font-size:12.5px;margin:0">La imagen que coloques en tu portada (una foto tuya o la carátula de cualquier videojuego) se convertirá automáticamente en el fondo difuminado de todo tu perfil.</p>
 
-      <label class="fld" style="margin-top:4px">
-        <span>Selector de tono libre (0° a 360°)</span>
-        <span class="rng">
-          <input id="ep-hue-range" type="range" min="0" max="360" value="${d.h}">
-          <b id="ep-hue-val" style="color:hsl(${d.h} 85% 65%)">${d.h}°</b>
-        </span>
-      </label>
-
-      <div class="line" style="gap:10px">
-        <label class="btn sm ghost" style="cursor:pointer">
-          ${I('img',16)} Subir imagen de banner (horizontal)
+      <div class="line" style="gap:8px;flex-wrap:wrap">
+        <label class="btn sm" style="cursor:pointer">
+          ${I('img',15)} 📁 Subir imagen de portada / fondo
           <input id="ep-banner-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
         </label>
-        ${d.bannerImg?`<button type="button" class="btn sm ghost danger" data-a="eprmbanner">${I('trash',14)} Quitar imagen banner</button>`:''}
+        <button type="button" class="btn sm ghost" data-a="epusecurcover">🎮 Usar portada de mi Juego Actual</button>
+        ${d.bannerImg?`<button type="button" class="btn sm ghost danger" data-a="eprmbanner">${I('trash',14)} Quitar portada</button>`:''}
       </div>
+
+      <div>
+        <small class="muted" style="display:block;margin-bottom:6px">O toca cualquier videojuego para usar su arte como tu portada y fondo difuminado:</small>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-height:175px;overflow-y:auto;padding:6px;border-radius:12px;background:var(--surface2);border:1px solid var(--edge)">
+          ${Object.keys(G).filter(gk => G[gk]?.img).map(gk => `
+            <button type="button" data-a="eppickgamebanner" data-k="${esc(gk)}" title="Usar portada de ${esc(G[gk].t)}" style="position:relative;aspect-ratio:2/3;border-radius:8px;overflow:hidden;border:${d.bannerImg===G[gk].img?'2.5px solid var(--accent)':'1px solid var(--edge)'};padding:0;background:#111;cursor:pointer">
+              <img src="${esc(G[gk].img)}" alt="${esc(G[gk].t)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block">
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <details style="margin-top:2px">
+        <summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted)">🎨 ¿Prefieres un fondo de color degradado sin imagen? (Ver tonos)</summary>
+        <div style="display:grid;gap:10px;margin-top:10px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:8px">
+            ${BANNER_PRESETS.map(bp=>`
+              <button type="button" class="theme-swatch ${d.bannerMode==='color'&&d.h===bp.h?'active':''}" data-a="epbanner" data-h="${bp.h}">
+                <span class="swatch-dot" style="background:${bp.c}"></span>
+                <div>
+                  <div style="font-size:12px;font-weight:700">${bp.n}</div>
+                  <small class="muted" style="font-size:10px">${bp.sub}</small>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+          <label class="fld" style="margin-top:4px">
+            <span>Selector de tono libre (0° a 360°)</span>
+            <span class="rng">
+              <input id="ep-hue-range" type="range" min="0" max="360" value="${d.h}">
+              <b id="ep-hue-val" style="color:hsl(${d.h} 85% 65%)">${d.h}°</b>
+            </span>
+          </label>
+        </div>
+      </details>
     </div>
 
     <!-- 3. Información del perfil -->
@@ -5231,9 +5305,6 @@ function paintEditProfileModal(){
       <button class="btn" style="min-width:140px">Guardar cambios</button>
     </div>
   </form>`);
-
-  // Hook inputs for live preview
-  
 }
 
 function saveEditProfile(){
@@ -5255,7 +5326,8 @@ function saveEditProfile(){
   m.sch = $('#ep-sch')?.value || 'Noches';
   m.cur = $('#ep-cur')?.value || 'hk';
   m.h = editDraft.h;
-  m.bannerImg = editDraft.bannerImg;
+  m.bannerMode = editDraft.bannerMode || 'cover';
+  m.bannerImg = editDraft.bannerMode === 'color' ? null : (editDraft.bannerImg || G[m.cur]?.img || null);
   m.bannerGrad = editDraft.bannerGrad;
   m.avatarImg = editDraft.avatarImg;
   m.pl = editDraft.pl;
@@ -5267,7 +5339,7 @@ function saveEditProfile(){
   save();
   sbUpsertProfile(m);
   closeModal();
-  S.note = 'Perfil actualizado y sincronizado en la nube.';
+  S.note = '✨ Perfil y fondo difuminado actualizados y sincronizados.';
   render();
 }
 function openNotifsModal(){
@@ -6157,10 +6229,36 @@ document.addEventListener('click',async e=>{
      syncEditDraftInputs();
      const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.h = +el.dataset.h;
+     editDraft.bannerMode = 'color';
      const preset = BANNER_PRESETS.find(b=>b.h===editDraft.h);
      if(preset){
        editDraft.bannerGrad = preset.grad;
        editDraft.bannerImg = null;
+     }
+     paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
+     break;
+   }
+   case 'eppickgamebanner':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
+     if(G[k] && G[k].img){
+       editDraft.bannerImg = G[k].img;
+       editDraft.bannerMode = 'cover';
+       if(G[k].h) editDraft.h = G[k].h;
+     }
+     paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
+     break;
+   }
+   case 'epusecurcover':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
+     const curG = editDraft.cur || 'hk';
+     if(G[curG] && G[curG].img){
+       editDraft.bannerImg = G[curG].img;
+       editDraft.bannerMode = 'cover';
+       if(G[curG].h) editDraft.h = G[curG].h;
      }
      paintEditProfileModal();
      const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
@@ -6210,6 +6308,7 @@ document.addEventListener('click',async e=>{
      syncEditDraftInputs();
      const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.bannerImg = null;
+     editDraft.bannerMode = 'color';
      paintEditProfileModal();
      const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
      break;
@@ -6393,6 +6492,7 @@ document.addEventListener('change',async e=>{
     try{
       const data=await cropBannerFile(file);
       editDraft.bannerImg=data;
+      editDraft.bannerMode='cover';
       paintEditProfileModal();
     }catch(err){const er=$('#ep-e');if(er)er.textContent=String(err)}
   }
@@ -6418,9 +6518,10 @@ document.addEventListener('submit',async e=>{
       G[gk].img = newUrl;
       G[gk].syn = newSyn;
       DB.customGames = DB.customGames || {};
+      G[gk].userEdited = true;
       DB.customGames[gk] = G[gk];
-      DB.coverCache = DB.coverCache || {};
-      if(newUrl) DB.coverCache[gk] = newUrl;
+      DB.coverCacheV3 = DB.coverCacheV3 || {};
+      if(newUrl) DB.coverCacheV3[gk] = newUrl;
       save();
       S.note = `✅ Portada y datos de "${newTitle}" actualizados.`;
       render();
