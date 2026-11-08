@@ -72,6 +72,14 @@
 .card, .post {
   animation: none !important;
 }
+
+.now .art-w {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
 </style>
 </head><body>
 <div id="top-loader" class="top-loader" hidden></div>
@@ -1977,83 +1985,118 @@ const CATS={Gameplay:'gamepad',Setup:'monitor',Loot:'box','En pausa':'pause'};
 
 /* ─────────── datos de ejemplo ─────────── */
 const G={
- hk:{t:'Hollow Knight',y:2017,h:265,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/367520/library_600x900.jpg',dev:'Team Cherry',size:'9 GB',date:'24 Feb 2017',genre:'Metroidvania / Acción 2D',multi:'Un jugador',cross:'PC, Switch, PS4, PS5, Xbox',score:4.9,ost:5.0,meta:90,metaUser:9.0,openCritic:89,syn:'Adéntrate en las profundidades subterráneas de Hallownest, una vasta civilización de insectos en ruinas. Explora cavernas interconectadas, combate contra criaturas corrompidas y desafía a más de 150 jefes con un control milimétrico y una banda sonora sobrecogedora.'},
- hks:{t:'Hollow Knight: Silksong',y:2025,h:345,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1030300/library_600x900.jpg',dev:'Team Cherry',size:'12 GB',date:'2025',genre:'Metroidvania / Acción y Aventura',multi:'Un jugador',cross:'PC, Switch, PS5, Xbox Series X|S',score:4.9,ost:5.0,meta:92,metaUser:9.1,openCritic:92,syn:'Juega como Hornet, princesa protectora de Hallownest, y aventúrate a través de un reino completamente nuevo gobernado por la seda y el canto. Domina movimientos acrobáticos letales y descubre secretos ancestrales en su ascenso hacia la cima.'},
+ hk:{gp:true,t:'Hollow Knight',y:2017,h:265,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/367520/library_600x900.jpg',dev:'Team Cherry',size:'9 GB',date:'24 Feb 2017',genre:'Metroidvania / Acción 2D',multi:'Un jugador',cross:'PC, Switch, PS4, PS5, Xbox',score:4.9,ost:5.0,meta:90,metaUser:9.0,openCritic:89,syn:'Adéntrate en las profundidades subterráneas de Hallownest, una vasta civilización de insectos en ruinas. Explora cavernas interconectadas, combate contra criaturas corrompidas y desafía a más de 150 jefes con un control milimétrico y una banda sonora sobrecogedora.'},
+ hks:{gp:true,t:'Hollow Knight: Silksong',y:2025,h:345,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1030300/library_600x900.jpg',dev:'Team Cherry',size:'12 GB',date:'2025',genre:'Metroidvania / Acción y Aventura',multi:'Un jugador',cross:'PC, Switch, PS5, Xbox Series X|S',score:4.9,ost:5.0,meta:92,metaUser:9.1,openCritic:92,syn:'Juega como Hornet, princesa protectora de Hallownest, y aventúrate a través de un reino completamente nuevo gobernado por la seda y el canto. Domina movimientos acrobáticos letales y descubre secretos ancestrales en su ascenso hacia la cima.'},
  de:{t:'Disco Elysium',y:2019,h:28,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/632470/library_600x900.jpg',dev:'ZA/UM',size:'22 GB',date:'15 Oct 2019',genre:'RPG narrativo / Detectives',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.8,ost:4.9,meta:97,metaUser:8.3,openCritic:94,syn:'Eres un detective con un sistema de habilidades psíquicas único y un distrito urbano entero para investigar. Interroga a personajes memorables, resuelve homicidios o déjate llevar por tus adicciones.'},
- hd:{t:'Hades',y:2020,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1145360/library_600x900.jpg',dev:'Supergiant Games',size:'15 GB',date:'17 Sep 2020',genre:'Roguelike / Hack & Slash',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:93,metaUser:8.9,openCritic:94,syn:'Como el príncipe inmortal Zagreus, empuña las armas míticas y los dones del Olimpo para escapar de las garras de tu padre en el Inframundo griego. Cada intento de escape expande una historia viva.'},
+ hd:{gp:true,t:'Hades',y:2020,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1145360/library_600x900.jpg',dev:'Supergiant Games',size:'15 GB',date:'17 Sep 2020',genre:'Roguelike / Hack & Slash',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:93,metaUser:8.9,openCritic:94,syn:'Como el príncipe inmortal Zagreus, empuña las armas míticas y los dones del Olimpo para escapar de las garras de tu padre en el Inframundo griego. Cada intento de escape expande una historia viva.'},
  hd2:{t:'Hades II',y:2024,h:155,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1145350/library_600x900.jpg',dev:'Supergiant Games',size:'18 GB',date:'6 May 2024',genre:'Roguelike / Acción mágica',multi:'Un jugador',cross:'PC, Consolas',score:4.9,ost:5.0,meta:90,metaUser:8.8,openCritic:91,syn:'Lucha más allá del Inframundo utilizando hechicería oscura como Melinoë, la princesa inmortal del Inframundo, para enfrentarte a Cronos, el Titán del Tiempo, en la esperada secuela de Supergiant Games.'},
- ce:{t:'Celeste',y:2018,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/504230/library_600x900.jpg',dev:'Maddy Makes Games',size:'1.2 GB',date:'25 Ene 2018',genre:'Plataformas de precisión',multi:'Un jugador',cross:'PC, Switch, PS4, Xbox One',score:4.9,ost:5.0,meta:92,metaUser:8.5,openCritic:92,syn:'Ayuda a Madeline a escalar la montaña Celeste mientras se enfrenta a sus demonios internos. Un diseño de niveles milimétrico y más de 700 pantallas de desafíos con una banda sonora inolvidable.'},
+ ce:{gp:true,t:'Celeste',y:2018,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/504230/library_600x900.jpg',dev:'Maddy Makes Games',size:'1.2 GB',date:'25 Ene 2018',genre:'Plataformas de precisión',multi:'Un jugador',cross:'PC, Switch, PS4, Xbox One',score:4.9,ost:5.0,meta:92,metaUser:8.5,openCritic:92,syn:'Ayuda a Madeline a escalar la montaña Celeste mientras se enfrenta a sus demonios internos. Un diseño de niveles milimétrico y más de 700 pantallas de desafíos con una banda sonora inolvidable.'},
  rd:{t:'Red Dead Redemption 2',y:2018,h:18,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/library_600x900.jpg',dev:'Rockstar Games',size:'150 GB',date:'26 Oct 2018',genre:'Mundo abierto / Western',multi:'Un jugador + Red Dead Online',cross:'PC, PS4, PS5, Xbox',score:4.9,ost:4.8,meta:97,metaUser:8.7,openCritic:96,syn:'América, 1899. Arthur Morgan y la banda de Van der Linde deben atracar, robar y luchar para sobrevivir en el implacable corazón de los Estados Unidos en el ocaso de la era del Salvaje Oeste.'},
- p5:{t:'Persona 5 Royal',y:2019,h:0,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1687950/library_600x900.jpg',dev:'Atlus / SEGA',size:'41 GB',date:'31 Oct 2019',genre:'JRPG / Turnos',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:95,metaUser:8.7,openCritic:94,syn:'Ponte la máscara de Joker y lidera a los Phantom Thieves. Equilibra tu vida de estudiante en Tokio con incursiones a palacios surrealistas al ritmo del mejor acid jazz de los videojuegos.'},
- ow:{t:'Outer Wilds',y:2019,h:230,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/753640/library_600x900.jpg',dev:'Mobius Digital',size:'12 GB',date:'28 May 2019',genre:'Exploración espacial / Misterio',multi:'Un jugador',cross:'PC, Switch, PS4, PS5, Xbox',score:4.9,ost:4.9,meta:85,metaUser:8.8,openCritic:87,syn:'Explora un sistema solar atrapado en un bucle temporal de 22 minutos que termina con la supernova del sol y desentraña los misterios de los Nomai.'},
- gw:{t:'Gears of War: E-Day',y:2026,h:12,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3010850/1abb0c5ef76c14f463dd6e3964adb64f984237d2/header.jpg',dev:'The Coalition / Xbox',size:'90 GB',date:'2026',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox Series X|S, PC',score:4.7,ost:4.6,meta:88,metaUser:8.8,openCritic:89,syn:'Catorce años antes del Gears original, los jóvenes soldados Marcus Fenix y Dom Santiago se enfrentan a la Horda Locust en el cataclísmico Día de la Emergencia.'},
- gears5:{t:'Gears 5',y:2019,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1097840/library_600x900.jpg',dev:'The Coalition / Xbox Game Studios',size:'80 GB',date:'10 Sep 2019',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op 3 jugadores + Horda + Versus',cross:'Xbox One, Xbox Series X|S, PC',score:4.7,ost:4.8,meta:84,metaUser:8.3,openCritic:85,syn:'Con el mundo desmoronándose, Kait Díaz se separa para descubrir su conexión con el enemigo y descubre el verdadero peligro para Sera: ella misma.'},
- gears1:{t:'Gears of War: Ultimate Edition',y:2015,h:8,img:'https://store-images.s-microsoft.com/image/apps.10153.68785176255228170.152a1029-d0c3-4d27-a42d-ecccb32aa4ca.12e2db46-e6be-4494-a43e-ccf2e701ed16',dev:'Epic Games / The Coalition',size:'45 GB',date:'25 Ago 2015',genre:'Shooter táctico en 3ra persona / Cobertura',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox, PC',score:4.9,ost:4.9,meta:94,metaUser:9.0,openCritic:92,syn:'El legendario primer Gears of War remasterizado. Lidera al Escuadrón Delta como Marcus Fenix en la desesperada lucha de la humanidad contra la Horda Locust en Sera.'},
- sh:{t:'Silent Hill 2',y:2024,h:160,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2124490/header.jpg',dev:'Bloober Team / Konami',size:'50 GB',date:'8 Oct 2024',genre:'Survival Horror psicológico',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.8,ost:5.0,meta:86,metaUser:9.2,openCritic:87,syn:'Habiendo recibido una carta de su difunta esposa, James se dirige al pueblo brumoso de Silent Hill. Un remake magistral con música de Akira Yamaoka.'},
- hf:{t:'Hi-Fi Rush',y:2023,h:175,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1817230/library_600x900.jpg',dev:'Tango Gameworks',size:'20 GB',date:'25 Ene 2023',genre:'Acción rítmica / Hack & Slash',multi:'Un jugador',cross:'PC, Xbox Series X|S, PS5',score:4.9,ost:5.0,meta:87,metaUser:8.9,openCritic:89,syn:'Con un reproductor de música implantado en su pecho, Chai sincroniza todos sus golpes y esquivas con el pulso de una banda sonora de rock electrizante.'},
+ p5:{gp:true,t:'Persona 5 Royal',y:2019,h:0,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1687950/library_600x900.jpg',dev:'Atlus / SEGA',size:'41 GB',date:'31 Oct 2019',genre:'JRPG / Turnos',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:95,metaUser:8.7,openCritic:94,syn:'Ponte la máscara de Joker y lidera a los Phantom Thieves. Equilibra tu vida de estudiante en Tokio con incursiones a palacios surrealistas al ritmo del mejor acid jazz de los videojuegos.'},
+ ow:{gp:true,t:'Outer Wilds',y:2019,h:230,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/753640/library_600x900.jpg',dev:'Mobius Digital',size:'12 GB',date:'28 May 2019',genre:'Exploración espacial / Misterio',multi:'Un jugador',cross:'PC, Switch, PS4, PS5, Xbox',score:4.9,ost:4.9,meta:85,metaUser:8.8,openCritic:87,syn:'Explora un sistema solar atrapado en un bucle temporal de 22 minutos que termina con la supernova del sol y desentraña los misterios de los Nomai.'},
+ gw:{t:'Gears of War: E-Day',y:2026,h:12,gp:true,img:'https://store-images.s-microsoft.com/image/apps.58579.14310770435065065.c8a1a91e-2c5b-498b-82e6-b6b66068ab7f.3a0cd049-41cd-417e-b194-ea9774b5f076',dev:'The Coalition / Xbox',size:'90 GB',date:'2026',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox Series X|S, PC',score:4.7,ost:4.6,meta:88,metaUser:8.8,openCritic:89,syn:'Catorce años antes del Gears original, los jóvenes soldados Marcus Fenix y Dom Santiago se enfrentan a la Horda Locust en el cataclísmico Día de la Emergencia.'},
+ gears5:{gp:true,t:'Gears 5',y:2019,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1097840/library_600x900.jpg',dev:'The Coalition / Xbox Game Studios',size:'80 GB',date:'10 Sep 2019',genre:'Shooter 3ra persona / Co-op',multi:'Campaña Co-op 3 jugadores + Horda + Versus',cross:'Xbox One, Xbox Series X|S, PC',score:4.7,ost:4.8,meta:84,metaUser:8.3,openCritic:85,syn:'Con el mundo desmoronándose, Kait Díaz se separa para descubrir su conexión con el enemigo y descubre el verdadero peligro para Sera: ella misma.'},
+ gears1:{t:'Gears of War: Ultimate Edition',y:2015,h:8,gp:true,img:'https://static-cdn.jtvnw.net/ttv-boxart/Gears%20of%20War%3A%20Ultimate%20Edition-600x900.jpg',dev:'Epic Games / The Coalition',size:'45 GB',date:'25 Ago 2015',genre:'Shooter táctico en 3ra persona / Cobertura',multi:'Campaña Co-op + Multijugador Versus',cross:'Xbox, PC',score:4.9,ost:4.9,meta:94,metaUser:9.0,openCritic:92,syn:'El legendario primer Gears of War remasterizado. Lidera al Escuadrón Delta como Marcus Fenix en la desesperada lucha de la humanidad contra la Horda Locust en Sera.'},
+ sh:{t:'Silent Hill 2',y:2024,h:160,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2124490/library_600x900.jpg',dev:'Bloober Team / Konami',size:'50 GB',date:'8 Oct 2024',genre:'Survival Horror psicológico',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.8,ost:5.0,meta:86,metaUser:9.2,openCritic:87,syn:'Habiendo recibido una carta de su difunta esposa, James se dirige al pueblo brumoso de Silent Hill. Un remake magistral con música de Akira Yamaoka.'},
+ hf:{gp:true,t:'Hi-Fi Rush',y:2023,h:175,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1817230/library_600x900.jpg',dev:'Tango Gameworks',size:'20 GB',date:'25 Ene 2023',genre:'Acción rítmica / Hack & Slash',multi:'Un jugador',cross:'PC, Xbox Series X|S, PS5',score:4.9,ost:5.0,meta:87,metaUser:8.9,openCritic:89,syn:'Con un reproductor de música implantado en su pecho, Chai sincroniza todos sus golpes y esquivas con el pulso de una banda sonora de rock electrizante.'},
  zl:{t:'Zelda: Tears of the Kingdom',y:2023,h:120,img:'https://upload.wikimedia.org/wikipedia/en/f/fb/The_Legend_of_Zelda_Tears_of_the_Kingdom_cover.jpg',dev:'Nintendo EPD',size:'18.2 GB',date:'12 May 2023',genre:'Acción y Aventura / Mundo abierto',multi:'Un jugador',cross:'Nintendo Switch',score:4.9,ost:4.8,meta:96,metaUser:8.5,openCritic:96,syn:'Una épica aventura por la tierra, los cielos y el subsuelo de Hyrule. Crea vehículos y artefactos con Ultramano para forjar tu propio camino.'},
- mc:{t:'Minecraft',y:2011,h:100,img:'https://image.api.playstation.com/vulcan/ap/rnd/202407/1020/91fe046f742042e3b31e57f7731dbe2226e1fd1e02a36223.jpg',dev:'Mojang Studios',size:'2 GB',date:'18 Nov 2011',genre:'Sandbox / Supervivencia',multi:'Un jugador + Multijugador Cross-play',cross:'PC, Consolas, Móvil',score:4.8,ost:4.9,meta:93,metaUser:8.2,openCritic:91,syn:'Explora mundos infinitos y construye desde un refugio hasta ciudades enteras en modo supervivencia o creativo con amigos.'},
+ mc:{t:'Minecraft',y:2011,h:100,gp:true,img:'https://static-cdn.jtvnw.net/ttv-boxart/27471_IGDB-600x900.jpg',dev:'Mojang Studios',size:'2 GB',date:'18 Nov 2011',genre:'Sandbox / Supervivencia',multi:'Un jugador + Multijugador Cross-play',cross:'PC, Consolas, Móvil',score:4.8,ost:4.9,meta:93,metaUser:8.2,openCritic:91,syn:'Explora mundos infinitos y construye desde un refugio hasta ciudades enteras en modo supervivencia o creativo con amigos.'},
  er:{t:'Elden Ring',y:2022,h:45,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/library_600x900.jpg',dev:'FromSoftware',size:'60 GB',date:'25 Feb 2022',genre:'Action RPG / Soulslike de mundo abierto',multi:'Un jugador + Cooperativo e invasiones online',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.9,ost:4.9,meta:96,metaUser:8.2,openCritic:95,syn:'Álzate, Sinluz, y que la gracia te guíe para abrazar el poder del Círculo de Elden y convertirte en Señor de las Tierras Intermedias en la obra maestra de Hidetaka Miyazaki y George R. R. Martin.'},
  bg3:{t:"Baldur's Gate 3",y:2023,h:315,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1086940/library_600x900.jpg',dev:'Larian Studios',size:'150 GB',date:'3 Ago 2023',genre:'CRPG / Rol táctico por turnos',multi:'Un jugador + Cooperativo hasta 4 jugadores',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:4.9,meta:96,metaUser:9.1,openCritic:96,syn:'Reúne a tu grupo y regresa a los Reinos Olvidados en una historia de compañerismo, traición, sacrificio y supervivencia basada en el universo de Dungeons & Dragons.'},
  cp77:{t:'Cyberpunk 2077',y:2020,h:55,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/library_600x900.jpg',dev:'CD Projekt Red',size:'70 GB',date:'10 Dic 2020',genre:'RPG de Acción / Mundo abierto futurista',multi:'Un jugador',cross:'PC, PS5, Xbox Series X|S',score:4.7,ost:4.9,meta:86,metaUser:8.1,openCritic:85,syn:'Ponte en la piel de V, un mercenario ciberpunk en la megalópolis de Night City, obsesionada con el poder, el glamur y las modificaciones corporales.'},
  tw3:{t:'The Witcher 3: Wild Hunt',y:2015,h:340,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/292030/library_600x900.jpg',dev:'CD Projekt Red',size:'50 GB',date:'19 May 2015',genre:'Action RPG / Fantasía oscura',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox, Switch',score:4.9,ost:5.0,meta:93,metaUser:9.1,openCritic:92,syn:'Eres Geralt de Rivia, cazador de monstruos a sueldo. En un continente devastado por la guerra, debes encontrar a Ciri, la niña de la profecía.'},
  re4:{t:'Resident Evil 4 Remake',y:2023,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2050650/library_600x900.jpg',dev:'Capcom',size:'67 GB',date:'24 Mar 2023',genre:'Survival Horror / Acción',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox Series X|S',score:4.9,ost:4.7,meta:93,metaUser:8.9,openCritic:92,syn:'Seis años después del desastre biológico en Raccoon City, el agente Leon S. Kennedy es enviado a rescatar a la hija del presidente en una aldea europea aislada.'},
- gow:{t:'God of War Ragnarök',y:2022,h:205,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/header.jpg',dev:'Santa Monica Studio',size:'84 GB',date:'9 Nov 2022',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.9,meta:94,metaUser:8.4,openCritic:93,syn:'Kratos y Atreus deben viajar a cada uno de los Nueve Reinos en busca de respuestas mientras las fuerzas asgardianas se preparan para la batalla profetizada que acabará con el mundo.'},
+ gow:{t:'God of War Ragnarök',y:2022,h:205,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2322010/library_600x900.jpg',dev:'Santa Monica Studio',size:'84 GB',date:'9 Nov 2022',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.9,meta:94,metaUser:8.4,openCritic:93,syn:'Kratos y Atreus deben viajar a cada uno de los Nueve Reinos en busca de respuestas mientras las fuerzas asgardianas se preparan para la batalla profetizada que acabará con el mundo.'},
  tlou:{t:'The Last of Us Part I',y:2022,h:135,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1888930/library_600x900.jpg',dev:'Naughty Dog',size:'79 GB',date:'2 Sep 2022',genre:'Acción y Aventura / Supervivencia narrativa',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:88,syn:'En una civilización devastada donde los infectados y los supervivientes endurecidos campan a sus anchas, Joel es contratado para sacar de contrabando a Ellie, una niña de 14 años.'},
  bb:{t:'Bloodborne',y:2015,h:280,img:'https://image.api.playstation.com/vulcan/img/rnd/202010/2614/KKLEVc2SIIgrFVjsZChZJk1d.jpg',dev:'FromSoftware',size:'36 GB',date:'24 Mar 2015',genre:'Action RPG / Terror gótico cósmico',multi:'Un jugador + Cooperativo y PvP online',cross:'PlayStation 4, PlayStation 5',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:91,syn:'Enfréntate a tus pesadillas mientras buscas respuestas en la antigua ciudad de Yharnam, ahora maldita con una extraña enfermedad endémica que se propaga por las calles como el fuego.'},
  sek:{t:'Sekiro: Shadows Die Twice',y:2019,h:25,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/814380/library_600x900.jpg',dev:'FromSoftware',size:'25 GB',date:'22 Mar 2019',genre:'Acción y Sigilo / Combate de espadas',multi:'Un jugador',cross:'PC, PS4, Xbox One',score:4.9,ost:4.7,meta:90,metaUser:8.6,openCritic:90,syn:'En el Japón del periodo Sengoku a finales del siglo XVI, encarna al "lobo manco", un guerrero desfigurado y caído en desgracia rescatado del borde de la muerte.'},
  ds3:{t:'Dark Souls III',y:2016,h:32,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/374320/library_600x900.jpg',dev:'FromSoftware',size:'25 GB',date:'12 Abr 2016',genre:'Action RPG / Fantasía oscura',multi:'Un jugador + Cooperativo e invasiones',cross:'PC, PS4, Xbox One',score:4.9,ost:5.0,meta:89,metaUser:8.9,openCritic:89,syn:'Mientras el fuego se desvanece y el mundo cae en la ruina, adéntrate en un universo lleno de enemigos colosales y Señores de la Ceniza.'},
  gta5:{t:'Grand Theft Auto V',y:2013,h:115,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/271590/library_600x900.jpg',dev:'Rockstar North',size:'110 GB',date:'17 Sep 2013',genre:'Mundo abierto / Acción / Crimen',multi:'Un jugador + GTA Online',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.8,ost:4.8,meta:97,metaUser:8.4,openCritic:96,syn:'Un joven estafador callejero, un ladrón de bancos retirado y un psicópata aterrador deben llevar a cabo una serie de peligrosos golpes para sobrevivir en Los Santos.'},
- val:{t:'Valorant',y:2020,h:355,img:'https://upload.wikimedia.org/wikipedia/en/b/ba/Valorant_cover.jpg',dev:'Riot Games',size:'45 GB',date:'2 Jun 2020',genre:'Tactical Hero Shooter 5v5',multi:'Multijugador competitivo 5v5',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.5,ost:4.4,meta:80,metaUser:7.5,openCritic:80,syn:'Combina tu estilo y experiencia en un escenario global y competitivo. Tienes 13 rondas para atacar y defender tu lado con armas precisas y habilidades tácticas únicas.'},
- fn:{t:'Fortnite',y:2017,h:255,img:'https://image.api.playstation.com/vulcan/ap/rnd/202610/2819/710df9aa63ce6885fa0e4dfbe8e0b9621d5ba7a88f14c9c7.jpg',dev:'Epic Games',size:'65 GB',date:'25 Jul 2017',genre:'Battle Royale / Creativo / Festival',multi:'Multijugador masivo online (Cross-play)',cross:'PC, PlayStation, Xbox, Switch, Móvil',score:4.5,ost:4.5,meta:81,metaUser:7.8,openCritic:82,syn:'Salta del autobús de batalla con tu escuadrón en Battle Royale o Cero Construcción, explora experiencias creadas por la comunidad o toca música en Fortnite Festival.'},
- lol:{t:'League of Legends',y:2009,h:215,img:'https://upload.wikimedia.org/wikipedia/commons/2/2a/LoL_icon.svg',dev:'Riot Games',size:'22 GB',date:'27 Oct 2009',genre:'MOBA / Estrategia 5v5 en tiempo real',multi:'Multijugador competitivo 5v5',cross:'PC, Mac',score:4.4,ost:4.8,meta:78,metaUser:7.2,openCritic:80,syn:'Un juego de estrategia por equipos en el que dos escuadrones de cinco campeones se enfrentan para destruir la base del otro en la Grieta del Invocador.'},
- cod:{t:'Call of Duty: Warzone / BO6',y:2024,h:22,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4384550/836828b783fc1208664d6c3f9fe88e9abf060813/header.jpg',dev:'Treyarch / Activision',size:'120 GB',date:'25 Oct 2024',genre:'FPS / Shooter en 1ra persona / Zombies',multi:'Campaña + Multijugador + Zombies + Battle Royale',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.5,ost:4.5,meta:83,metaUser:7.6,openCritic:83,syn:'Acción frenética con movimiento omnidireccional, mapas multijugador intensos, el regreso del modo Zombies por rondas y combates masivos en Warzone.'},
+ val:{t:'Valorant',y:2020,h:355,gp:true,img:'https://static-cdn.jtvnw.net/ttv-boxart/516575-600x900.jpg',dev:'Riot Games',size:'45 GB',date:'2 Jun 2020',genre:'Tactical Hero Shooter 5v5',multi:'Multijugador competitivo 5v5',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.5,ost:4.4,meta:80,metaUser:7.5,openCritic:80,syn:'Combina tu estilo y experiencia en un escenario global y competitivo. Tienes 13 rondas para atacar y defender tu lado con armas precisas y habilidades tácticas únicas.'},
+ fn:{t:'Fortnite',y:2017,h:255,img:'https://static-cdn.jtvnw.net/ttv-boxart/33214-600x900.jpg',dev:'Epic Games',size:'65 GB',date:'25 Jul 2017',genre:'Battle Royale / Creativo / Festival',multi:'Multijugador masivo online (Cross-play)',cross:'PC, PlayStation, Xbox, Switch, Móvil',score:4.5,ost:4.5,meta:81,metaUser:7.8,openCritic:82,syn:'Salta del autobús de batalla con tu escuadrón en Battle Royale o Cero Construcción, explora experiencias creadas por la comunidad o toca música en Fortnite Festival.'},
+ lol:{t:'League of Legends',y:2009,h:215,gp:true,img:'https://static-cdn.jtvnw.net/ttv-boxart/21779-600x900.jpg',dev:'Riot Games',size:'22 GB',date:'27 Oct 2009',genre:'MOBA / Estrategia 5v5 en tiempo real',multi:'Multijugador competitivo 5v5',cross:'PC, Mac',score:4.4,ost:4.8,meta:78,metaUser:7.2,openCritic:80,syn:'Un juego de estrategia por equipos en el que dos escuadrones de cinco campeones se enfrentan para destruir la base del otro en la Grieta del Invocador.'},
+ cod:{t:'Call of Duty: Warzone / BO6',y:2024,h:22,gp:true,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1938090/library_600x900.jpg',dev:'Treyarch / Activision',size:'120 GB',date:'25 Oct 2024',genre:'FPS / Shooter en 1ra persona / Zombies',multi:'Campaña + Multijugador + Zombies + Battle Royale',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S',score:4.5,ost:4.5,meta:83,metaUser:7.6,openCritic:83,syn:'Acción frenética con movimiento omnidireccional, mapas multijugador intensos, el regreso del modo Zombies por rondas y combates masivos en Warzone.'},
  apex:{t:'Apex Legends',y:2019,h:8,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/library_600x900.jpg',dev:'Respawn Entertainment',size:'75 GB',date:'4 Feb 2019',genre:'Hero Shooter / Battle Royale en escuadrón',multi:'Multijugador online por tríos y dúos',cross:'PC, PlayStation, Xbox, Switch (Cross-play)',score:4.5,ost:4.4,meta:89,metaUser:7.7,openCritic:88,syn:'Domina con estilo en Apex Legends, un shooter Battle Royale gratuito donde personajes legendarios con poderosas habilidades forman equipo para luchar por la gloria en la Frontera.'},
- ow2:{t:'Overwatch 2',y:2022,h:35,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2357570/library_600x900.jpg',dev:'Blizzard Entertainment',size:'50 GB',date:'4 Oct 2022',genre:'Hero Shooter por equipos 5v5',multi:'Multijugador competitivo y rápido 5v5',cross:'PC, PlayStation, Xbox, Switch (Cross-play)',score:4.3,ost:4.6,meta:79,metaUser:7.1,openCritic:78,syn:'Un juego de acción por equipos gratuito ambientado en un futuro optimista, en el que cada partida es una refriega definitiva 5 contra 5 con más de 40 héroes únicos.'},
+ ow2:{gp:true,t:'Overwatch 2',y:2022,h:35,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2357570/library_600x900.jpg',dev:'Blizzard Entertainment',size:'50 GB',date:'4 Oct 2022',genre:'Hero Shooter por equipos 5v5',multi:'Multijugador competitivo y rápido 5v5',cross:'PC, PlayStation, Xbox, Switch (Cross-play)',score:4.3,ost:4.6,meta:79,metaUser:7.1,openCritic:78,syn:'Un juego de acción por equipos gratuito ambientado en un futuro optimista, en el que cada partida es una refriega definitiva 5 contra 5 con más de 40 héroes únicos.'},
  hdvr:{t:'Helldivers 2',y:2024,h:50,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/553850/library_600x900.jpg',dev:'Arrowhead Game Studios',size:'85 GB',date:'8 Feb 2024',genre:'Shooter cooperativo en 3ra persona / Acción',multi:'Cooperativo online de hasta 4 jugadores',cross:'PC, PlayStation 5 (Cross-play)',score:4.8,ost:4.9,meta:82,metaUser:8.5,openCritic:83,syn:'La última línea de ataque de la galaxia. Alístate en los Helldivers y lucha por la libertad y la Democracia Gestionada en una galaxia hostil contra Termínidos y Autómatas.'},
- fc25:{t:'EA Sports FC 25',y:2024,h:145,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2669320/ec3fb7747fd8080ef53d7686e0d98c5abe1f51f1/header.jpg',dev:'EA Sports',size:'60 GB',date:'27 Sep 2024',genre:'Deportes / Simulador de Fútbol',multi:'Local + Multijugador Online (Ultimate Team, Clubes, Rush)',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S, Switch',score:4.3,ost:4.6,meta:76,metaUser:7.0,openCritic:77,syn:'Haz que tu equipo juegue como la élite mundial con FC IQ, compite en el nuevo modo rápido 5 contra 5 Rush con amigos y construye la plantilla de tus sueños.'},
- fh5:{t:'Forza Horizon 5',y:2021,h:335,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1551360/library_600x900.jpg',dev:'Playground Games',size:'110 GB',date:'9 Nov 2021',genre:'Carreras / Mundo abierto en México',multi:'Un jugador + Multijugador online compartido',cross:'Xbox Series X|S, Xbox One, PC',score:4.8,ost:4.8,meta:92,metaUser:8.4,openCritic:92,syn:'Tu aventura definitiva en Horizon te espera. Explora los vibrantes paisajes en constante evolución de México con una acción de conducción ilimitada en cientos de los mejores autos del mundo.'},
- halo:{t:'Halo Infinite',y:2021,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1240440/library_600x900.jpg',dev:'Halo Studios (343i)',size:'70 GB',date:'8 Dic 2021',genre:'FPS / Ciencia Ficción / Arena Shooter',multi:'Campaña + Multijugador gratuito + Forge',cross:'Xbox Series X|S, Xbox One, PC',score:4.5,ost:4.9,meta:87,metaUser:8.0,openCritic:86,syn:'Cuando toda esperanza se pierde y el destino de la humanidad pende de un hilo, el Jefe Maestro está listo para enfrentarse al enemigo más despiadado en la superficie del anillo Zeta Halo.'},
+ fc25:{t:'EA Sports FC 25',y:2024,h:145,gp:true,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2963840/976d81150f7fb51164efd39a6d3c40daf44e308a/library_600x900.jpg',dev:'EA Sports',size:'60 GB',date:'27 Sep 2024',genre:'Deportes / Simulador de Fútbol',multi:'Local + Multijugador Online (Ultimate Team, Clubes, Rush)',cross:'PC, PS4, PS5, Xbox One, Xbox Series X|S, Switch',score:4.3,ost:4.6,meta:76,metaUser:7.0,openCritic:77,syn:'Haz que tu equipo juegue como la élite mundial con FC IQ, compite en el nuevo modo rápido 5 contra 5 Rush con amigos y construye la plantilla de tus sueños.'},
+ fh5:{gp:true,t:'Forza Horizon 5',y:2021,h:335,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1551360/library_600x900.jpg',dev:'Playground Games',size:'110 GB',date:'9 Nov 2021',genre:'Carreras / Mundo abierto en México',multi:'Un jugador + Multijugador online compartido',cross:'Xbox Series X|S, Xbox One, PC',score:4.8,ost:4.8,meta:92,metaUser:8.4,openCritic:92,syn:'Tu aventura definitiva en Horizon te espera. Explora los vibrantes paisajes en constante evolución de México con una acción de conducción ilimitada en cientos de los mejores autos del mundo.'},
+ halo:{gp:true,t:'Halo Infinite',y:2021,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1240440/library_600x900.jpg',dev:'Halo Studios (343i)',size:'70 GB',date:'8 Dic 2021',genre:'FPS / Ciencia Ficción / Arena Shooter',multi:'Campaña + Multijugador gratuito + Forge',cross:'Xbox Series X|S, Xbox One, PC',score:4.5,ost:4.9,meta:87,metaUser:8.0,openCritic:86,syn:'Cuando toda esperanza se pierde y el destino de la humanidad pende de un hilo, el Jefe Maestro está listo para enfrentarse al enemigo más despiadado en la superficie del anillo Zeta Halo.'},
  ssb:{t:'Super Smash Bros. Ultimate',y:2018,h:5,img:'https://upload.wikimedia.org/wikipedia/en/5/50/Super_Smash_Bros._Ultimate.jpg',dev:'Bandai Namco / Sora / Nintendo',size:'17 GB',date:'7 Dic 2018',genre:'Lucha / Plataformas crossover',multi:'1 a 8 jugadores (Local y Online)',cross:'Nintendo Switch',score:4.9,ost:5.0,meta:93,metaUser:8.7,openCritic:93,syn:'¡Todos están aquí! Más de 80 luchadores icónicos de la historia de los videojuegos se enfrentan en el crossover de peleas más grande jamás creado.'},
  mk8:{t:'Mario Kart 8 Deluxe',y:2017,h:220,img:'https://upload.wikimedia.org/wikipedia/en/b/b5/Mario_Kart_8_Deluxe_Switch_box_art.png',dev:'Nintendo EPD',size:'11 GB',date:'28 Abr 2017',genre:'Carreras arcade / Party Game',multi:'1 a 4 jugadores local + hasta 12 online',cross:'Nintendo Switch',score:4.9,ost:4.9,meta:92,metaUser:8.7,openCritic:92,syn:'Quema asfalto en las pistas del Reino Champiñón bajo el agua, en el cielo, de cabeza y sin gravedad a través de hasta 96 circuitos llenos de atajos y objetos.'},
  smo:{t:'Super Mario Odyssey',y:2017,h:10,img:'https://upload.wikimedia.org/wikipedia/en/8/8d/Super_Mario_Odyssey.jpg',dev:'Nintendo EPD',size:'5.7 GB',date:'27 Oct 2017',genre:'Plataformas 3D / Exploración Sandbox',multi:'1 a 2 jugadores',cross:'Nintendo Switch',score:4.9,ost:5.0,meta:97,metaUser:8.9,openCritic:97,syn:'Acompaña a Mario en una aventura 3D trotamundos enorme y usa sus nuevas habilidades junto a su amigo Cappy para recoger lunas y rescatar a la princesa Peach de los planes de boda de Bowser.'},
- sv:{t:'Stardew Valley',y:2016,h:95,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/413150/library_600x900.jpg',dev:'ConcernedApe',size:'1 GB',date:'26 Feb 2016',genre:'Simulación de granja / RPG acogedor',multi:'Un jugador + Cooperativo de hasta 4-8 jugadores',cross:'PC, Switch, PlayStation, Xbox, Móvil',score:4.9,ost:5.0,meta:89,metaUser:8.9,openCritic:90,syn:'Acabas de heredar la vieja parcela agrícola de tu abuelo en Stardew Valley. Con herramientas de segunda mano y unas pocas monedas, te dispones a comenzar tu nueva vida.'},
- ter:{t:'Terraria',y:2011,h:130,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/105600/library_600x900.jpg',dev:'Re-Logic',size:'0.6 GB',date:'16 May 2011',genre:'Sandbox 2D / Acción, Exploración y Jefes',multi:'Un jugador + Cooperativo online',cross:'PC, Consolas, Móvil',score:4.9,ost:4.9,meta:83,metaUser:8.8,openCritic:84,syn:'¡Cava, lucha, explora, construye! Nada es imposible en este juego de aventuras repleto de acción donde el mundo es tu lienzo y el suelo mismo es tu pintura.'},
+ sv:{gp:true,t:'Stardew Valley',y:2016,h:95,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/413150/library_600x900.jpg',dev:'ConcernedApe',size:'1 GB',date:'26 Feb 2016',genre:'Simulación de granja / RPG acogedor',multi:'Un jugador + Cooperativo de hasta 4-8 jugadores',cross:'PC, Switch, PlayStation, Xbox, Móvil',score:4.9,ost:5.0,meta:89,metaUser:8.9,openCritic:90,syn:'Acabas de heredar la vieja parcela agrícola de tu abuelo en Stardew Valley. Con herramientas de segunda mano y unas pocas monedas, te dispones a comenzar tu nueva vida.'},
+ ter:{gp:true,t:'Terraria',y:2011,h:130,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/105600/library_600x900.jpg',dev:'Re-Logic',size:'0.6 GB',date:'16 May 2011',genre:'Sandbox 2D / Acción, Exploración y Jefes',multi:'Un jugador + Cooperativo online',cross:'PC, Consolas, Móvil',score:4.9,ost:4.9,meta:83,metaUser:8.8,openCritic:84,syn:'¡Cava, lucha, explora, construye! Nada es imposible en este juego de aventuras repleto de acción donde el mundo es tu lienzo y el suelo mismo es tu pintura.'},
  cup:{t:'Cuphead',y:2017,h:42,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/268910/library_600x900.jpg',dev:'Studio MDHR',size:'4 GB',date:'29 Sep 2017',genre:'Run and Gun / Boss Rush animado a mano',multi:'1 a 2 jugadores (Cooperativo)',cross:'PC, Xbox, PlayStation, Switch',score:4.8,ost:5.0,meta:88,metaUser:8.5,openCritic:88,syn:'Un juego de acción clásico estilo "dispara y corre" centrado en batallas contra jefes, inspirado en los dibujos animados de los años 30 con acuarelas hechas a mano y grabaciones originales de jazz.'},
  l4d2:{t:'Left 4 Dead 2',y:2009,h:85,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/550/library_600x900.jpg',dev:'Valve',size:'13 GB',date:'17 Nov 2009',genre:'FPS Cooperativo de supervivencia zombie',multi:'Cooperativo de 4 jugadores + Modo Enfrentamiento 4v4',cross:'PC / Steam, Xbox',score:4.9,ost:4.7,meta:89,metaUser:9.1,openCritic:89,syn:'Ambientado en el apocalipsis zombi, este clásico cooperativo de Valve te lleva a ti y a tus amigos por las ciudades, pantanos y cementerios del sur profundo desde Savannah hasta Nueva Orleans.'},
  gow18:{t:'God of War (2018)',y:2018,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1593500/library_600x900.jpg',dev:'Santa Monica Studio',size:'70 GB',date:'20 Abr 2018',genre:'Acción y Aventura / Mitología nórdica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:94,metaUser:9.1,openCritic:94,syn:'Habiendo dejado atrás su venganza contra los dioses del Olimpo, Kratos vive ahora en el reino de las deidades y monstruos nórdicos junto a su hijo Atreus.'},
- bmw:{t:'Black Myth: Wukong',y:2024,h:38,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2358720/header.jpg',wiki:'Black_Myth:_Wukong',dev:'Game Science',size:'130 GB',date:'20 Ago 2024',genre:'Action RPG / Mitología china',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.8,ost:4.9,meta:81,metaUser:8.6,openCritic:82,syn:'Embárcate en un viaje hacia el oeste como el Predestinado en este RPG de acción inspirado en la clásica novela mitológica china Viaje al Oeste.'},
- mhw:{t:'Monster Hunter: World',y:2018,h:32,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/582010/library_600x900.jpg',dev:'Capcom',size:'52 GB',date:'26 Ene 2018',genre:'Action RPG / Cacería cooperativa',multi:'Un jugador + Cooperativo online hasta 4 cazadores',cross:'PC, PlayStation 4/5, Xbox One / Series',score:4.8,ost:4.8,meta:90,metaUser:8.6,openCritic:90,syn:'¡Bienvenido a un nuevo mundo! Asume el papel de un cazador y abate monstruos feroces en un ecosistema vivo y respirante donde puedes usar el entorno a tu favor.'},
- re2:{t:'Resident Evil 2 Remake',y:2019,h:220,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/883710/library_600x900.jpg',dev:'Capcom',size:'26 GB',date:'25 Ene 2019',genre:'Survival Horror',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.8,meta:91,metaUser:8.9,openCritic:92,syn:'Un virus letal envuelve a los residentes de Raccoon City en septiembre de 1998. Leon S. Kennedy y Claire Redfield luchan por sobrevivir en una comisaría infestada.'},
+ bmw:{t:'Black Myth: Wukong',y:2024,h:38,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2358720/library_600x900.jpg',wiki:'Black_Myth:_Wukong',dev:'Game Science',size:'130 GB',date:'20 Ago 2024',genre:'Action RPG / Mitología china',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.8,ost:4.9,meta:81,metaUser:8.6,openCritic:82,syn:'Embárcate en un viaje hacia el oeste como el Predestinado en este RPG de acción inspirado en la clásica novela mitológica china Viaje al Oeste.'},
+ mhw:{gp:true,t:'Monster Hunter: World',y:2018,h:32,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/582010/library_600x900.jpg',dev:'Capcom',size:'52 GB',date:'26 Ene 2018',genre:'Action RPG / Cacería cooperativa',multi:'Un jugador + Cooperativo online hasta 4 cazadores',cross:'PC, PlayStation 4/5, Xbox One / Series',score:4.8,ost:4.8,meta:90,metaUser:8.6,openCritic:90,syn:'¡Bienvenido a un nuevo mundo! Asume el papel de un cazador y abate monstruos feroces en un ecosistema vivo y respirante donde puedes usar el entorno a tu favor.'},
+ re2:{gp:true,t:'Resident Evil 2 Remake',y:2019,h:220,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/883710/library_600x900.jpg',dev:'Capcom',size:'26 GB',date:'25 Ene 2019',genre:'Survival Horror',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.8,meta:91,metaUser:8.9,openCritic:92,syn:'Un virus letal envuelve a los residentes de Raccoon City en septiembre de 1998. Leon S. Kennedy y Claire Redfield luchan por sobrevivir en una comisaría infestada.'},
  rev:{t:'Resident Evil Village',y:2021,h:45,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1196590/library_600x900.jpg',dev:'Capcom',size:'35 GB',date:'7 May 2021',genre:'Survival Horror / Acción 1ra persona',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series',score:4.7,ost:4.7,meta:84,metaUser:8.5,openCritic:84,syn:'Vive el survival horror como nunca antes en la octava entrega principal de Resident Evil, donde Ethan Winters busca a su hija en una aldea dominada por cuatro jerarcas.'},
  dmc5:{t:'Devil May Cry 5',y:2019,h:240,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/601150/library_600x900.jpg',dev:'Capcom',size:'35 GB',date:'8 Mar 2019',genre:'Hack & Slash / Acción estilizada',multi:'Un jugador',cross:'PC, PS4, PS5, Xbox One, Xbox Series',score:4.9,ost:5.0,meta:88,metaUser:8.8,openCritic:89,syn:'El cazador de demonios definitivo regresa con estilo en el juego que los fans de la acción estaban esperando, protagonizado por Nero, Dante y V.'},
  sf6:{t:'Street Fighter 6',y:2023,h:290,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1364780/library_600x900.jpg',dev:'Capcom',size:'60 GB',date:'2 Jun 2023',genre:'Peleas 2D / Competitivo',multi:'1 a 2 jugadores + Online Cross-play (Battle Hub)',cross:'PC, PlayStation 4/5, Xbox Series X|S',score:4.8,ost:4.6,meta:92,metaUser:8.4,openCritic:92,syn:'Aquí viene un nuevo retador. Domina el sistema Drive, explora el modo World Tour y compite contra jugadores de todo el mundo con rollback netcode de primer nivel.'},
  tk8:{t:'Tekken 8',y:2024,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1778820/library_600x900.jpg',dev:'Bandai Namco',size:'100 GB',date:'26 Ene 2024',genre:'Peleas 3D / Competitivo',multi:'Local + Online Cross-play',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.8,ost:4.9,meta:90,metaUser:8.2,openCritic:90,syn:'El puño se encuentra con el destino en Tekken 8. Continúa la trágica saga de los linajes Mishima y Kazama con el nuevo sistema agresivo Heat.'},
  cs2:{t:'Counter-Strike 2',y:2023,h:35,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900.jpg',dev:'Valve',size:'85 GB',date:'27 Sep 2023',genre:'Tactical FPS 5v5',multi:'Multijugador competitivo 5v5',cross:'PC / Steam',score:4.6,ost:4.4,meta:82,metaUser:7.8,openCritic:83,syn:'Durante más de dos décadas, Counter-Strike ha ofrecido una experiencia competitiva de élite, ahora impulsada por el motor Source 2 con humos volumétricos dinámicos.'},
- r6s:{t:'Rainbow Six Siege',y:2015,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/359550/library_600x900.jpg',dev:'Ubisoft',size:'65 GB',date:'1 Dic 2015',genre:'Shooter táctico 5v5 / Destrucción',multi:'Multijugador táctico 5v5',cross:'PC, PlayStation, Xbox',score:4.5,ost:4.3,meta:79,metaUser:7.7,openCritic:80,syn:'Domina el arte de la destrucción y el uso de dispositivos en intensos combates cercanos 5 contra 5 de ataque contra defensa.'},
+ r6s:{gp:true,t:'Rainbow Six Siege',y:2015,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/359550/library_600x900.jpg',dev:'Ubisoft',size:'65 GB',date:'1 Dic 2015',genre:'Shooter táctico 5v5 / Destrucción',multi:'Multijugador táctico 5v5',cross:'PC, PlayStation, Xbox',score:4.5,ost:4.3,meta:79,metaUser:7.7,openCritic:80,syn:'Domina el arte de la destrucción y el uso de dispositivos en intensos combates cercanos 5 contra 5 de ataque contra defensa.'},
  dst2:{t:'Destiny 2',y:2017,h:230,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1085660/library_600x900.jpg',dev:'Bungie',size:'105 GB',date:'6 Sep 2017',genre:'MMO FPS / Looter Shooter Sci-Fi',multi:'Cooperativo (Incursiones / Asaltos) + PvP Crisol',cross:'PC, PlayStation, Xbox (Cross-play)',score:4.5,ost:5.0,meta:85,metaUser:7.9,openCritic:84,syn:'Sumérgete en el mundo de Destiny 2 para explorar los misterios del sistema solar y vivir un combate de disparos en primera persona con tus amigos.'},
  rl:{t:'Rocket League',y:2015,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/252950/library_600x900.jpg',dev:'Psyonix',size:'25 GB',date:'7 Jul 2015',genre:'Deportes Arcade / Fútbol con autos',multi:'1 a 4 local + Online 1v1, 2v2, 3v3 Cross-play',cross:'PC, PlayStation, Xbox, Switch',score:4.7,ost:4.8,meta:86,metaUser:8.5,openCritic:87,syn:'Un híbrido de alta potencia entre fútbol de estilo arcade y caos vehicular con controles fluidos basados en la física.'},
- sot:{t:'Sea of Thieves',y:2018,h:170,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1172620/library_600x900.jpg',dev:'Rare / Xbox Game Studios',size:'100 GB',date:'20 Mar 2018',genre:'Aventura pirata / Mundo compartido',multi:'Tripulaciones cooperativas y PvP en mundo abierto',cross:'PC, Xbox, PlayStation 5 (Cross-play)',score:4.6,ost:4.8,meta:69,metaUser:8.1,openCritic:79,syn:'Vive la experiencia pirata definitiva, desde navegar y combatir hasta explorar y saquear tesoros junto a tu tripulación.'},
- sky:{t:'The Elder Scrolls V: Skyrim',y:2011,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/489830/library_600x900.jpg',dev:'Bethesda Game Studios',size:'12 GB',date:'11 Nov 2011',genre:'Action RPG de mundo abierto / Fantasía',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.9,ost:5.0,meta:96,metaUser:8.6,openCritic:94,syn:'Los dragones, perdidos hace mucho tiempo en los pasajes de los Pergaminos, han regresado a Tamriel y el futuro de Skyrim pende de un hilo mientras surge el Sangre de Dragón.'},
- fnv:{t:'Fallout: New Vegas',y:2010,h:38,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/22380/library_600x900.jpg',dev:'Obsidian Entertainment',size:'10 GB',date:'19 Oct 2010',genre:'RPG Postapocalíptico / Narrativo',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.9,meta:84,metaUser:9.0,openCritic:85,syn:'Bienvenido a Las Vegas. New Vegas. Disfruta de tu estancia mientras eliges bando en una guerra por el control del desierto de Mojave y la presa Hoover.'},
- bio:{t:'BioShock',y:2007,h:190,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/409710/library_600x900.jpg',dev:' Irrational Games / 2K',size:'25 GB',date:'21 Ago 2007',genre:'FPS / Inmersive Sim narrativo',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.9,ost:4.9,meta:96,metaUser:8.9,openCritic:95,syn:'Tras un accidente de avión en aguas heladas inexploradas, descubres una batisfera oxidada y desciendes a Rapture, una ciudad sumergida oculta bajo el océano.'},
+ sot:{gp:true,t:'Sea of Thieves',y:2018,h:170,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1172620/library_600x900.jpg',dev:'Rare / Xbox Game Studios',size:'100 GB',date:'20 Mar 2018',genre:'Aventura pirata / Mundo compartido',multi:'Tripulaciones cooperativas y PvP en mundo abierto',cross:'PC, Xbox, PlayStation 5 (Cross-play)',score:4.6,ost:4.8,meta:69,metaUser:8.1,openCritic:79,syn:'Vive la experiencia pirata definitiva, desde navegar y combatir hasta explorar y saquear tesoros junto a tu tripulación.'},
+ sky:{gp:true,t:'The Elder Scrolls V: Skyrim',y:2011,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/489830/library_600x900.jpg',dev:'Bethesda Game Studios',size:'12 GB',date:'11 Nov 2011',genre:'Action RPG de mundo abierto / Fantasía',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.9,ost:5.0,meta:96,metaUser:8.6,openCritic:94,syn:'Los dragones, perdidos hace mucho tiempo en los pasajes de los Pergaminos, han regresado a Tamriel y el futuro de Skyrim pende de un hilo mientras surge el Sangre de Dragón.'},
+ fnv:{gp:true,t:'Fallout: New Vegas',y:2010,h:38,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/22380/library_600x900.jpg',dev:'Obsidian Entertainment',size:'10 GB',date:'19 Oct 2010',genre:'RPG Postapocalíptico / Narrativo',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.9,meta:84,metaUser:9.0,openCritic:85,syn:'Bienvenido a Las Vegas. New Vegas. Disfruta de tu estancia mientras eliges bando en una guerra por el control del desierto de Mojave y la presa Hoover.'},
+ bio:{gp:true,t:'BioShock',y:2007,h:190,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/409710/library_600x900.jpg',dev:' Irrational Games / 2K',size:'25 GB',date:'21 Ago 2007',genre:'FPS / Inmersive Sim narrativo',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.9,ost:4.9,meta:96,metaUser:8.9,openCritic:95,syn:'Tras un accidente de avión en aguas heladas inexploradas, descubres una batisfera oxidada y desciendes a Rapture, una ciudad sumergida oculta bajo el océano.'},
  p2:{t:'Portal 2',y:2011,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/620/library_600x900.jpg',dev:'Valve',size:'8 GB',date:'18 Abr 2011',genre:'Puzles en 1ra persona / Ciencia Ficción',multi:'Un jugador + Campaña Cooperativa para 2 jugadores',cross:'PC, Switch, Xbox, PlayStation',score:4.9,ost:4.9,meta:95,metaUser:9.2,openCritic:95,syn:'Portal 2 recurre a la fórmula ganadora de jugabilidad innovadora, historia y música que le valió al Portal original más de 70 premios de la industria.'},
- dc:{t:'Dead Cells',y:2018,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/588650/library_600x900.jpg',dev:'Motion Twin',size:'2 GB',date:'7 Ago 2018',genre:'Roguelite / Metroidvania de acción',multi:'Un jugador',cross:'PC, Switch, PlayStation, Xbox, Móvil',score:4.8,ost:4.8,meta:89,metaUser:8.5,openCritic:90,syn:'Explora un castillo en constante cambio y expansión. Mata, muere, aprende y repite en este frenético roguevania de acción en 2D.'},
- sub:{t:'Subnautica',y:2018,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/264710/library_600x900.jpg',dev:'Unknown Worlds',size:'20 GB',date:'23 Ene 2018',genre:'Supervivencia y exploración submarina',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.8,ost:4.9,meta:87,metaUser:8.7,openCritic:86,syn:'Desciende a las profundidades de un mundo submarino alienígena lleno de maravillas y peligros. Fabrica equipamiento, pilota submarinos y sobrevive en el océano.'},
- itt:{t:'It Takes Two',y:2021,h:30,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1426210/library_600x900.jpg',dev:'Hazelight Studios',size:'50 GB',date:'26 Mar 2021',genre:'Aventura de plataformas 100% Cooperativa',multi:'Cooperativo obligatorio de 2 jugadores (Local y Online)',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.7,meta:88,metaUser:9.0,openCritic:89,syn:'Embárcate en el viaje más alocado de tu vida en It Takes Two, una aventura de plataformas creada exclusivamente para el modo cooperativo con Pase de Amigo gratuito.'},
- got:{t:'Ghost of Tsushima',y:2020,h:15,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2215430/header.jpg',wiki:'Ghost_of_Tsushima',dev:'Sucker Punch Productions',size:'75 GB',date:'17 Jul 2020',genre:'Acción y Aventura / Mundo abierto samurái',multi:'Un jugador + Modo cooperativo Legends',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:83,metaUser:9.1,openCritic:85,syn:'A finales del siglo XIII, el imperio mongol ha arrasado naciones enteras. Jin Sakai debe dejar atrás las tradiciones samurái y forjar el camino del Fantasma para liberar Tsushima.'},
- hfw:{t:'Horizon Forbidden West',y:2022,h:195,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2420110/header.jpg',wiki:'Horizon_Forbidden_West',dev:'Guerrilla Games',size:'100 GB',date:'18 Feb 2022',genre:'Action RPG / Mundo abierto postapocalíptico',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.8,meta:88,metaUser:8.2,openCritic:88,syn:'Únete a Aloy mientras desafía el Oeste Prohibido, una frontera majestuosa pero peligrosa que oculta nuevas y misteriosas amenazas mecanizadas.'},
- dstr:{t:'Death Stranding',y:2019,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1850570/library_600x900.jpg',dev:'Kojima Productions',size:'80 GB',date:'8 Nov 2019',genre:'Acción y Exploración / Mundo conectado',multi:'Un jugador con multijugador asíncrono Social Strand',cross:'PlayStation 4, PlayStation 5, PC, Xbox Series X|S',score:4.8,ost:5.0,meta:85,metaUser:8.6,openCritic:86,syn:'Del legendario creador Hideo Kojima llega una experiencia que desafía los géneros. Sam Bridges debe atravesar un mundo transformado para reconectar una sociedad fracturada.'},
+ dc:{gp:true,t:'Dead Cells',y:2018,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/588650/library_600x900.jpg',dev:'Motion Twin',size:'2 GB',date:'7 Ago 2018',genre:'Roguelite / Metroidvania de acción',multi:'Un jugador',cross:'PC, Switch, PlayStation, Xbox, Móvil',score:4.8,ost:4.8,meta:89,metaUser:8.5,openCritic:90,syn:'Explora un castillo en constante cambio y expansión. Mata, muere, aprende y repite en este frenético roguevania de acción en 2D.'},
+ sub:{gp:true,t:'Subnautica',y:2018,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/264710/library_600x900.jpg',dev:'Unknown Worlds',size:'20 GB',date:'23 Ene 2018',genre:'Supervivencia y exploración submarina',multi:'Un jugador',cross:'PC, PlayStation, Xbox, Switch',score:4.8,ost:4.9,meta:87,metaUser:8.7,openCritic:86,syn:'Desciende a las profundidades de un mundo submarino alienígena lleno de maravillas y peligros. Fabrica equipamiento, pilota submarinos y sobrevive en el océano.'},
+ itt:{gp:true,t:'It Takes Two',y:2021,h:30,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1426210/library_600x900.jpg',dev:'Hazelight Studios',size:'50 GB',date:'26 Mar 2021',genre:'Aventura de plataformas 100% Cooperativa',multi:'Cooperativo obligatorio de 2 jugadores (Local y Online)',cross:'PC, PS4, PS5, Xbox One, Xbox Series, Switch',score:4.9,ost:4.7,meta:88,metaUser:9.0,openCritic:89,syn:'Embárcate en el viaje más alocado de tu vida en It Takes Two, una aventura de plataformas creada exclusivamente para el modo cooperativo con Pase de Amigo gratuito.'},
+ got:{t:'Ghost of Tsushima',y:2020,h:15,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2215430/library_600x900.jpg',wiki:'Ghost_of_Tsushima',dev:'Sucker Punch Productions',size:'75 GB',date:'17 Jul 2020',genre:'Acción y Aventura / Mundo abierto samurái',multi:'Un jugador + Modo cooperativo Legends',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:5.0,meta:83,metaUser:9.1,openCritic:85,syn:'A finales del siglo XIII, el imperio mongol ha arrasado naciones enteras. Jin Sakai debe dejar atrás las tradiciones samurái y forjar el camino del Fantasma para liberar Tsushima.'},
+ hfw:{t:'Horizon Forbidden West',y:2022,h:195,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2420110/library_600x900.jpg',wiki:'Horizon_Forbidden_West',dev:'Guerrilla Games',size:'100 GB',date:'18 Feb 2022',genre:'Action RPG / Mundo abierto postapocalíptico',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.8,ost:4.8,meta:88,metaUser:8.2,openCritic:88,syn:'Únete a Aloy mientras desafía el Oeste Prohibido, una frontera majestuosa pero peligrosa que oculta nuevas y misteriosas amenazas mecanizadas.'},
+ dstr:{gp:true,t:'Death Stranding',y:2019,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1850570/library_600x900.jpg',dev:'Kojima Productions',size:'80 GB',date:'8 Nov 2019',genre:'Acción y Exploración / Mundo conectado',multi:'Un jugador con multijugador asíncrono Social Strand',cross:'PlayStation 4, PlayStation 5, PC, Xbox Series X|S',score:4.8,ost:5.0,meta:85,metaUser:8.6,openCritic:86,syn:'Del legendario creador Hideo Kojima llega una experiencia que desafía los géneros. Sam Bridges debe atravesar un mundo transformado para reconectar una sociedad fracturada.'},
  u4:{t:'Uncharted 4: El Desenlace del Ladrón',y:2016,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1659420/library_600x900.jpg',dev:'Naughty Dog',size:'126 GB',date:'10 May 2016',genre:'Acción y Aventura cinematográfica',multi:'Un jugador',cross:'PlayStation 4, PlayStation 5, PC',score:4.9,ost:4.8,meta:93,metaUser:8.8,openCritic:93,syn:'Varios años después de su última aventura, el retirado cazafortunas Nathan Drake se ve obligado a regresar al mundo de los ladrones en busca del tesoro pirata de Henry Avery.'},
- sm2:{t:"Marvel's Spider-Man 2",y:2023,h:355,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2651280/header.jpg',wiki:"Marvel's_Spider-Man_2",dev:'Insomniac Games',size:'98 GB',date:'20 Oct 2023',genre:'Acción y Aventura / Superhéroes',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:4.8,meta:90,metaUser:8.8,openCritic:90,syn:'Los Spider-Men Peter Parker y Miles Morales regresan para una nueva y emocionante aventura frente a la amenaza definitiva del simbionte Venom y Kraven el Cazador.'},
- ff7r:{t:'Final Fantasy VII Rebirth',y:2024,h:185,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2909400/64a1006a85342c7d3e4b1e1b8e562fee2dc86578/header.jpg',wiki:'Final_Fantasy_VII_Rebirth',dev:'Square Enix',size:'145 GB',date:'29 Feb 2024',genre:'JRPG de Acción / Aventura épica',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:93,syn:'Tras escapar de la ciudad distópica de Midgar, Cloud y sus amigos se embarcan en un viaje por todo el planeta en busca de Sefirot.'},
+ sm2:{t:"Marvel's Spider-Man 2",y:2023,h:355,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2651280/6fa28738ef8cde05390d3f0a9b942185b5763cbd/library_600x900.jpg',wiki:"Marvel's_Spider-Man_2",dev:'Insomniac Games',size:'98 GB',date:'20 Oct 2023',genre:'Acción y Aventura / Superhéroes',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:4.8,meta:90,metaUser:8.8,openCritic:90,syn:'Los Spider-Men Peter Parker y Miles Morales regresan para una nueva y emocionante aventura frente a la amenaza definitiva del simbionte Venom y Kraven el Cazador.'},
+ ff7r:{t:'Final Fantasy VII Rebirth',y:2024,h:185,img:'',wiki:'Final_Fantasy_VII_Rebirth',dev:'Square Enix',size:'145 GB',date:'29 Feb 2024',genre:'JRPG de Acción / Aventura épica',multi:'Un jugador',cross:'PlayStation 5, PC',score:4.9,ost:5.0,meta:92,metaUser:9.0,openCritic:93,syn:'Tras escapar de la ciudad distópica de Midgar, Cloud y sus amigos se embarcan en un viaje por todo el planeta en busca de Sefirot.'},
  botw:{t:'Zelda: Breath of the Wild',y:2017,h:195,img:'',wiki:'The_Legend_of_Zelda:_Breath_of_the_Wild',dev:'Nintendo EPD',size:'14.4 GB',date:'3 Mar 2017',genre:'Acción y Aventura / Mundo abierto',multi:'Un jugador',cross:'Nintendo Switch, Wii U',score:4.9,ost:4.9,meta:97,metaUser:8.9,openCritic:96,syn:'Despierta tras un sueño de cien años y explora libremente el vasto reino de Hyrule para recuperar tus recuerdos y derrotar a Ganon el Cataclismo.'},
  acnh:{t:'Animal Crossing: New Horizons',y:2020,h:140,img:'',wiki:'Animal_Crossing:_New_Horizons',dev:'Nintendo EPD',size:'10 GB',date:'20 Mar 2020',genre:'Simulación de vida / Isla personal',multi:'1 a 4 local + hasta 8 jugadores online',cross:'Nintendo Switch',score:4.8,ost:4.9,meta:90,metaUser:8.2,openCritic:90,syn:'Escapa a una isla desierta y crea tu propio paraíso mientras exploras, creas y personalizas tu hogar junto a vecinos encantadores.'},
  mdr:{t:'Metroid Dread',y:2021,h:200,img:'',wiki:'Metroid_Dread',dev:'MercurySteam / Nintendo',size:'4.1 GB',date:'8 Oct 2021',genre:'Metroidvania / Ciencia Ficción 2D',multi:'Un jugador',cross:'Nintendo Switch',score:4.8,ost:4.6,meta:88,metaUser:8.6,openCritic:88,syn:'Acompaña a la cazarrecompensas intergaláctica Samus Aran en su misión más peligrosa en el planeta ZDR mientras es perseguida por los implacables robots E.M.M.I.'},
  pkmn:{t:'Pokémon Escarlata y Púrpura',y:2022,h:285,img:'',wiki:'Pokémon_Scarlet_and_Violet',dev:'Game Freak / Nintendo',size:'10 GB',date:'18 Nov 2022',genre:'RPG por turnos / Mundo abierto Pokémon',multi:'Un jugador + Cooperativo Círculo Unión y Combates Online',cross:'Nintendo Switch',score:4.4,ost:4.8,meta:72,metaUser:7.5,openCritic:72,syn:'Explora libremente la región de Paldea a lomos de Koraidon o Miraidon en el primer RPG de mundo abierto de la saga Pokémon.'},
- aw2:{t:'Alan Wake 2',y:2023,h:20,img:'https://image.api.playstation.com/vulcan/ap/rnd/202305/2420/2b117db6108244a85769f8009df39f8006b226d8a2831b3a.jpg',wiki:'Alan_Wake_2',dev:'Remedy Entertainment',size:'90 GB',date:'27 Oct 2023',genre:'Survival Horror psicológico / Thriller',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:89,syn:'Una serie de asesinatos rituales amenaza Bright Falls. La agente del FBI Saga Anderson y el escritor atrapado Alan Wake protagonizan dos realidades conectadas.'},
- gi:{t:'Genshin Impact',y:2020,h:195,img:'',wiki:'Genshin_Impact',dev:'HoYoverse',size:'70 GB',date:'28 Sep 2020',genre:'Action RPG de mundo abierto / Anime',multi:'Un jugador + Cooperativo online hasta 4 jugadores',cross:'PC, PlayStation, iOS, Android',score:4.6,ost:5.0,meta:84,metaUser:8.0,openCritic:82,syn:'Adéntrate en Teyvat, un vasto mundo rebosante de vida y energía elemental, donde recorres siete naciones buscando a tu familiar perdido.'},
- rblx:{t:'Roblox',y:2006,h:0,img:'',wiki:'Roblox',dev:'Roblox Corporation',size:'2 GB',date:'1 Sep 2006',genre:'Plataforma de creación y experiencias multijugador',multi:'Multijugador masivo online (Cross-play)',cross:'PC, Móvil, PlayStation, Xbox, VR',score:4.5,ost:4.3,meta:78,metaUser:7.9,openCritic:78,syn:'El universo virtual definitivo que te permite crear, compartir experiencias con amigos y ser cualquier cosa que puedas imaginar en millones de mundos comunitarios.'}
+ aw2:{t:'Alan Wake 2',y:2023,h:20,img:'',wiki:'Alan_Wake_2',dev:'Remedy Entertainment',size:'90 GB',date:'27 Oct 2023',genre:'Survival Horror psicológico / Thriller',multi:'Un jugador',cross:'PC, PlayStation 5, Xbox Series X|S',score:4.9,ost:5.0,meta:89,metaUser:8.8,openCritic:89,syn:'Una serie de asesinatos rituales amenaza Bright Falls. La agente del FBI Saga Anderson y el escritor atrapado Alan Wake protagonizan dos realidades conectadas.'},
+ gi:{t:'Genshin Impact',y:2020,h:195,img:'https://static-cdn.jtvnw.net/ttv-boxart/513181-600x900.jpg',wiki:'Genshin_Impact',dev:'HoYoverse',size:'70 GB',date:'28 Sep 2020',genre:'Action RPG de mundo abierto / Anime',multi:'Un jugador + Cooperativo online hasta 4 jugadores',cross:'PC, PlayStation, iOS, Android',score:4.6,ost:5.0,meta:84,metaUser:8.0,openCritic:82,syn:'Adéntrate en Teyvat, un vasto mundo rebosante de vida y energía elemental, donde recorres siete naciones buscando a tu familiar perdido.'},
+ rblx:{t:'Roblox',y:2006,h:0,img:'https://static-cdn.jtvnw.net/ttv-boxart/23020-600x900.jpg',wiki:'Roblox',dev:'Roblox Corporation',size:'2 GB',date:'1 Sep 2006',genre:'Plataforma de creación y experiencias multijugador',multi:'Multijugador masivo online (Cross-play)',cross:'PC, Móvil, PlayStation, Xbox, VR',score:4.5,ost:4.3,meta:78,metaUser:7.9,openCritic:78,syn:'El universo virtual definitivo que te permite crear, compartir experiencias con amigos y ser cualquier cosa que puedas imaginar en millones de mundos comunitarios.'},
+ doom:{gp:true,t:'DOOM Eternal',y:2020,h:12,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/782330/library_600x900.jpg',dev:'id Software / Bethesda',size:'80 GB',date:'20 Mar 2020',genre:'FPS / Acción frenética (Xbox Game Pass)',multi:'Campaña + Battlemode Online',cross:'PC, Xbox Series X|S, PS5, Switch',score:4.9,ost:5.0,meta:88,metaUser:8.9,openCritic:89,syn:'Los ejércitos del infierno han invadido la Tierra. Ponte en la piel del Slayer en una épica campaña para un jugador y destripa demonios entre dimensiones al ritmo del metal industrial.'},
+ doom16:{gp:true,t:'DOOM (2016)',y:2016,h:8,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/379720/library_600x900.jpg',dev:'id Software / Bethesda',size:'55 GB',date:'13 May 2016',genre:'FPS / Shooter clásico (Xbox Game Pass)',multi:'Campaña + Multijugador Arena',cross:'PC, Xbox, PlayStation, Switch',score:4.9,ost:5.0,meta:85,metaUser:8.8,openCritic:86,syn:'Implacables demonios, armas destructivas imposibles y un movimiento rápido y fluido constituyen la base de un combate intenso en primera persona en las instalaciones de la UAC en Marte.'},
+ sfld:{gp:true,t:'Starfield',y:2023,h:215,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1716740/library_600x900.jpg',dev:'Bethesda Game Studios',size:'125 GB',date:'6 Sep 2023',genre:'RPG Espacial / Mundo abierto (Xbox Game Pass)',multi:'Un jugador',cross:'Xbox Series X|S, PC',score:4.4,ost:4.8,meta:83,metaUser:7.5,openCritic:85,syn:'En el año 2330, la humanidad se ha aventurado más allá de nuestro sistema solar. Únete a Constelación para explorar más de mil planetas por toda la galaxia.'},
+ mcc:{gp:true,t:'Halo: The Master Chief Collection',y:2019,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/976730/library_600x900.jpg',dev:'Halo Studios / Xbox Game Studios',size:'120 GB',date:'3 Dic 2019',genre:'FPS / Ciencia Ficción (Xbox Game Pass)',multi:'Campañas Co-op + Multijugador + Tiros de fuego',cross:'Xbox One, Xbox Series X|S, PC (Cross-play)',score:4.9,ost:5.0,meta:85,metaUser:9.1,openCritic:86,syn:'La icónica historia del Jefe Maestro reunida en una sola colección: incluye Halo: Reach, Halo: Combat Evolved Anniversary, Halo 2: Anniversary, Halo 3, Halo 3: ODST y Halo 4.'},
+ hb2:{gp:true,t:"Senua's Saga: Hellblade II",y:2024,h:15,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2461850/library_600x900.jpg',dev:'Ninja Theory / Xbox Game Studios',size:'70 GB',date:'21 May 2024',genre:'Acción y Aventura cinematográfica (Xbox Game Pass)',multi:'Un jugador',cross:'Xbox Series X|S, PC',score:4.7,ost:4.9,meta:81,metaUser:8.3,openCritic:81,syn:'En la secuela del galardonado Hellblade, Senua regresa en un brutal viaje de supervivencia a través de los mitos y el tormento de la Islandia vikinga con audio binaural inmersivo.'},
+ stalk2:{gp:true,t:'S.T.A.L.K.E.R. 2: Heart of Chornobyl',y:2024,h:40,img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1643320/library_600x900.jpg',dev:'GSC Game World',size:'150 GB',date:'20 Nov 2024',genre:'FPS / Survival Horror Postapocalíptico (Xbox Game Pass)',multi:'Un jugador',cross:'Xbox Series X|S, PC',score:4.6,ost:4.7,meta:76,metaUser:8.3,openCritic:77,syn:'Descubre la vasta Zona de Exclusión de Chornóbil llena de enemigos peligrosos, anomalías letales y poderosos artefactos mientras forjas tu propia historia.'},
+ lop:{gp:true,t:'Lies of P',y:2023,h:225,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1627720/library_600x900.jpg',dev:'Neowiz / Round8 Studio',size:'50 GB',date:'18 Sep 2023',genre:'Soulslike / Action RPG (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.8,ost:4.9,meta:80,metaUser:8.9,openCritic:82,syn:'Eres una marioneta creada por Geppetto, atrapada en una red de mentiras con monstruos inimaginables en la ciudad Belle Époque de Krat.'},
+ pal:{gp:true,t:'Palworld',y:2024,h:195,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1623730/library_600x900.jpg',dev:'Pocketpair',size:'40 GB',date:'19 Ene 2024',genre:'Supervivencia / Colección de criaturas (Xbox Game Pass)',multi:'Un jugador + Cooperativo hasta 32 jugadores',cross:'PC, Xbox Series X|S, PS5',score:4.6,ost:4.4,meta:71,metaUser:8.4,openCritic:74,syn:'Lucha, cultiva, construye y trabaja junto a misteriosas criaturas llamadas Pals en este juego multijugador de supervivencia y creación de mundo abierto.'},
+ p3r:{gp:true,t:'Persona 3 Reload',y:2024,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2161700/library_600x900.jpg',dev:'Atlus / SEGA',size:'30 GB',date:'2 Feb 2024',genre:'JRPG por turnos (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:5.0,meta:87,metaUser:8.9,openCritic:88,syn:'Adéntrate en la Hora Oscura y despierta lo más profundo de tu corazón en esta reinvención completa del clásico RPG que definió la saga Persona.'},
+ d4:{gp:true,t:'Diablo IV',y:2023,h:0,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2344520/library_600x900.jpg',dev:'Blizzard Entertainment',size:'90 GB',date:'5 Jun 2023',genre:'Action RPG / Hack & Slash (Xbox Game Pass)',multi:'Un jugador + Cooperativo y Mundo Compartido Cross-play',cross:'PC, Xbox, PlayStation',score:4.5,ost:4.8,meta:86,metaUser:7.8,openCritic:85,syn:'Únete a la lucha por Santuario en el RPG de acción definitivo. Masacra demonios interminables, domina habilidades arcanas y recolecta botín legendario.'},
+ fo4:{gp:true,t:'Fallout 4',y:2015,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/377160/library_600x900.jpg',dev:'Bethesda Game Studios',size:'35 GB',date:'10 Nov 2015',genre:'Action RPG Postapocalíptico (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.8,ost:4.9,meta:87,metaUser:8.4,openCritic:87,syn:'Como único superviviente del Refugio 111, te enfrentas a un mundo destruido por la guerra nuclear. Cada segundo es una lucha por la supervivencia en la Commonwealth.'},
+ fo76:{gp:true,t:'Fallout 76',y:2018,h:45,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1151340/library_600x900.jpg',dev:'Bethesda Game Studios',size:'80 GB',date:'14 Nov 2018',genre:'RPG Online Postapocalíptico (Xbox Game Pass)',multi:'Multijugador online cooperativo',cross:'PC, Xbox, PlayStation',score:4.3,ost:4.7,meta:65,metaUser:7.6,openCritic:68,syn:'Veinticinco años después de la caída de las bombas, tú y tus compañeros moradores del Refugio emergen a la América postnuclear en Appalachia.'},
+ grnd:{gp:true,t:'Grounded',y:2022,h:95,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/962130/library_600x900.jpg',dev:'Obsidian Entertainment',size:'12 GB',date:'27 Sep 2022',genre:'Supervivencia Cooperativa (Xbox Game Pass)',multi:'1 a 4 jugadores Cross-play',cross:'Xbox, PC, PlayStation, Switch',score:4.7,ost:4.6,meta:83,metaUser:8.5,openCritic:84,syn:'El mundo es un lugar vasto, hermoso y peligroso, especialmente cuando te han encogido al tamaño de una hormiga. Explora, construye y sobrevive en el jardín trasero.'},
+ ori2:{gp:true,t:'Ori and the Will of the Wisps',y:2020,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1057090/library_600x900.jpg',dev:'Moon Studios / Xbox Game Studios',size:'20 GB',date:'11 Mar 2020',genre:'Metroidvania / Plataformas (Xbox Game Pass)',multi:'Un jugador',cross:'Xbox, PC, Switch',score:4.9,ost:5.0,meta:90,metaUser:8.9,openCritic:91,syn:'Embárcate en una nueva aventura por un vasto mundo exótico donde encontrarás enemigos imponentes y puzles desafiantes en tu misión por descubrir el destino de Ori.'},
+ psy2:{gp:true,t:'Psychonauts 2',y:2021,h:280,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/607080/library_600x900.jpg',dev:'Double Fine / Xbox Game Studios',size:'30 GB',date:'25 Ago 2021',genre:'Plataformas 3D / Aventura (Xbox Game Pass)',multi:'Un jugador',cross:'Xbox, PC, PlayStation',score:4.9,ost:4.8,meta:89,metaUser:8.8,openCritic:89,syn:'Razputin "Raz" Aquato, acróbata entrenado y joven médium poderoso, ha cumplido su sueño de unirse a la organización internacional de espionaje psíquico Psychonauts.'},
+ aoe4:{gp:true,t:'Age of Empires IV',y:2021,h:42,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1466860/library_600x900.jpg',dev:'Relic / Xbox Game Studios',size:'50 GB',date:'28 Oct 2021',genre:'Estrategia en tiempo real RTS (Xbox Game Pass)',multi:'Un jugador + Multijugador hasta 8 jugadores',cross:'PC, Xbox Series X|S',score:4.8,ost:4.8,meta:81,metaUser:8.4,openCritic:83,syn:'Uno de los juegos de estrategia en tiempo real más queridos regresa a la gloria, poniéndote en el centro de épicas batallas históricas que moldearon el mundo.'},
+ msfs:{gp:true,t:'Microsoft Flight Simulator',y:2020,h:200,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1250410/library_600x900.jpg',dev:'Asobo Studio / Xbox Game Studios',size:'130 GB',date:'18 Ago 2020',genre:'Simulador de vuelo (Xbox Game Pass)',multi:'Un jugador + Tráfico aéreo compartido',cross:'PC, Xbox Series X|S',score:4.8,ost:4.7,meta:91,metaUser:8.3,openCritic:92,syn:'Desde aviones ligeros hasta reactores de fuselaje ancho, pilota aeronaves sumamente detalladas en un mundo fotorrealista con clima en tiempo real.'},
+ jedi:{gp:true,t:'Star Wars Jedi: Survivor',y:2023,h:38,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1774580/library_600x900.jpg',dev:'Respawn Entertainment / EA Play',size:'155 GB',date:'28 Abr 2023',genre:'Acción y Aventura / Sci-Fi (Xbox Game Pass)',multi:'Un jugador',cross:'PC, PS5, Xbox Series X|S',score:4.7,ost:4.9,meta:85,metaUser:8.2,openCritic:84,syn:'La historia de Cal Kestis continúa. Cinco años después de Fallen Order, Cal debe mantenerse un paso por delante de la persecución constante del Imperio.'},
+ dspc:{gp:true,t:'Dead Space Remake',y:2023,h:25,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1693980/library_600x900.jpg',dev:'Motive Studio / EA Play',size:'50 GB',date:'27 Ene 2023',genre:'Survival Horror Sci-Fi (Xbox Game Pass)',multi:'Un jugador',cross:'PC, PS5, Xbox Series X|S',score:4.9,ost:4.9,meta:89,metaUser:8.8,openCritic:89,syn:'El clásico de terror y supervivencia espacial regresa reconstruido desde cero. Isaac Clarke debe sobrevivir a bordo de la gigantesca nave minera USG Ishimura.'},
+ mele:{gp:true,t:'Mass Effect Legendary Edition',y:2021,h:215,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1328670/library_600x900.jpg',dev:'BioWare / EA Play',size:'120 GB',date:'14 May 2021',genre:'Action RPG Espacial (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:5.0,meta:86,metaUser:9.1,openCritic:87,syn:'Una persona es todo lo que se interpone entre la humanidad y la mayor amenaza a la que se haya enfrentado. Revive la leyenda del Comandante Shepard en la trilogía remasterizada.'},
+ tf2:{gp:true,t:'Titanfall 2',y:2016,h:20,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1237970/library_600x900.jpg',dev:'Respawn Entertainment / EA Play',size:'45 GB',date:'28 Oct 2016',genre:'FPS / Mechas y Parkour (Xbox Game Pass)',multi:'Campaña + Multijugador Online',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.8,meta:89,metaUser:9.2,openCritic:89,syn:'Vive una de las mejores campañas para un jugador en la historia de los FPS a través del vínculo único entre el piloto Jack Cooper y el titán clase Vanguardia BT-7274.'},
+ bf2042:{gp:true,t:'Battlefield 2042',y:2021,h:185,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1517290/library_600x900.jpg',dev:'DICE / EA Play',size:'100 GB',date:'19 Nov 2021',genre:'FPS Bélico a gran escala (Xbox Game Pass)',multi:'Multijugador masivo 64v64 Cross-play',cross:'PC, Xbox, PlayStation',score:4.2,ost:4.4,meta:68,metaUser:7.2,openCritic:68,syn:'Un shooter en primera persona que marca el regreso a la emblemática guerra total de la franquicia con combates de hasta 128 jugadores y Battlefield Portal.'},
+ yak7:{gp:true,t:'Yakuza: Like a Dragon',y:2020,h:350,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1235140/library_600x900.jpg',dev:'Ryu Ga Gotoku Studio / SEGA',size:'60 GB',date:'10 Nov 2020',genre:'JRPG / Acción urbana (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.9,meta:84,metaUser:8.8,openCritic:86,syn:'Conviértete en Ichiban Kasuga, un miembro de bajo rango de la yakuza dado por muerto por el hombre en quien más confiaba, y asciende desde el fondo en Yokohama.'},
+ ptr:{gp:true,t:'A Plague Tale: Requiem',y:2022,h:30,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/1182900/library_600x900.jpg',dev:'Asobo Studio',size:'55 GB',date:'18 Oct 2022',genre:'Aventura narrativa / Sigilo (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox Series X|S, PS5, Switch',score:4.8,ost:5.0,meta:82,metaUser:8.7,openCritic:84,syn:'Embárcate en un desgarrador viaje hacia un mundo brutal y sobrecogedor junto a Amicia y Hugo mientras descubren el costo de salvar a quienes aman.'},
+ tunic:{gp:true,t:'Tunic',y:2022,h:145,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/553420/library_600x900.jpg',dev:'Isometricorp Games',size:'2 GB',date:'16 Mar 2022',genre:'Acción y Aventura Isométrica (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation, Switch',score:4.8,ost:4.9,meta:85,metaUser:8.6,openCritic:86,syn:'Explora una tierra llena de leyendas perdidas, poderes ancestrales y monstruos feroces en este juego de acción isométrico protagonizado por un pequeño zorro.'},
+ sifu:{gp:true,t:'Sifu',y:2022,h:15,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2138710/library_600x900.jpg',dev:'Sloclap',size:'22 GB',date:'8 Feb 2022',genre:'Beat em up / Artes Marciales (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation, Switch',score:4.8,ost:4.7,meta:81,metaUser:8.5,openCritic:81,syn:'¿Es suficiente una vida para dominar el Kung Fu? Sifu es un juego de lucha realista en tercera persona con tensas mecánicas de combate Pak Mei y venganza.'},
+ ctrl:{gp:true,t:'Control Ultimate Edition',y:2019,h:355,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/870780/library_600x900.jpg',dev:'Remedy Entertainment',size:'42 GB',date:'27 Ago 2019',genre:'Acción sobrenatural en 3ra persona (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation, Switch',score:4.8,ost:4.8,meta:85,metaUser:8.4,openCritic:84,syn:'Tras la invasión de una agencia secreta en Nueva York por una amenaza de otro mundo, te conviertes en la nueva Directora que lucha por recuperar el Control.'},
+ nms:{gp:true,t:"No Man's Sky",y:2016,h:180,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/275850/library_600x900.jpg',dev:'Hello Games',size:'15 GB',date:'12 Ago 2016',genre:'Exploración espacial / Supervivencia (Xbox Game Pass)',multi:'Un jugador + Multijugador Cross-play',cross:'PC, Xbox, PlayStation, Switch, VR',score:4.8,ost:4.9,meta:83,metaUser:8.6,openCritic:82,syn:'Explora un universo infinito generado de forma procedimental, construye bases planetarias, comanda flotas estelares y viaja con amigos entre galaxias.'},
+ drg:{gp:true,t:'Deep Rock Galactic',y:2020,h:35,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/548430/library_600x900.jpg',dev:'Ghost Ship Games',size:'3.5 GB',date:'13 May 2020',genre:'FPS Cooperativo / Minería Espacial (Xbox Game Pass)',multi:'Cooperativo de 1 a 4 jugadores',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.9,meta:85,metaUser:9.1,openCritic:85,syn:'¡Rock and Stone! Enanos espaciales rudos, entornos 100% destructibles, cuevas generadas procedimentalmente y hordas infinitas de monstruos alienígenas.'},
+ valh:{gp:true,t:'Valheim',y:2021,h:30,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/892970/library_600x900.jpg',dev:'Iron Gate Studio',size:'2 GB',date:'2 Feb 2021',genre:'Supervivencia Vikinga Cooperativa (Xbox Game Pass)',multi:'1 a 10 jugadores Cooperativo',cross:'PC, Xbox (Cross-play)',score:4.8,ost:4.8,meta:85,metaUser:8.7,openCritic:84,syn:'Un brutal juego de exploración y supervivencia para 1 a 10 jugadores ambientado en un purgatorio generado de forma procedimental inspirado en la cultura vikinga.'},
+ amng:{gp:true,t:'Among Us',y:2018,h:0,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/945360/library_600x900.jpg',dev:'Innersloth',size:'1 GB',date:'15 Jun 2018',genre:'Deducción social / Party Game (Xbox Game Pass)',multi:'4 a 15 jugadores Online Cross-play',cross:'PC, Móvil, Xbox, PlayStation, Switch',score:4.6,ost:4.3,meta:85,metaUser:8.0,openCritic:83,syn:'Un juego de trabajo en equipo y traición en el espacio para 4 a 15 jugadores. Preparen su nave para despegar, pero cuidado con los Impostores a bordo.'},
+ dish2:{gp:true,t:'Dishonored 2',y:2016,h:210,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/403640/library_600x900.jpg',dev:'Arkane Studios / Bethesda',size:'60 GB',date:'11 Nov 2016',genre:'Sigilo en 1ra persona / Immersive Sim (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.9,ost:4.8,meta:88,metaUser:8.7,openCritic:88,syn:'Retoma tu papel de asesino sobrenatural en Dishonored 2. Juega a tu manera como la emperatriz Emily Kaldwin o el protector real Corvo Attano en Karnaca.'},
+ prey:{gp:true,t:'Prey',y:2017,h:205,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/480490/library_600x900.jpg',dev:'Arkane Studios / Bethesda',size:'20 GB',date:'5 May 2017',genre:'Sci-Fi Immersive Sim (Xbox Game Pass)',multi:'Un jugador',cross:'PC, Xbox, PlayStation',score:4.8,ost:4.9,meta:82,metaUser:8.7,openCritic:84,syn:'Despiertas a bordo de la Talos I, una estación espacial que orbita la Luna en el año 2032. Un experimento ha salido terriblemente mal y la estación ha sido invadida por los Tifón.'},
+ sod2:{gp:true,t:'State of Decay 2: Juggernaut Edition',y:2018,h:28,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/495420/library_600x900.jpg',dev:'Undead Labs / Xbox Game Studios',size:'30 GB',date:'22 May 2018',genre:'Supervivencia Zombie Cooperativa (Xbox Game Pass)',multi:'Un jugador + Cooperativo de 4 jugadores',cross:'Xbox, PC (Cross-play)',score:4.5,ost:4.6,meta:69,metaUser:8.0,openCritic:72,syn:'Los muertos se han alzado y la civilización ha caído. Depende de ti reunir supervivientes, buscar recursos y construir una comunidad en un mundo postapocalíptico.'},
+ fm8:{gp:true,t:'Forza Motorsport',y:2023,h:215,img:'https://cdn.cloudflare.steamstatic.com/steam/apps/2440510/library_600x900.jpg',dev:'Turn 10 Studios / Xbox Game Studios',size:'130 GB',date:'10 Oct 2023',genre:'Simulador de Carreras (Xbox Game Pass)',multi:'Un jugador + Multijugador Online',cross:'Xbox Series X|S, PC',score:4.5,ost:4.5,meta:84,metaUser:7.7,openCritic:83,syn:'Supera a la competencia en la nueva carrera Builders Cup y compite en eventos multijugador con más de 500 autos reales en 20 circuitos mundialmente famosos.'}
 };
 // Sin cuentas bot pregeneradas: solo usuarios reales registrados en Supabase / dispositivo
 const BOT_IDS = new Set(['alex_g','kari','montse','hern','dani','rox','chuy','valen','mateo','lucia']);
@@ -2146,10 +2189,21 @@ DB.saved=DB.saved||{};
 DB.lists=DB.lists||[];
 DB.customGames=DB.customGames||{};
 DB.rawgKey=DB.rawgKey||'';
-delete DB.coverCache; delete DB.coverCacheV2;
+delete DB.coverCache; delete DB.coverCacheV2; delete DB.coverCacheV3;
 Object.keys(DB.customGames).forEach(gk => {
-  if(!G[gk] || DB.customGames[gk]?.userEdited){
+  if(!G[gk] || DB.customGames[gk]?.userEditedV4){
     G[gk] = DB.customGames[gk];
+  } else {
+    delete DB.customGames[gk];
+  }
+});
+// Limpiar URLs antiguas de banners en perfiles guardados para que la cabecera muestre la portada oficial actualizada
+(DB.accounts || []).forEach(acc => {
+  if(acc && acc.bannerImg && !String(acc.bannerImg).startsWith('data:image/')){
+    const matchingGame = Object.values(G).some(g => g.img === acc.bannerImg);
+    if(!matchingGame && acc.cur && G[acc.cur]?.img){
+      acc.bannerImg = G[acc.cur].img;
+    }
   }
 });
 let storeFull=false;
@@ -2188,8 +2242,17 @@ DB.accounts.forEach(a=>{
     SEED[a.id]=a;
   }
 });
-if(sess && cachedSessProfile && !U[sess]){
-  U[sess] = cachedSessProfile;
+if(sess && cachedSessProfile){
+  if(cachedSessProfile.bannerImg && !String(cachedSessProfile.bannerImg).startsWith('data:image/')){
+    const matchG = Object.values(G).some(g => g.img === cachedSessProfile.bannerImg);
+    if(!matchG && cachedSessProfile.cur && G[cachedSessProfile.cur]?.img){
+      cachedSessProfile.bannerImg = G[cachedSessProfile.cur].img;
+    }
+  }
+  if(!U[sess]) U[sess] = cachedSessProfile;
+  else if(G[U[sess].cur]?.img && (!U[sess].bannerImg || !Object.values(G).some(g => g.img === U[sess].bannerImg))){
+    if(!String(U[sess].bannerImg||'').startsWith('data:image/')) U[sess].bannerImg = G[U[sess].cur].img;
+  }
 }
 const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
@@ -2235,30 +2298,51 @@ const uid=()=>Math.random().toString(36).slice(2,10);
 const WIKI_COVER_MAP = {
   zl: 'The_Legend_of_Zelda:_Tears_of_the_Kingdom',
   botw: 'The_Legend_of_Zelda:_Breath_of_the_Wild',
-  val: 'Valorant',
-  lol: 'League_of_Legends',
   ssb: 'Super_Smash_Bros._Ultimate',
   mk8: 'Mario_Kart_8_Deluxe',
   smo: 'Super_Mario_Odyssey',
   acnh: 'Animal_Crossing:_New_Horizons',
   mdr: 'Metroid_Dread',
   pkmn: 'Pokémon_Scarlet_and_Violet',
-  gi: 'Genshin_Impact',
-  rblx: 'Roblox'
+  ff7r: 'Final_Fantasy_VII_Rebirth',
+  aw2: 'Alan_Wake_2'
+};
+
+// Ajuste automático inteligente de encuadre para portadas 2:3:
+// - Si la imagen es vertical (carátula 2:3), ocupa el 100% con object-fit:cover sin bordes.
+// - Si una imagen externa es horizontal o cuadrada (16:9 / 1:1), muestra la imagen completa sin recortarla sobre su propio fondo difuminado.
+window.fitCoverImg = function(imgEl){
+  if(!imgEl || !imgEl.naturalWidth || !imgEl.naturalHeight) return;
+  const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
+  const bgDiv = imgEl.previousElementSibling;
+  if(ratio > 0.88){
+    imgEl.style.objectFit = 'contain';
+    imgEl.style.padding = '2px';
+    if(bgDiv && bgDiv.classList.contains('art')){
+      bgDiv.style.backgroundImage = `url('${imgEl.src}')`;
+      bgDiv.style.backgroundSize = 'cover';
+      bgDiv.style.backgroundPosition = 'center';
+      bgDiv.style.filter = 'blur(12px) saturate(1.4) brightness(0.45)';
+      bgDiv.style.transform = 'scale(1.15)';
+    }
+  } else {
+    imgEl.style.objectFit = 'cover';
+    imgEl.style.objectPosition = 'center top';
+    imgEl.style.padding = '0';
+  }
 };
 
 async function resolveOfficialCovers(){
   try{
-    DB.coverCacheV3 = DB.coverCacheV3 || {};
-    Object.keys(DB.coverCacheV3).forEach(k => {
-      if(G[k] && (!G[k].img || WIKI_COVER_MAP[k]) && DB.coverCacheV3[k]){
-        G[k].img = DB.coverCacheV3[k];
+    DB.coverCacheV4 = DB.coverCacheV4 || {};
+    Object.keys(DB.coverCacheV4).forEach(k => {
+      if(G[k] && (!G[k].img || WIKI_COVER_MAP[k]) && DB.coverCacheV4[k]){
+        G[k].img = DB.coverCacheV4[k];
       }
     });
-    const toFetch = Object.keys(WIKI_COVER_MAP).filter(k => G[k] && !DB.coverCacheV3[k]);
+    const toFetch = Object.keys(WIKI_COVER_MAP).filter(k => G[k] && !DB.coverCacheV4[k]);
     if(!toFetch.length) return;
     const titlesParam = toFetch.map(k => WIKI_COVER_MAP[k]).join('|');
-    // Importante: pilicense=any devuelve la portada oficial Fair Use del infobox y no fotos aleatorias libres
     const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail|original&pilicense=any&pithumbsize=600&redirects=1&titles=${encodeURIComponent(titlesParam)}`;
     const res = await fetch(url);
     if(!res.ok) return;
@@ -2275,9 +2359,8 @@ async function resolveOfficialCovers(){
       });
       if(matchKey && G[matchKey]){
         G[matchKey].img = imgUrl;
-        DB.coverCacheV3[matchKey] = imgUrl;
+        DB.coverCacheV4[matchKey] = imgUrl;
         updatedAny = true;
-        // Actualizar en el DOM sin re-renderizar toda la página para máxima velocidad
         document.querySelectorAll(`img[data-gk="${matchKey}"]`).forEach(imgEl => {
           imgEl.src = imgUrl;
           imgEl.style.display = 'block';
@@ -2301,8 +2384,8 @@ window.handleCoverError = async function(imgEl, gameKey){
       const newUrl = pages[0]?.thumbnail?.source || pages[0]?.original?.source;
       if(newUrl && newUrl !== imgEl.src){
         G[gameKey].img = newUrl;
-        DB.coverCacheV3 = DB.coverCacheV3 || {};
-        DB.coverCacheV3[gameKey] = newUrl;
+        DB.coverCacheV4 = DB.coverCacheV4 || {};
+        DB.coverCacheV4[gameKey] = newUrl;
         save();
         imgEl.src = newUrl;
         return;
@@ -2317,9 +2400,9 @@ function art(k){
  const h=g.h||265;
  const bgGrad=`linear-gradient(135deg,hsl(${h} 62% 38%),hsl(${(h+45)%360} 60% 12%))`;
  if(g.img){
-   return `<div class="art" style="position:absolute;inset:0;background:${bgGrad}"></div><img class="art" data-gk="${esc(k)}" src="${esc(g.img)}" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1" loading="lazy" decoding="async" onerror="window.handleCoverError&&window.handleCoverError(this,'${esc(k)}')">`;
+   return `<div class="art" style="position:absolute;inset:0;background:${bgGrad}"></div><img class="art" data-gk="${esc(k)}" src="${esc(g.img)}" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;display:block;z-index:1" loading="lazy" decoding="async" onload="window.fitCoverImg&&window.fitCoverImg(this)" onerror="window.handleCoverError&&window.handleCoverError(this,'${esc(k)}')">`;
  }
- return `<div class="art" style="position:absolute;inset:0;background:${bgGrad};display:grid;place-items:center"><img class="art" data-gk="${esc(k)}" src="" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:1" loading="lazy" decoding="async"></div>`;
+ return `<div class="art" style="position:absolute;inset:0;background:${bgGrad};display:grid;place-items:center"><img class="art" data-gk="${esc(k)}" src="" alt="${esc(g.t)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;display:none;z-index:1" loading="lazy" decoding="async" onload="window.fitCoverImg&&window.fitCoverImg(this)"></div>`;
 }
 const cover=(k,c='')=>`<div class="cover ${c}" data-a="game" data-k="${k}" role="button" tabindex="0" title="Ver sinopsis y ficha técnica de ${esc(G[k]?.t||'Juego')}" style="cursor:pointer">${art(k)}<span>${esc(G[k]?.t||'Juego')}</span><small>${G[k]?.y||''}</small></div>`;
 function scene(c,h,seed=1){const id=nid(),A=`hsl(${h} 45% 14%)`,B=`hsl(${h} 40% 5%)`,W=`hsl(${(h+30)%360} 95% 68%)`,S=`hsl(${(h+20)%360} 70% 38%)`;let s=seed*7919%233280;const r=n=>{s=(s*9301+49297)%233280;return s/233280*n};
@@ -3085,7 +3168,7 @@ function vProfile(k){
     <div class="profile-cover-banner" style="--h:${u.h}">
       ${activeBannerImg ? `
         <div class="cover-banner-ambient" style="background-image:url('${esc(activeBannerImg)}')"></div>
-        <img src="${esc(activeBannerImg)}" class="cover-banner-img" alt="Portada de ${esc(u.a)}">
+        <img src="${esc(activeBannerImg)}" class="cover-banner-img" alt="Portada de ${esc(u.a)}" onerror="if(G['${esc(ownerCur)}']&&G['${esc(ownerCur)}'].img&&this.src!==G['${esc(ownerCur)}'].img){this.src=G['${esc(ownerCur)}'].img}">
       ` : `<div class="cover-banner-art" style="background:${profileOwner.bannerGrad || `radial-gradient(65% 70% at 75% 30%, hsl(${u.h} 85% 55% / .85), transparent 70%), linear-gradient(135deg, hsl(${u.h} 65% 22%), hsl(${(u.h+50)%360} 70% 8%))`}"></div>`}
       ${isMe ? `<button type="button" class="btn sm change-banner-btn" data-a="editprofile">${I('img', 14)} Cambiar portada y fondo</button>` : ''}
     </div>
@@ -3231,11 +3314,27 @@ function vProfile(k){
   </div></section>${footer()}</div>`;
 }
 function hookProfile(){
-  const bl=$('.bd .bl'),fd=$('.bd .fd');let raf=0;
-  const up=()=>{raf=0;const p=Math.min(1,scrollY/(innerHeight*.6));const v=`blur(${(p*28).toFixed(1)}px)`;bl.style.backdropFilter=v;bl.style.webkitBackdropFilter=v;fd.style.opacity=.15+p*.85};
-  const on=()=>{if(!raf)raf=requestAnimationFrame(up)};
-  addEventListener('scroll',on,{passive:true});up();cleanup=()=>removeEventListener('scroll',on);
-  $$('.art-w').forEach(w=>{w.style.cssText='position:absolute;inset:0';[...w.children].forEach(ch=>ch.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover')});
+  const bl=$('.bd .bl'),fd=$('.bd .fd');
+  if(bl || fd){
+    let raf=0;
+    const up=()=>{
+      raf=0;
+      const p=Math.min(1,scrollY/(innerHeight*.6));
+      if(bl){
+        const v=`blur(${(p*28).toFixed(1)}px)`;
+        bl.style.backdropFilter=v;
+        bl.style.webkitBackdropFilter=v;
+      }
+      if(fd) fd.style.opacity=.15+p*.85;
+    };
+    const on=()=>{if(!raf)raf=requestAnimationFrame(up)};
+    addEventListener('scroll',on,{passive:true});
+    up();
+    cleanup=()=>removeEventListener('scroll',on);
+  }
+  $('.art-w').forEach(w=>{
+    w.style.cssText='position:absolute;inset:0;width:100%;height:100%;overflow:hidden';
+  });
 }
 
 /* ─────────── publicaciones (modal estilo Instagram) ─────────── */
@@ -4409,12 +4508,20 @@ function openAddCustomGameModal(prefillTitle = ''){
 }
 
 function vExplore(){
-  const totalGames = Object.keys(G).length;
+  const allKeys = Object.keys(G);
+  const gpKeys = allKeys.filter(k => G[k]?.gp);
+  const curFilter = S.expFilter || 'all';
+  const filteredKeys = curFilter === 'gp'
+    ? gpKeys
+    : curFilter === 'multi'
+      ? allKeys.filter(k => /multijugador|co-op|cooperativo|online|5v5/i.test(String(G[k]?.multi||'') + ' ' + String(G[k]?.genre||'')))
+      : allKeys;
+
   return `<div class="view wrap"><div class="inner" style="padding-block:28px 40px">
     <div class="mhd" style="margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <h1 style="font-size:26px;margin:0">Explorar Catálogo Mundial</h1>
-        <small class="muted">${totalGames} videojuegos en tu repertorio activo + Buscador Online Global (Steam / RAWG)</small>
+        <small class="muted">${allKeys.length} videojuegos en tu repertorio (${gpKeys.length} en 🟢 Xbox Game Pass) + Buscador Online Global</small>
       </div>
       <div class="line" style="gap:8px">
         <button type="button" class="btn sm ghost" data-a="addcustomgame">➕ Agregar juego / API RAWG</button>
@@ -4423,13 +4530,20 @@ function vExplore(){
     </div>
 
     <!-- Buscador instantáneo + Botón de Búsqueda Mundial en Vivo -->
-    <form id="f-global-search" style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+    <form id="f-global-search" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <div class="sbox" style="flex:1;min-width:220px;padding-left:16px">
         ${I('search',18)}
-        <input id="q" placeholder="Escribe cualquier videojuego (ej. Elden Ring, Silent Hill, FIFA, Portal...)" maxlength="80" autocomplete="off">
+        <input id="q" placeholder="Escribe cualquier videojuego (ej. DOOM, Fortnite, Gears, Halo, Zelda...)" maxlength="80" autocomplete="off">
       </div>
       <button type="submit" class="btn" style="height:44px;padding:0 18px">🌍 Buscar en Catálogo Mundial</button>
     </form>
+
+    <!-- Filtros rápidos: Todos | Xbox Game Pass | Multijugador & Co-op -->
+    <div class="line" style="gap:8px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px">
+      <button type="button" class="chp" data-a="expfilter" data-k="all" aria-pressed="${curFilter==='all'}">🎮 Todos (${allKeys.length})</button>
+      <button type="button" class="chp" data-a="expfilter" data-k="gp" aria-pressed="${curFilter==='gp'}" style="${curFilter==='gp'?'background:#10b981;border-color:#10b981;color:#fff':'border-color:rgba(16,185,129,0.5);color:#34d399'}">🟢 Catálogo Xbox Game Pass (${gpKeys.length})</button>
+      <button type="button" class="chp" data-a="expfilter" data-k="multi" aria-pressed="${curFilter==='multi'}">🔥 Multijugador y Co-op</button>
+    </div>
 
     <!-- Contenedor donde aparecen los resultados traídos en vivo de la API mundial -->
     <div id="global-results-box"></div>
@@ -4443,21 +4557,24 @@ function vExplore(){
             <button type="button" class="user-link" data-a="user" data-k="${k}"><b>${esc(U[k].a)}</b></button>
             <small>${esc(U[k].city)} · juega ${esc(G[U[k].cur]?.t||'Gaming')}</small>
           </div>
-          <button class="btn sm" data-a="dm" data-k="${k}">${I('chat',14)} Mensaje</button>
+          <button type="button" class="btn sm" data-a="dm" data-k="${k}">${I('chat',14)} Mensaje</button>
         </li>`).join('') : `<li class="muted" style="font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>Para agregar nuevos jugadores, desliza sus perfiles en la sección de Match.</span><button type="button" class="btn sm" data-a="nav" data-k="match">${I('flame',14)} Ir al Swipe de Match</button></li>`}
     </ul>
 
-    <div class="line" style="justify-content:space-between;margin-bottom:10px">
-      <h2 class="eyebrow" style="margin:0">Catálogo de Videojuegos (${totalGames} títulos listos)</h2>
-      <small class="muted" style="font-size:11.5px">Toca cualquier portada para ver su sinopsis, ficha técnica o agregarlo a tu perfil</small>
+    <div class="line" style="justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      <h2 class="eyebrow" style="margin:0">${curFilter==='gp' ? `🟢 Catálogo Xbox Game Pass (${filteredKeys.length} títulos)` : `Catálogo de Videojuegos (${filteredKeys.length} títulos listos)`}</h2>
+      <small class="muted" style="font-size:11.5px">Toca cualquier portada para ver su sinopsis, ficha técnica o agregarlo a tus 4 de cabecera</small>
     </div>
-    <ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:14px">
-      ${Object.keys(G).map(k=>`
-        <li data-n="${esc((G[k].t+' '+(G[k].genre||'')+' '+(G[k].dev||'')).toLowerCase())}">
+    <ul id="gl" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:14px">
+      ${filteredKeys.map(k=>`
+        <li data-n="${esc((G[k].t+' '+(G[k].genre||'')+' '+(G[k].dev||'')+' '+(G[k].gp?'game pass xbox':'')).toLowerCase())}">
           <button type="button" data-a="game" data-k="${k}" style="display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">
-            ${cover(k)}
-            <b style="font-size:13px;color:var(--fg);display:block;margin-top:2px">${esc(G[k].t)}</b>
-            <small class="muted" style="font-size:11px;display:block">${esc((G[k].genre||'Juego').split('/')[0])} · ${G[k].y}</small>
+            <div style="position:relative;width:100%">
+              ${cover(k)}
+              ${G[k].gp ? '<span style="position:absolute;top:6px;left:6px;z-index:4;background:rgba(16,185,129,0.92);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.5);letter-spacing:0.03em">GAME PASS</span>' : ''}
+            </div>
+            <b style="font-size:13px;color:var(--fg);display:block;margin-top:2px;line-height:1.25">${esc(G[k].t)}</b>
+            <small class="muted" style="font-size:11px;display:block">${esc((G[k].genre||G[k].g||'Juego').split('/')[0])} · ${G[k].y}</small>
           </button>
         </li>`).join('')}
     </ul>
@@ -5394,45 +5511,75 @@ function openCreateListModal(){
   modal(`
     <div class="hd" style="padding:16px 20px;border-bottom:1px solid var(--edge)">
       <div>
-        <h2 style="font-size:18px;margin:0">Crear lista o Top personal</h2>
-        <small class="muted">Estilo Letterboxd: arma tu top de juegos favoritos, terror, bandas sonoras, etc.</small>
+        <h2 style="font-size:18px;margin:0">🏆 Crear lista o Top personal</h2>
+        <small class="muted">Estilo Letterboxd: arma tu Top de juegos favoritos, Game Pass, terror, bandas sonoras, etc.</small>
       </div>
-      <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+      <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
     </div>
 
     <form id="f-create-list" style="padding:20px;display:grid;gap:14px" novalidate>
       <label class="fld">Título de la lista o Top
-        <input id="lst-t" placeholder="Ej. Mi top 5 de terror psicológico / Mejores OSTs" maxlength="60" required>
+        <input id="lst-t" placeholder="Ej. Mi Top 5 de Xbox Game Pass / Mejores Juegos de Historia" maxlength="60" required>
       </label>
 
-      <label class="fld">Descripción
-        <textarea id="lst-d" rows="2" maxlength="200" placeholder="¿Por qué elegiste estos juegos?"></textarea>
+      <label class="fld">Descripción <small>(Opcional)</small>
+        <textarea id="lst-d" rows="2" maxlength="200" placeholder="¿Por qué elegiste estos videojuegos?"></textarea>
       </label>
 
       <div class="fld">
-        <label>Elige los juegos para tu lista <small>(Selecciona al menos 2 juegos)</small></label>
-        <div class="pick" style="max-height:240px;overflow-y:auto">
-          ${Object.keys(G).map(k=>`
-            <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer">
-              <div style="width:36px;flex:none">${art(k)}</div>
+        <div class="line" style="justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+          <label style="font-weight:700">Elige los videojuegos para tu Top <small id="lst-sel-count" style="color:var(--accent)">(0 seleccionados · elige al menos 2)</small></label>
+          <input id="lst-search" type="search" placeholder="🔍 Filtrar juego por nombre o Game Pass..." style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--edge);background:var(--surface2);color:var(--fg);font-size:12.5px;min-width:210px">
+        </div>
+        <div class="pick" id="lst-pick-box" style="max-height:250px;overflow-y:auto;display:grid;gap:4px;padding:6px;border:1px solid var(--edge);border-radius:12px;background:var(--surface2)">
+          ${Object.keys(G).map(k=>{
+            const g = G[k] || {t:k, y:2024};
+            const genTxt = String(g.genre || g.g || 'Videojuego').split('/')[0].trim();
+            const searchMeta = (g.t + ' ' + genTxt + ' ' + (g.gp ? 'game pass xbox' : '')).toLowerCase();
+            return `
+            <label data-search="${esc(searchMeta)}" style="display:flex;align-items:center;gap:12px;padding:7px 10px;border-radius:10px;cursor:pointer;background:var(--surface);border:1px solid var(--edge)">
+              <div style="position:relative;width:36px;height:54px;border-radius:6px;overflow:hidden;flex:none;background:#111;border:1px solid rgba(255,255,255,0.2)">${art(k)}</div>
               <div style="flex:1;min-width:0">
-                <b style="font-size:13.5px">${esc(G[k].t)}</b>
-                <small class="muted" style="display:block">${esc(G[k].genre.split('/')[0])} · ${G[k].y}</small>
+                <div class="line" style="gap:6px">
+                  <b style="font-size:13.5px;color:var(--fg)">${esc(g.t)}</b>
+                  ${g.gp ? '<span class="badge" style="font-size:9.5px;padding:1px 6px;color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Game Pass</span>' : ''}
+                </div>
+                <small class="muted" style="display:block">${esc(genTxt)} · ${g.y||2024}</small>
               </div>
-              <input type="checkbox" name="lst_games" value="${k}">
-            </label>
-          `).join('')}
+              <input type="checkbox" name="lst_games" value="${esc(k)}" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+            </label>`;
+          }).join('')}
         </div>
       </div>
 
-      <p class="err" id="lst-e" role="alert"></p>
+      <p class="err" id="lst-e" role="alert" style="margin:0"></p>
 
-      <div class="line" style="gap:10px;justify-content:flex-end;margin-top:6px">
+      <div class="line" style="gap:10px;justify-content:flex-end;margin-top:4px">
         <button type="button" class="btn ghost" data-a="x">Cancelar</button>
-        <button class="btn" style="min-width:140px">Guardar lista</button>
+        <button type="submit" class="btn" style="min-width:150px">Guardar Top en mi perfil</button>
       </div>
     </form>
   `, true);
+
+  const sInp = $('#lst-search');
+  if(sInp){
+    sInp.addEventListener('input', e => {
+      const q = e.target.value.toLowerCase().trim();
+      $$('#lst-pick-box label').forEach(lbl => {
+        lbl.style.display = (!q || (lbl.dataset.search || '').includes(q)) ? 'flex' : 'none';
+      });
+    });
+  }
+  const box = $('#lst-pick-box');
+  if(box){
+    box.addEventListener('change', () => {
+      const n = $$('input[name="lst_games"]:checked').length;
+      const cnt = $('#lst-sel-count');
+      if(cnt) cnt.textContent = `(${n} seleccionado${n===1?'':'s'} · elige al menos 2)`;
+      const err = $('#lst-e');
+      if(err && n >= 2) err.textContent = '';
+    });
+  }
 }
 
 function saveUserList(){
@@ -5441,19 +5588,21 @@ function saveUserList(){
   const checked = $$('input[name="lst_games"]:checked').map(x=>x.value);
   const err = $('#lst-e');
 
-  if(!t || t.length < 3){
-    if(err) err.textContent = 'Escribe un título para tu lista (mínimo 3 caracteres).';
+  if(!t || t.length < 2){
+    if(err) err.textContent = '⚠️ Escribe un título para tu lista o Top (mínimo 2 caracteres).';
+    $('#lst-t')?.focus();
     return;
   }
   if(checked.length < 2){
-    if(err) err.textContent = 'Selecciona al menos 2 videojuegos para armar tu lista.';
+    if(err) err.textContent = '⚠️ Selecciona al menos 2 videojuegos marcando las casillas de la lista.';
     return;
   }
 
+  const ownerId = sess || me()?.id || 'local_user';
   const newList = {
     id: 'lst_' + uid(),
-    u: sess,
-    user_id: sess,
+    u: ownerId,
+    user_id: ownerId,
     t,
     d,
     g: [...checked],
@@ -5463,48 +5612,57 @@ function saveUserList(){
   DB.lists = DB.lists || [];
   DB.lists.unshift(newList);
   save();
-  sbInsertUserList(newList);
+  try{ sbInsertUserList(newList); }catch(e){}
   closeModal();
-  S.note = 'Lista creada y guardada exclusivamente en tu perfil.';
+  S.route = 'perfil';
+  cur = 'perfil';
+  S.note = `🏆 Lista "${t}" creada en tu perfil.`;
   render();
+  setTimeout(()=>{
+    document.getElementById('listas')?.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 60);
 }
 
 function openViewListModal(listId){
   const l = (DB.lists || []).find(x => String(x.id) === String(listId));
   if(!l) return;
+  const isOwner = String(l.user_id || l.u) === String(sess);
 
   modal(`
     <div class="hd" style="padding:18px 20px;border-bottom:1px solid var(--edge);background:var(--surface2)">
       <div>
-        <span class="eyebrow" style="color:var(--accent)">LISTA PERSONAL DE CHECKPOINT</span>
+        <span class="eyebrow" style="color:var(--accent)">LISTA / TOP PERSONAL DE CHECKPOINT</span>
         <h2 style="font-size:22px;margin:4px 0 0">${esc(l.t)}</h2>
-        <p class="muted" style="font-size:13px;margin-top:4px">${esc(l.d)} · ${l.g.length} videojuegos</p>
+        <p class="muted" style="font-size:13px;margin-top:4px">${esc(l.d)} · ${(l.g||[]).length} videojuegos</p>
       </div>
-      <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+      <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
     </div>
 
-    <div style="padding:20px;display:grid;gap:12px;max-height:calc(85vh - 120px);overflow-y:auto">
-      ${l.g.map((gk, idx) => {
-        const game = G[gk] || {t: gk, y: 2020, genre: 'Juego'};
-        return `<div class="card" style="padding:12px;background:var(--surface2);display:flex;align-items:center;gap:14px;cursor:pointer" data-a="game" data-k="${gk}">
-          <b style="font-size:18px;color:var(--accent);width:24px;text-align:center">${idx + 1}</b>
+    <div style="padding:20px;display:grid;gap:12px;max-height:calc(85vh - 140px);overflow-y:auto">
+      ${(l.g||[]).map((gk, idx) => {
+        const game = G[gk] || {t: gk, y: 2024, genre: 'Videojuego'};
+        const genTxt = String(game.genre || game.g || 'Videojuego');
+        return `<div class="card" style="padding:12px;background:var(--surface2);display:flex;align-items:center;gap:14px;cursor:pointer" data-a="game" data-k="${esc(gk)}">
+          <b style="font-size:18px;color:var(--accent);width:24px;text-align:center">#${idx + 1}</b>
           <div style="width:48px;flex:none">${cover(gk)}</div>
           <div style="flex:1;min-width:0">
-            <b style="font-size:15px;color:var(--fg)">${esc(game.t)}</b>
-            <small class="muted" style="display:block">${esc(game.genre)} · Año ${game.y}</small>
+            <div class="line" style="gap:6px">
+              <b style="font-size:15px;color:var(--fg)">${esc(game.t)}</b>
+              ${game.gp ? '<span class="badge" style="font-size:10px;color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Game Pass</span>' : ''}
+            </div>
+            <small class="muted" style="display:block">${esc(genTxt)} · Año ${game.y||2024}</small>
           </div>
-          <button class="btn sm ghost" data-a="game" data-k="${gk}">Ver ficha</button>
+          <button type="button" class="btn sm ghost" data-a="game" data-k="${esc(gk)}">Ver ficha</button>
         </div>`;
       }).join('')}
     </div>
 
     <div class="line" style="padding:14px 20px;border-top:1px solid var(--edge);justify-content:space-between">
-      <span class="muted" style="font-size:12px">Toca cualquier juego para ver su ficha técnica</span>
-      <button class="btn sm" data-a="x">Cerrar</button>
+      ${isOwner ? `<button type="button" class="btn sm ghost danger" data-a="dellist" data-k="${esc(l.id)}">${I('trash',14)} Eliminar lista</button>` : `<span class="muted" style="font-size:12px">Toca cualquier juego para ver su ficha técnica</span>`}
+      <button type="button" class="btn sm" data-a="x">Cerrar</button>
     </div>
   `, true);
 }
-
 let storyDraftImg = null;
 
 function openCreateStoryModal(){
@@ -6401,6 +6559,20 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'newlist':openCreateListModal();break;
+    case 'dellist':{
+      DB.lists = (DB.lists || []).filter(x => String(x.id) !== String(k));
+      save();
+      if(sbClient && isUuid(k)){ try{ sbClient.from('user_lists').delete().eq('id', k).eq('user_id', sess); }catch(e){} }
+      closeModal();
+      S.note = '🗑️ Lista eliminada de tu perfil.';
+      render();
+      break;
+    }
+    case 'expfilter':{
+      S.expFilter = k;
+      render();
+      break;
+    }
    case 'viewlist':openViewListModal(k);break;
    case 'join':{const g=GROUPS_SUG[+k];const t={id:'g'+uid(),type:'group',name:g.n,h:g.h,members:g.m,known:1,un:0,owner:sess,m:[[g.m[0],'Bienvenido al grupo']]};_thr.unshift(t);persistThr(t);S.thr=t.id;render();break}
   }
@@ -6518,10 +6690,10 @@ document.addEventListener('submit',async e=>{
       G[gk].img = newUrl;
       G[gk].syn = newSyn;
       DB.customGames = DB.customGames || {};
-      G[gk].userEdited = true;
+      G[gk].userEditedV4 = true;
       DB.customGames[gk] = G[gk];
-      DB.coverCacheV3 = DB.coverCacheV3 || {};
-      if(newUrl) DB.coverCacheV3[gk] = newUrl;
+      DB.coverCacheV4 = DB.coverCacheV4 || {};
+      if(newUrl) DB.coverCacheV4[gk] = newUrl;
       save();
       S.note = `✅ Portada y datos de "${newTitle}" actualizados.`;
       render();
