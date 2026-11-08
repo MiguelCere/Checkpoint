@@ -605,9 +605,10 @@ footer a{text-decoration:underline}
   padding: 16px;
 }
 .story-box {
-  width: 100%;
-  max-width: 400px;
-  height: min(86vh, 660px);
+  width: min(92vw, 400px) !important;
+  min-width: min(90vw, 340px) !important;
+  height: min(85vh, 660px) !important;
+  min-height: 480px !important;
   background: #111;
   border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.2);
@@ -649,11 +650,42 @@ footer a{text-decoration:underline}
   align-items: flex-end;
   padding: 16px;
 }
+.story-media {
+  flex: 1 1 auto !important;
+  min-height: 340px !important;
+  width: 100% !important;
+}
 .story-media .art-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.story-media .art-bg > * {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+.story-bars-container {
+  display: flex;
+  gap: 5px;
+  padding: 12px 14px 4px;
+  position: relative;
+  z-index: 10;
+}
+.story-seg {
+  flex: 1;
+  height: 3.5px;
+  background: rgba(255,255,255,0.28);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.story-seg-fill {
   height: 100%;
+  width: 0%;
+  background: #fff;
 }
 .story-media::after {
   content: "";
@@ -1945,9 +1977,36 @@ const isBotAccount = (acc) => {
 const SEED={};
 const STORIES={};
 
+const STORY_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas exactas de duración por historia
+
+function formatStoryTimeLeft(ts){
+  const now = Date.now();
+  const created = Number(ts) || now;
+  const elapsed = Math.max(0, now - created);
+  const remaining = Math.max(0, STORY_TTL_MS - elapsed);
+  const minsAgo = Math.floor(elapsed / 60000);
+  const hrsAgo = Math.floor(minsAgo / 60);
+  const hrsLeft = Math.max(1, Math.ceil(remaining / 3600000));
+  const agoStr = minsAgo < 2 ? 'Justo ahora' : (minsAgo < 60 ? `hace ${minsAgo} min` : `hace ${hrsAgo} h`);
+  return `${agoStr} · ⏳ ${hrsLeft}h`;
+}
+
+function purgeExpiredStories(){
+  if(!Array.isArray(DB.stories)) { DB.stories = []; return; }
+  const now = Date.now();
+  const beforeLen = DB.stories.length;
+  DB.stories = DB.stories.filter(st => {
+    const ts = Number(st.ts) || now;
+    return (now - ts) < STORY_TTL_MS;
+  });
+  if(DB.stories.length !== beforeLen){
+    try{ localStorage.setItem(DBK, JSON.stringify(DB)); }catch(e){}
+  }
+}
+
 function getAllStoriesList(){
+  purgeExpiredStories();
   const list = [];
-  // 1. User uploaded stories in DB.stories (newest first)
   (DB.stories || []).forEach(st => {
     list.push({
       id: st.id || ('st_' + st.u),
@@ -1955,20 +2014,9 @@ function getAllStoriesList(){
       c: st.c || 'Gameplay',
       g: st.g || 'hk',
       txt: st.txt || '¡Jugando en Checkpoint!',
-      ago: st.ago || 'hace un momento',
-      img: st.img || null
-    });
-  });
-  // 2. Pre-seeded stories
-  Object.keys(STORIES).forEach(k => {
-    list.push({
-      id: k,
-      u: k,
-      c: STORIES[k].c,
-      g: STORIES[k].g,
-      txt: STORIES[k].txt,
-      ago: STORIES[k].ago,
-      img: STORIES[k].img || null
+      ago: formatStoryTimeLeft(st.ts),
+      img: st.img || null,
+      ts: st.ts || Date.now()
     });
   });
   return list;
@@ -2008,8 +2056,16 @@ DB.customGames=DB.customGames||{};
 DB.rawgKey=DB.rawgKey||'';
 Object.keys(DB.customGames).forEach(gk => { G[gk] = DB.customGames[gk]; });
 let storeFull=false;
-function save(){try{localStorage.setItem(DBK,JSON.stringify(DB));storeFull=false}catch(e){storeFull=true}}
-let sess=null, sessExp=0;
+function save(){
+  try{
+    localStorage.setItem(DBK,JSON.stringify(DB));
+    if(sess && U[sess]){
+      localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp || (Date.now() + ENV_CONFIG.SESSION_TTL_MS), profile: U[sess]}));
+    }
+    storeFull=false;
+  }catch(e){storeFull=true}
+}
+let sess=null, sessExp=0, cachedSessProfile=null;
 try{
   const rawSess = localStorage.getItem(SESK);
   if(rawSess){
@@ -2018,13 +2074,12 @@ try{
       if(parsed && parsed.id && parsed.exp > Date.now()){
         sess = parsed.id;
         sessExp = parsed.exp;
+        if(parsed.profile && typeof parsed.profile === 'object'){
+          cachedSessProfile = parsed.profile;
+        }
       } else {
         localStorage.removeItem(SESK);
       }
-    } else {
-      sess = rawSess;
-      sessExp = Date.now() + 24 * 60 * 60 * 1000;
-      localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp}));
     }
   }
 }catch(e){}
@@ -2036,6 +2091,9 @@ DB.accounts.forEach(a=>{
     SEED[a.id]=a;
   }
 });
+if(sess && cachedSessProfile && !U[sess]){
+  U[sess] = cachedSessProfile;
+}
 const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
   sess=null;
@@ -2415,7 +2473,7 @@ function startSession(id){
   S.ptab='posts';
   S.filt='Todo';
   try{
-    localStorage.setItem(SESK, JSON.stringify({id, iat: Date.now(), exp: sessExp}));
+    localStorage.setItem(SESK, JSON.stringify({id, iat: Date.now(), exp: sessExp, profile: U[id] || null}));
   }catch(e){}
   buildThreads();
 }
@@ -2709,10 +2767,14 @@ async function syncFromSupabase(showToast = false){
       DB.reviews.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
-    // 5. Sincronizar historias (stories)
-    const { data: cloudStories } = await sbClient.from('stories').select('*').order('created_at', { ascending: false }).limit(30);
+    // 5. Sincronizar historias activas (< 24 horas) y limpiar expiradas en Supabase
+    const cutoff24hIso = new Date(Date.now() - STORY_TTL_MS).toISOString();
+    try{ await sbClient.from('stories').delete().lt('created_at', cutoff24hIso); }catch(e){}
+    const { data: cloudStories } = await sbClient.from('stories').select('*').gte('created_at', cutoff24hIso).order('created_at', { ascending: false }).limit(30);
     if(Array.isArray(cloudStories)){
       cloudStories.forEach(row => {
+        const storyTs = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+        if((Date.now() - storyTs) >= STORY_TTL_MS) return;
         if(!DB.stories.some(st => String(st.id) === String(row.id))){
           DB.stories.push({
             id: String(row.id),
@@ -2720,12 +2782,13 @@ async function syncFromSupabase(showToast = false){
             c: 'Gameplay',
             g: G[row.game_key] ? row.game_key : 'hk',
             txt: row.caption || 'Jugando en Checkpoint 🔥',
-            ago: 'Reciente',
+            ago: formatStoryTimeLeft(storyTs),
             img: row.image_url || null,
-            ts: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+            ts: storyTs
           });
         }
       });
+      purgeExpiredStories();
       DB.stories.sort((a,b) => (b.ts||0) - (a.ts||0));
     }
 
@@ -3544,13 +3607,16 @@ function openStory(k){
   if(storyTimer){ clearTimeout(storyTimer); storyTimer=null; }
   storyPaused = false;
   const keys = getStoryKeys();
+  if(!keys.length){ closeModal(); return; }
   let idx = keys.indexOf(k);
   if(idx < 0) idx = 0;
   const currentKey = keys[idx];
   const allStMap = getUserStoriesMap();
-  const st = allStMap[currentKey] || STORIES['kari'];
-  const authorId = st.u || currentKey;
-  const u = U[authorId] || {a: authorId, city: 'Cd. Juárez'};
+  const st = allStMap[currentKey];
+  if(!st){ closeModal(); return; }
+  const authorId = st.u || sess;
+  const u = U[authorId] || (authorId === sess ? me() : null) || {a: authorId, city: 'Cd. Juárez'};
+  const isMyStory = String(authorId) === String(sess);
 
   const barsHtml = keys.map((key, i) => {
     let fill = '0%';
@@ -3558,7 +3624,8 @@ function openStory(k){
     return `<div class="story-seg"><div class="story-seg-fill" id="sfill-${i}" style="width:${fill}"></div></div>`;
   }).join('');
 
-  modal(`<div class="story-viewer" data-a="ovl">
+  // Renderizamos .story-viewer directamente en #modal sin envolverlo en .dlg para que position:fixed ocupe toda la pantalla
+  $('#modal').innerHTML = `<div class="story-viewer" data-a="ovl">
     <div class="story-container" style="position:relative;display:flex;align-items:center;justify-content:center;width:100%;max-width:520px">
       
       <!-- Flecha izquierda visible para rotar -->
@@ -3570,34 +3637,38 @@ function openStory(k){
         <!-- Barras de progreso multi-segmento -->
         <div class="story-bars-container">${barsHtml}</div>
 
-        <!-- Cabecera de la historia (clicable para ir al perfil del usuario) -->
+        <!-- Cabecera de la historia -->
         <div class="story-head">
           <div class="line clickable-user" data-a="user" data-k="${authorId}" style="gap:10px;flex:1;min-width:0" title="Ver perfil de ${esc(u.a)}">
             ${av(authorId, 38, true)}
             <div style="flex:1;min-width:0">
               <b style="color:#fff;font-size:14px;display:block">${esc(u.a)}</b>
-              <div style="font-size:11px;opacity:.85;color:#eee">${esc(st.ago)} · ${esc(G[st.g]?.t||'Gaming')}</div>
+              <div style="font-size:11px;opacity:.85;color:#eee">${esc(st.ago)} · 🎮 ${esc(G[st.g]?.t||'Gaming')}</div>
             </div>
           </div>
           <span class="story-paused-pill">⏸ Pausado</span>
           <span class="badge" style="background:rgba(0,0,0,0.5);color:#fff;border-color:rgba(255,255,255,0.4);font-size:11px">${idx + 1} / ${keys.length}</span>
-          <button class="cb" data-a="x" aria-label="Cerrar historia" style="color:#fff">${I('x',20)}</button>
+          ${isMyStory ? `<button type="button" class="cb" data-a="delstory" data-k="${esc(currentKey)}" title="Eliminar historia" style="color:#f87171">${I('trash',18)}</button>` : ''}
+          <button type="button" class="cb" data-a="x" aria-label="Cerrar historia" style="color:#fff">${I('x',20)}</button>
         </div>
 
         <!-- Aviso de respuesta enviada -->
         <div id="story-sent-toast" style="display:none;align-items:center;justify-content:space-between;gap:10px;margin:0 14px;padding:8px 12px;border-radius:12px;background:rgba(16,185,129,0.92);color:#fff;font-size:12.5px;position:relative;z-index:20"></div>
 
-        <!-- Contenido de la historia con zonas táctiles para rotar -->
+        <!-- Contenido visual de la historia a pantalla completa dentro de la tarjeta -->
         <div class="story-media" style="position:relative">
-          <div class="art-bg">${st.img?`<img src="${st.img}" style="width:100%;height:100%;object-fit:cover;display:block">`:cover(st.g)}</div>
-          <div class="story-caption">${esc(st.txt)}</div>
+          <div class="art-bg">${st.img ? `<img src="${st.img}" alt="Historia" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">` : art(st.g)}</div>
+          <div class="story-caption" style="background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);width:100%">
+            <span class="badge" style="background:var(--accent);color:#fff;border:0;margin-bottom:6px">🎮 ${esc(G[st.g]?.t||'Videojuego')}</span>
+            <div style="font-weight:600">${esc(st.txt)}</div>
+          </div>
 
           <!-- Zonas interactivas para cambiar de historia tocando los lados -->
           <button type="button" class="story-tap-zone tap-left" data-a="prevstory" data-idx="${idx}" aria-label="Historia anterior"></button>
           <button type="button" class="story-tap-zone tap-right" data-a="nextstory" data-idx="${idx}" aria-label="Siguiente historia"></button>
         </div>
 
-        <!-- Formulario de respuesta rápida (pausa el tiempo al escribir y envía con Enter o botón) -->
+        <!-- Formulario de respuesta rápida -->
         <form id="f-story-rep" class="story-footer" data-k="${currentKey}" data-u="${authorId}" data-idx="${idx}">
           <input id="st-rep" placeholder="Responder a ${esc(u.a)}... (pausa automática)" maxlength="140" autocomplete="off">
           <button type="button" class="cb" data-a="storyreact" data-k="${currentKey}" style="color:#f87171" aria-label="Reaccionar">${I('heart',22)}</button>
@@ -3610,7 +3681,7 @@ function openStory(k){
         <span style="display:inline-block;transform:rotate(180deg)">${I('back', 24)}</span>
       </button>
     </div>
-  </div>`, true);
+  </div>`;
 
   const activeFill = $(`#sfill-${idx}`);
   if(activeFill){
@@ -4700,6 +4771,16 @@ const AVATAR_PRESETS=[
 
 let editDraft={};
 
+function syncEditDraftInputs(){
+  if($('#ep-a')) editDraft.a = $('#ep-a').value.trim();
+  if($('#ep-bio')) editDraft.bio = $('#ep-bio').value;
+  if($('#ep-city')) editDraft.city = $('#ep-city').value;
+  if($('#ep-lang')) editDraft.lang = $('#ep-lang').value;
+  if($('#ep-mic')) editDraft.mic = $('#ep-mic').value;
+  if($('#ep-sch')) editDraft.sch = $('#ep-sch').value;
+  if($('#ep-cur')) editDraft.cur = $('#ep-cur').value;
+}
+
 function openEditProfileModal(){
   const m=me();
   editDraft={
@@ -4857,8 +4938,8 @@ function paintEditProfileModal(){
         </select>
       </label>
 
-      <div class="fld">Mis 4 de cabecera <small>(Llevas ${fav.length}/4)</small>
-        <div class="chips">
+      <div class="fld">Mis 4 de cabecera <small id="ep-fav-count">(Llevas ${fav.length}/4 seleccionados · Toca para agregar o quitar)</small>
+        <div class="chips" id="ep-fav-chips">
           ${Object.keys(G).map(k=>`<button type="button" class="chp" data-a="epchip" data-g="fav" data-k="${k}" aria-pressed="${fav.includes(k)}">${esc(G[k].t)}</button>`).join('')}
         </div>
       </div>
@@ -5496,7 +5577,24 @@ document.addEventListener('click',async e=>{
    case 'doc':{const[t,ps]=DOCS[k];modal(`<div class="hd"><h2>${t}</h2><button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button></div>${ps.map(p=>`<p>${p}</p>`).join('')}`);break}
    case 'atab':S.authTab=k;S.err='';S.step=1;render();break;
    case 'sustep':S.step=+k;S.err='';Object.assign(S.draft,readProfile());render();break;
-   case 'chip':{const f=el.closest('form')?.id==='f-set'?null:null;const d=S.draft;const form=el.closest('form');const isSet=form&&form.id==='f-set';const tgt=isSet?me():d;const arr=tgt[el.dataset.g]||(tgt[el.dataset.g]=[]);const i=arr.indexOf(k);if(i>=0)arr.splice(i,1);else if(el.dataset.g==='fav'&&arr.length>=4){}else arr.push(k);const keep=readProfile();Object.assign(tgt,isSet?{city:keep.city,sch:keep.sch,cur:keep.cur,bio:keep.bio}:keep);if(isSet){render()}else{render()}break}
+   case 'chip':{
+     const d=S.draft;
+     const form=el.closest('form');
+     const isSet=form&&form.id==='f-set';
+     const tgt=isSet?me():d;
+     const grp=el.dataset.g;
+     const arr=tgt[grp]||(tgt[grp]=[]);
+     const i=arr.indexOf(k);
+     if(i>=0) arr.splice(i,1);
+     else if(grp==='fav'&&arr.length>=4){ arr.shift(); arr.push(k); }
+     else arr.push(k);
+     const keep=readProfile();
+     Object.assign(tgt,isSet?{city:keep.city,sch:keep.sch,cur:keep.cur,bio:keep.bio}:keep);
+     $$(`[data-a="chip"][data-g="${grp}"]`).forEach(btn => {
+       btn.setAttribute('aria-pressed', String(arr.includes(btn.dataset.k)));
+     });
+     break;
+   }
    case 'logout':logout();break;
    case 'del':{const m=me();if($('#del-a').value.trim()!==m.a){$('#del-e').textContent='Escribe tu alias exacto para confirmar.';break}deleteAccount();break}
    case 'jump':e.preventDefault();document.getElementById(k)?.scrollIntoView({behavior:'smooth'});break;
@@ -5766,8 +5864,19 @@ document.addEventListener('click',async e=>{
      if(!DB.likes[k]){DB.likes[k]=1;save();}
      render();break;
    }
-      case 'editprofile':openEditProfileModal();break;
+   case 'delstory':{
+     DB.stories = (DB.stories || []).filter(st => String(st.id) !== String(k));
+     save();
+     if(sbClient && isUuid(k)){ try{ sbClient.from('stories').delete().eq('id', k).eq('user_id', sess); }catch(e){} }
+     closeModal();
+     S.note = '🗑️ Tu historia fue eliminada.';
+     render();
+     break;
+   }
+   case 'editprofile':openEditProfileModal();break;
    case 'epbanner':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.h = +el.dataset.h;
      const preset = BANNER_PRESETS.find(b=>b.h===editDraft.h);
      if(preset){
@@ -5775,32 +5884,55 @@ document.addEventListener('click',async e=>{
        editDraft.bannerImg = null;
      }
      paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
      break;
    }
    case 'epchip':{
+     syncEditDraftInputs();
      const grp = el.dataset.g;
      const arr = editDraft[grp] || (editDraft[grp]=[]);
      const idx = arr.indexOf(k);
-     if(idx>=0) arr.splice(idx,1);
-     else if(grp==='fav' && arr.length>=4){}
-     else arr.push(k);
-     paintEditProfileModal();
+     if(idx >= 0){
+       arr.splice(idx, 1);
+     } else if(grp === 'fav' && arr.length >= 4){
+       arr.shift();
+       arr.push(k);
+     } else {
+       arr.push(k);
+     }
+     // Actualizar los chips en el DOM directamente sin re-renderizar ni saltar el scroll al inicio
+     $$(`[data-a="epchip"][data-g="${grp}"]`).forEach(btn => {
+       btn.setAttribute('aria-pressed', String(arr.includes(btn.dataset.k)));
+     });
+     if(grp === 'fav'){
+       const cnt = $('#ep-fav-count');
+       if(cnt) cnt.textContent = `(Llevas ${arr.length}/4 seleccionados · Toca para agregar o quitar)`;
+     }
      break;
    }
    case 'epselavatar':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.avatarImg = null;
      if(el.dataset.h) editDraft.h = +el.dataset.h;
      paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
      break;
    }
    case 'eprmavatar':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.avatarImg = null;
      paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
      break;
    }
    case 'eprmbanner':{
+     syncEditDraftInputs();
+     const prevSc = $('.dlg')?.scrollTop || 0;
      editDraft.bannerImg = null;
      paintEditProfileModal();
+     const dEl = $('.dlg'); if(dEl) dEl.scrollTop = prevSc;
      break;
    }
    case 'switchacc':
