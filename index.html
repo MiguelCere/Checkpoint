@@ -1819,10 +1819,10 @@ footer a{text-decoration:underline}
   100% { background-position: 200% 0; }
 }
 .view {
-  animation: viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  opacity: 1;
 }
 .card, .post {
-  animation: viewFadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  opacity: 1;
 }
 .dlg {
   animation: modalPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -3148,7 +3148,21 @@ async function sbInsertReport(targetId, reason){
 async function syncFromSupabase(showToast = false){
   if(!sbClient) return;
   const loader = $('#top-loader');
-  if(loader) loader.hidden = false;
+  if(loader && showToast) loader.hidden = false;
+  const beforeSnap = JSON.stringify({
+    uCount: Object.keys(U).length,
+    pCount: DB.posts?.length || 0,
+    rCount: DB.reviews?.length || 0,
+    sCount: DB.stories?.length || 0,
+    lCount: DB.lists?.length || 0,
+    mCount: myMatches().length,
+    reqCount: likesReceived().length,
+    msgCount: (_thr || []).reduce((acc, t) => acc + (t.m?.length || 0), 0),
+    meCur: me()?.cur,
+    meFav: (me()?.fav || []).join(','),
+    meXbox: me()?.xboxTag || '',
+    meSteam: me()?.steamId || ''
+  });
   try{
     const { data: sessionData } = await sbClient.auth.getSession();
     const sbUser = sessionData?.session?.user;
@@ -3466,7 +3480,28 @@ async function syncFromSupabase(showToast = false){
       S.note = `☁️ Sincronizado: ${nMat} match(es) y ${nReq} solicitud(es) de Like.`;
       setTimeout(()=>{ if(S.note && S.note.startsWith('☁️')){ S.note=''; render(); } }, 4000);
     }
-    if(!$('#modal')?.innerHTML) render();
+    const afterSnap = JSON.stringify({
+      uCount: Object.keys(U).length,
+      pCount: DB.posts?.length || 0,
+      rCount: DB.reviews?.length || 0,
+      sCount: DB.stories?.length || 0,
+      lCount: DB.lists?.length || 0,
+      mCount: myMatches().length,
+      reqCount: likesReceived().length,
+      msgCount: (_thr || []).reduce((acc, t) => acc + (t.m?.length || 0), 0),
+      meCur: me()?.cur,
+      meFav: (me()?.fav || []).join(','),
+      meXbox: me()?.xboxTag || '',
+      meSteam: me()?.steamId || ''
+    });
+    const hasChanges = (beforeSnap !== afterSnap);
+    if((showToast || hasChanges) && !$('#modal')?.innerHTML){
+      const ae = document.activeElement;
+      const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
+      if(!isTyping || showToast){
+        render();
+      }
+    }
   }catch(e){}finally{
     if(loader) setTimeout(()=>{ loader.hidden = true; }, 180);
   }
@@ -7638,10 +7673,12 @@ render();
 resolveOfficialCovers();
 syncFromSupabase(false);
 setInterval(() => {
-  if(sess && !document.hidden && !$('#modal')?.innerHTML){
+  const ae = document.activeElement;
+  const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
+  if(sess && !document.hidden && !isTyping && !$('#modal')?.innerHTML && (S.route === 'mensajes' || S.route === 'match')){
     syncFromSupabase(false);
   }
-}, 6000);
+}, 15000);
 </script>
 
 </body></html>
