@@ -2972,7 +2972,7 @@ async function sbUpsertProfile(acc){
     const matchTags = (DB.matches?.[acc.id] || []).map(uidMatched => 'match:' + uidMatched);
     const outboxMsgs = (DB.cloudOutbox?.[acc.id] || []).slice(-50).map(pkt => 'dm:' + JSON.stringify(pkt));
     const gsCompact = acc.gamerStats
-      ? `gstat:${Number(acc.gamerStats.steamLevel||32)}:${Number(acc.gamerStats.gamerscore||18450)}:${Number(acc.gamerStats.totalHours||420)}`
+      ? `gstat:${Number(acc.gamerStats.steamLevel||25)}:${Number(acc.gamerStats.gamerscore||12450)}:${Number(acc.gamerStats.totalHours||180)}:${encodeURIComponent(JSON.stringify(acc.gamerStats.diffByGame||{}))}`
       : null;
 
     await sbClient.from('profiles').upsert({
@@ -3225,10 +3225,13 @@ async function syncFromSupabase(showToast = false){
               try { mapped.gamerStats = JSON.parse(val); } catch(e){}
             } else {
               const parts = val.split(':');
+              let parsedDiff = {};
+              if(parts[3]){ try { parsedDiff = JSON.parse(decodeURIComponent(parts[3])); } catch(e){} }
               mapped.gamerStats = generateSmartGamerStats(mapped, {
-                steamLevel: Number(parts[0] || 32),
-                gamerscore: Number(parts[1] || 18450),
-                totalHours: Number(parts[2] || 420)
+                steamLevel: Number(parts[0] || 25),
+                gamerscore: Number(parts[1] || 12450),
+                totalHours: Number(parts[2] || 180),
+                diffByGame: parsedDiff
               });
             }
           } else if(mapped.steamId || mapped.xboxTag){
@@ -3268,16 +3271,26 @@ async function syncFromSupabase(showToast = false){
       });
 
       // Sincronización bidireccional de Matches y Mensajes Directos (DMs) desde profiles.platforms
-      const myAliasLow = String(me()?.a || '').trim().toLowerCase();
+      const myAliasLow = String(me()?.a || sbUser?.user_metadata?.alias || '').trim().toLowerCase();
+      const myIdSet = new Set([sess, sbUser?.id].filter(Boolean));
+      profs.forEach(r => {
+        if(r.id && myAliasLow && String(r.alias || '').trim().toLowerCase() === myAliasLow){
+          myIdSet.add(r.id);
+        }
+      });
+
       const allDmPackets = [];
+      DB.cloudOutbox = DB.cloudOutbox || {};
+      const myOutbox = DB.cloudOutbox[sess] || (DB.cloudOutbox[sess] = []);
 
       profs.forEach(row => {
         if(!Array.isArray(row.platforms)) return;
         const senderId = row.id;
         const senderAlias = row.alias || U[senderId]?.a || 'Gamer';
+        const isSenderMe = myIdSet.has(senderId) || (Boolean(myAliasLow) && String(senderAlias).trim().toLowerCase() === myAliasLow);
 
         // Si este jugador tiene un match confirmado conmigo (por ID o por @alias), asegurar que en mi cuenta también aparezca como Match mutuo
-        if(sess && senderId !== sess){
+        if(sess && !isSenderMe){
           if(hasConfirmedMatchFlag(senderId, sess) || (hasLiked(senderId, sess) && hasLiked(sess, senderId))){
             addLikeToUser(senderId, sess);
             addLikeToUser(sess, senderId);
@@ -3286,15 +3299,20 @@ async function syncFromSupabase(showToast = false){
           }
         }
 
-        // Recolectar paquetes de mensajes directos 'dm:{...}'
+        // Recolectar paquetes de mensajes directos 'dm:{...}' de todos los perfiles
         row.platforms.forEach(entry => {
           if(!String(entry).startsWith('dm:')) return;
           try {
             const pkt = JSON.parse(String(entry).slice(3));
             if(pkt && pkt.id && pkt.body !== undefined){
-              pkt.from = pkt.from || senderId;
-              pkt.fromAlias = pkt.fromAlias || senderAlias;
+              // Usar siempre el ID y alias reales de la fila de Supabase que emitió el paquete
+              pkt.from = senderId;
+              pkt.fromAlias = senderAlias;
               allDmPackets.push(pkt);
+              // Si el paquete fue enviado por mí, asegurar que esté en mi outbox local para no perderlo al guardar mi perfil
+              if(isSenderMe && !myOutbox.some(x => x.id === pkt.id)){
+                myOutbox.push(pkt);
+              }
             }
           } catch(e){}
         });
@@ -3302,37 +3320,50 @@ async function syncFromSupabase(showToast = false){
 
       if(sess && allDmPackets.length){
         allDmPackets.sort((a,b) => (a.ts || 0) - (b.ts || 0));
-        if(!_thr.length && DB.threads.length) buildThreads();
+        buildThreads();
         allDmPackets.forEach(pkt => {
           const fromAliasLow = String(pkt.fromAlias || U[pkt.from]?.a || '').trim().toLowerCase();
           const toAliasLow = String(pkt.toAlias || U[pkt.to]?.a || '').trim().toLowerCase();
-          const isFromMe = (pkt.from === sess) || (Boolean(myAliasLow) && fromAliasLow === myAliasLow);
-          const isToMe = (pkt.to === sess) || (Boolean(myAliasLow) && toAliasLow === myAliasLow);
+          const isFromMe = myIdSet.has(pkt.from) || (Boolean(myAliasLow) && fromAliasLow === myAliasLow);
+          const isToMe = myIdSet.has(pkt.to) || (Boolean(myAliasLow) && toAliasLow === myAliasLow);
           if(!isFromMe && !isToMe) return;
+          if(isFromMe && isToMe) return;
 
-          // Determinar el ID del otro participante de la conversación
+          // Determinar el ID y alias canónicos del contacto con el que estamos chateando
           let partnerId = isFromMe ? pkt.to : pkt.from;
-          const partnerAlias = isFromMe ? pkt.toAlias : pkt.fromAlias;
+          const partnerAlias = isFromMe ? (pkt.toAlias || U[pkt.to]?.a || '') : (pkt.fromAlias || U[pkt.from]?.a || '');
           const resolvedPartner = resolveUserByIdOrAlias(partnerId) || resolveUserByIdOrAlias(partnerAlias);
           if(resolvedPartner) partnerId = resolvedPartner;
-          if(!partnerId || partnerId === sess) return;
+          if(!partnerId || myIdSet.has(partnerId)) return;
 
           if(!U[partnerId]){
             U[partnerId] = { id: partnerId, a: partnerAlias || 'Gamer', city: 'Comunidad', pl: ['pc'], fav: ['fc27','fn','gw','er'], cur: 'fc27', lang: 'Español', h: 265 };
           }
 
-          let t = _thr.find(x => x.type === 'dm' && (x.u === partnerId || (partnerAlias && String(U[x.u]?.a||'').toLowerCase() === String(partnerAlias).toLowerCase())));
+          const pAliasLow = String(U[partnerId]?.a || partnerAlias || '').trim().toLowerCase();
+          let t = _thr.find(x => x.type === 'dm' && (
+            x.u === partnerId ||
+            (Boolean(pAliasLow) && String(U[x.u]?.a || '').trim().toLowerCase() === pAliasLow)
+          ));
           if(!t){
             t = { id: 'dm_' + partnerId, type: 'dm', u: partnerId, known: 1, un: 0, m: [], owner: sess, msgIds: [] };
             _thr.unshift(t);
           } else {
+            t.u = partnerId;
             t.known = 1;
+            t.owner = sess;
           }
           t.msgIds = t.msgIds || [];
-          const alreadyInThread = t.msgIds.includes(pkt.id) || (t.m || []).some(mItem => mItem[2] === pkt.id || (mItem[0] === (isFromMe ? 'me' : partnerId) && mItem[1] === pkt.body));
+          const senderTag = isFromMe ? 'me' : partnerId;
+          const alreadyInThread = t.msgIds.includes(pkt.id) || (t.m || []).some(mItem =>
+            mItem[2] === pkt.id ||
+            (mItem[0] === senderTag && mItem[1] === pkt.body && Math.abs((mItem[3] || 0) - (pkt.ts || 0)) < 15000)
+          );
           if(!alreadyInThread){
             t.msgIds.push(pkt.id);
-            t.m.push([isFromMe ? 'me' : partnerId, pkt.body, pkt.id, pkt.ts || Date.now()]);
+            t.m.push([senderTag, pkt.body, pkt.id, pkt.ts || Date.now()]);
+            // Ordenar cronológicamente los mensajes que tengan timestamp
+            t.m.sort((a, b) => (a[3] || 0) - (b[3] || 0));
             if(!isFromMe && S.thr !== t.id){
               t.un = (t.un || 0) + 1;
               if(!DB.seenMsgIds[pkt.id]){
@@ -3500,6 +3531,18 @@ async function syncFromSupabase(showToast = false){
       const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
       if(!isTyping || showToast){
         render();
+      } else if(S.route === 'mensajes' && ae?.id === 'ci'){
+        // Actualizar la ventana de mensajes en vivo sin perder el texto ni el foco de #ci
+        const savedText = ae.value;
+        const selStart = ae.selectionStart;
+        const selEnd = ae.selectionEnd;
+        render();
+        const newCi = $('#ci');
+        if(newCi){
+          newCi.value = savedText;
+          newCi.focus();
+          try { newCi.setSelectionRange(selStart, selEnd); } catch(e){}
+        }
       }
     }
   }catch(e){}finally{
@@ -3510,18 +3553,37 @@ async function syncFromSupabase(showToast = false){
 /* ─────────── perfil ─────────── */
 
 /* ─────────── Integración Steam Web API & Xbox Live (OpenXBL) ─────────── */
-const ACH_TEMPLATES = {
-  fc27: [{t:'Rey de The Grounds',d:'Gana 25 partidos consecutivos en The Grounds y Torneos de Clubes',r:'3.2%',gs:90},{t:'Leyenda de FUT 27',d:'Construye una plantilla con Química 33/33 y alcanza División Élite',r:'1.8%',gs:100}],
-  fc26: [{t:'Campeón del Mundo 48',d:'Levanta la copa en el Torneo Internacional de 48 selecciones en dificultad Ultimate',r:'4.1%',gs:80}],
-  fc25: [{t:'Maestro Táctico FC IQ',d:'Gana 50 encuentros en Rush 5v5 con amigos y domina Clubes',r:'5.4%',gs:75}],
-  fn: [{t:'Victoria Magistral Coronada',d:'Obtén una Victoria Magistral en Battle Royale sin perder escudo',r:'4.8%',gs:70}],
-  gw: [{t:'Día de la Emergencia',d:'Sobrevive al Día-E junto a Marcus y Dom en dificultad Locura',r:'2.9%',gs:100}],
-  gears5: [{t:'Por la CGO',d:'Completa todos los actos de la campaña de Gears 5 en modo cooperativo',r:'6.2%',gs:80}],
-  cod: [{t:'Prestigio Maestro BO6',d:'Supera la ronda 50 en Zombies y domina el Omnimovement en Warzone',r:'3.5%',gs:90}],
-  er: [{t:'Señor del Círculo',d:'Derrota a todos los portadores de esquirlas y conviértete en Elden Lord',r:'7.1%',gs:100}],
-  coe33: [{t:'Rompe el Pincel',d:'Derrota a la Peintresse sin recibir daño en un duelo por turnos perfecto',r:'2.1%',gs:100}],
-  halo: [{t:'Leyenda del Anillo Zeta',d:'Completa la campaña de Halo Infinite en dificultad Legendaria (LASO)',r:'1.9%',gs:100}],
-  fh5: [{t:'Salón de la Fama Horizon',d:'Descubre todos los caminos de México y gana el Goliat en Clase X',r:'5.0%',gs:85}]
+const ACH_PRESETS_BY_DIFF = {
+  normal: {
+    suffix: 'Campaña completada (Normal)',
+    desc: 'Completó la historia principal en dificultad Normal.',
+    gs: 50,
+    rarity: '34.5%'
+  },
+  hard: {
+    suffix: 'Veterano de Campaña (Difícil)',
+    desc: 'Superó la campaña principal en dificultad Difícil / Elevada.',
+    gs: 75,
+    rarity: '14.2%'
+  },
+  insane: {
+    suffix: 'Dominio Maestro (Locura / Máxima)',
+    desc: 'Completó el juego en la dificultad más alta disponible.',
+    gs: 100,
+    rarity: '3.1%'
+  },
+  multi: {
+    suffix: 'Jugador Competitivo Online',
+    desc: 'Partidas multijugador y cooperativas completadas con la comunidad.',
+    gs: 60,
+    rarity: '22.0%'
+  },
+  completionist: {
+    suffix: '100% Logros Desbloqueados',
+    desc: 'Desbloqueó todos los logros y coleccionables del juego.',
+    gs: 150,
+    rarity: '1.8%'
+  }
 };
 
 function getGamerStatsForUser(u){
@@ -3529,6 +3591,17 @@ function getGamerStatsForUser(u){
   const hasLinked = Boolean((u.steamId && String(u.steamId).trim()) || (u.xboxTag && String(u.xboxTag).trim()));
   if(!hasLinked) return null;
   if(u.gamerStats && Array.isArray(u.gamerStats.recentGames) && u.gamerStats.recentGames.length){
+    // Asegurar que ningún logro antiguo diga "dificultad Locura" a menos que el usuario lo haya elegido explícitamente
+    if(Array.isArray(u.gamerStats.achievements)){
+      u.gamerStats.achievements.forEach(a => {
+        if(!u.gamerStats.customEdited && /dificultad Locura/i.test(String(a.desc||''))){
+          a.title = (a.gameTitle || 'Gears of War') + ': Campaña completada (Normal)';
+          a.desc = 'Completó la campaña principal en dificultad Normal.';
+          a.gs = 50;
+          a.rarity = '34.5%';
+        }
+      });
+    }
     return u.gamerStats;
   }
   return generateSmartGamerStats(u);
@@ -3545,60 +3618,67 @@ function generateSmartGamerStats(u, customOverrides){
 
   const hasSteam = Boolean(u.steamId && String(u.steamId).trim());
   const hasXbox = Boolean(u.xboxTag && String(u.xboxTag).trim());
+  const prevGames = (customOverrides && Array.isArray(customOverrides.recentGames)) ? customOverrides.recentGames : (u.gamerStats?.recentGames || []);
+  const diffMap = (customOverrides && customOverrides.diffByGame) || u.gamerStats?.diffByGame || {};
 
   const recentGames = pool.map((gk, idx) => {
     const g = G[gk] || {t:'Videojuego', gp:false};
+    const existing = prevGames.find(x => x.gk === gk);
     let plat = 'Xbox Live';
     if(hasSteam && !hasXbox) plat = 'Steam';
     else if(hasXbox && !hasSteam) plat = 'Xbox Live';
-    else plat = (g.gp || idx % 2 === 1) ? 'Xbox Live' : 'Steam';
+    else plat = existing?.plat || ((g.gp || idx % 2 === 1) ? 'Xbox Live' : 'Steam');
 
-    const hrs2w = idx === 0 ? +(18.5 + (hash % 24) * 0.7).toFixed(1) : +(6.2 + ((hash + idx * 7) % 15) * 0.6).toFixed(1);
-    const hrsTotal = Math.round(hrs2w * (5 + idx * 3) + 45 + ((hash + idx * 19) % 180));
-    const achTotal = 42 + ((idx * 11 + hash) % 28);
-    const achDone = Math.min(achTotal, Math.max(12, Math.round(achTotal * (idx === 0 ? 0.86 : 0.72))));
-    const gs = Math.round((achDone / achTotal) * 1000 / 5) * 5;
-    return { gk, plat, hrs2w, hrsTotal, achDone, achTotal, gs };
+    const diffKey = diffMap[gk] || existing?.diff || 'normal';
+    const hrs2w = existing?.hrs2w !== undefined ? Number(existing.hrs2w) : (idx === 0 ? 14.5 : +(5.5 + (idx * 2.5)).toFixed(1));
+    const hrsTotal = existing?.hrsTotal !== undefined ? Number(existing.hrsTotal) : Math.round(hrs2w * 4 + 25 + idx * 15);
+    const achTotal = existing?.achTotal || 50;
+    const defaultDone = diffKey === 'completionist' ? achTotal : diffKey === 'insane' ? Math.round(achTotal * 0.85) : diffKey === 'hard' ? Math.round(achTotal * 0.65) : Math.round(achTotal * 0.48);
+    const achDone = existing?.achDone !== undefined ? Number(existing.achDone) : defaultDone;
+    const gs = Math.round((achDone / Math.max(1, achTotal)) * 1000 / 5) * 5;
+    return { gk, plat, hrs2w, hrsTotal, achDone, achTotal, gs, diff: diffKey };
   });
 
-  const achievements = [];
-  pool.forEach((gk, idx) => {
-    const g = G[gk] || {t:'Videojuego'};
-    const tpl = ACH_TEMPLATES[gk] || [
-      {
-        t: idx === 0 ? 'Dominio Implacable' : 'Coleccionista de Élite',
-        d: 'Completa los desafíos principales y supera el rango máximo en ' + g.t,
-        r: (2.2 + ((hash + idx * 3) % 60) / 10).toFixed(1) + '%',
-        gs: idx === 0 ? 100 : 75
-      }
-    ];
-    tpl.forEach(item => {
+  // Si el usuario editó o personalizó su lista de logros, respetarla íntegramente
+  let achievements = [];
+  if(customOverrides && Array.isArray(customOverrides.achievements) && customOverrides.achievements.length){
+    achievements = customOverrides.achievements;
+  } else {
+    pool.forEach((gk) => {
+      const g = G[gk] || {t:'Videojuego'};
+      const diffKey = diffMap[gk] || 'normal';
+      const preset = ACH_PRESETS_BY_DIFF[diffKey] || ACH_PRESETS_BY_DIFF.normal;
       achievements.push({
         gk,
         gameTitle: g.t,
-        title: item.t,
-        desc: item.d,
-        rarity: item.r,
-        gs: item.gs,
+        title: `${g.t} — ${preset.suffix}`,
+        desc: preset.desc,
+        rarity: preset.rarity,
+        gs: preset.gs,
+        diff: diffKey,
         plat: (hasSteam && !hasXbox) ? 'Steam' : (hasXbox && !hasSteam) ? 'Xbox' : (g.gp ? 'Xbox' : 'Steam')
       });
     });
-  });
+  }
 
-  const totalHours = recentGames.reduce((acc, r) => acc + r.hrsTotal, 0) + 120;
-  const gamerscore = (customOverrides && customOverrides.gamerscore)
+  const totalHours = (customOverrides && customOverrides.totalHours)
+    ? Number(customOverrides.totalHours)
+    : recentGames.reduce((acc, r) => acc + (Number(r.hrsTotal)||0), 0);
+  const gamerscore = (customOverrides && customOverrides.gamerscore !== undefined)
     ? Number(customOverrides.gamerscore)
-    : (14500 + (hash % 280) * 105);
-  const steamLevel = (customOverrides && customOverrides.steamLevel)
+    : (u.gamerStats?.gamerscore || 12450);
+  const steamLevel = (customOverrides && customOverrides.steamLevel !== undefined)
     ? Number(customOverrides.steamLevel)
-    : (24 + (hash % 45));
+    : (u.gamerStats?.steamLevel || 25);
 
   return {
     steamLevel,
     totalHours,
     gamerscore,
+    diffByGame: diffMap,
+    customEdited: Boolean(customOverrides?.customEdited || u.gamerStats?.customEdited),
     recentGames,
-    achievements: achievements.slice(0, 4),
+    achievements: achievements.slice(0, 6),
     updatedAt: new Date().toISOString()
   };
 }
@@ -3608,7 +3688,6 @@ function renderGamerShowcase(u, isMe){
   const hasXbox = Boolean(u?.xboxTag && String(u.xboxTag).trim());
   const stats = getGamerStatsForUser(u);
 
-  // Si este perfil no ha vinculado ni Steam ni Xbox, no mostramos nada hasta que lo vincule con el botón
   if(!stats || (!hasSteam && !hasXbox)){
     return '';
   }
@@ -3619,16 +3698,15 @@ function renderGamerShowcase(u, isMe){
       <div class="sec-h" style="flex-wrap:wrap;gap:10px">
         <div>
           <div class="line" style="gap:8px;flex-wrap:wrap">
-            <h2>Actividad en Vivo y Logros</h2>
-            ${hasSteam ? `<span class="badge" style="background:rgba(59,130,246,0.16);color:#60a5fa;border-color:rgba(96,165,250,0.4)">🟦 Steam: @${esc(u.steamId)} · Nvl ${stats.steamLevel||30}</span>` : ''}
-            ${hasXbox ? `<span class="badge" style="background:rgba(16,185,129,0.16);color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Xbox: @${esc(u.xboxTag)} · <b>G ${Number(stats.gamerscore||18400).toLocaleString()}</b></span>` : ''}
+            <h2>Actividad y Logros de Jugador</h2>
+            ${hasSteam ? `<span class="badge" style="background:rgba(59,130,246,0.16);color:#60a5fa;border-color:rgba(96,165,250,0.4)">🟦 Steam: @${esc(u.steamId)} · Nvl ${stats.steamLevel||25}</span>` : ''}
+            ${hasXbox ? `<span class="badge" style="background:rgba(16,185,129,0.16);color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Xbox: @${esc(u.xboxTag)} · <b>G ${Number(stats.gamerscore||12450).toLocaleString()}</b></span>` : ''}
           </div>
-          <small class="muted" style="font-size:12px">Actividad de juego reciente y vitrina de logros de @${esc(u.a)}</small>
+          <small class="muted" style="font-size:12px">Progreso y logros configurados por @${esc(u.a)}</small>
         </div>
         ${isMe ? `
         <div class="line" style="gap:8px">
-          <button type="button" class="btn sm ghost" data-a="syncnow">🔄 Actualizar</button>
-          <button type="button" class="btn sm" data-a="gamersync">⚙️ Editar Gamertag / Steam</button>
+          <button type="button" class="btn sm" data-a="gamersync">✏️ Editar mis Logros, Dificultad y Gamertag</button>
         </div>` : ''}
       </div>
 
@@ -3639,7 +3717,7 @@ function renderGamerShowcase(u, isMe){
           <small class="muted" style="font-size:11px;display:block">XBOX LIVE GAMERSCORE</small>
           <div class="line" style="gap:6px;margin-top:2px">
             <span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:99px;background:#10b981;color:#042f2e;font-weight:900;font-size:12px">G</span>
-            <b style="font-size:20px;color:var(--fg)">${Number(stats.gamerscore||18450).toLocaleString()}</b>
+            <b style="font-size:20px;color:var(--fg)">${Number(stats.gamerscore||12450).toLocaleString()}</b>
           </div>
           <small style="color:#34d399;font-size:11px">🟢 Gamertag: @${esc(u.xboxTag)}</small>
         </div>` : ''}
@@ -3647,22 +3725,22 @@ function renderGamerShowcase(u, isMe){
         <div class="glass" style="padding:12px 14px;border-left:3px solid #3b82f6">
           <small class="muted" style="font-size:11px;display:block">NIVEL Y HORAS EN STEAM</small>
           <div class="line" style="gap:8px;margin-top:2px">
-            <b style="font-size:20px;color:var(--fg)">${Number(stats.totalHours||420).toLocaleString()} h</b>
-            <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Nivel ${stats.steamLevel||32}</span>
+            <b style="font-size:20px;color:var(--fg)">${Number(stats.totalHours||180).toLocaleString()} h</b>
+            <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Nivel ${stats.steamLevel||25}</span>
           </div>
           <small style="color:#60a5fa;font-size:11px">🟦 Steam: ${esc(u.steamId)}</small>
         </div>` : ''}
         <div class="glass" style="padding:12px 14px;border-left:3px solid var(--accent)">
-          <small class="muted" style="font-size:11px;display:block">JUGANDO RECIENTEMENTE</small>
+          <small class="muted" style="font-size:11px;display:block">JUGANDO ACTUALMENTE</small>
           <div style="margin-top:2px">
             <b style="font-size:15.5px;color:var(--fg);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(G[u.cur]?.t||'EA Sports FC 27 (FIFA 27)')}</b>
           </div>
-          <small style="color:var(--accent);font-size:11px">⚡ Actividad de @${esc(u.a)}</small>
+          <small style="color:var(--accent);font-size:11px">⚡ Juego principal de @${esc(u.a)}</small>
         </div>
       </div>
 
-      <!-- Actividad de las últimas 2 semanas por juego -->
-      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">⏱️ Qué ha estado jugando (Horas y Progreso de Logros)</h3>
+      <!-- Actividad por juego -->
+      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">⏱️ Historial de Juego y Progreso de Logros</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:18px">
         ${(stats.recentGames||[]).map(rg => {
           const g = G[rg.gk] || {t: rg.gameTitle || 'Videojuego', y:2025};
@@ -3676,13 +3754,13 @@ function renderGamerShowcase(u, isMe){
                 <b style="font-size:13.5px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.t)}</b>
                 <span class="badge" style="font-size:9.5px;padding:1px 6px;color:${isXb?'#34d399':'#60a5fa'};border-color:${isXb?'rgba(52,211,153,0.4)':'rgba(96,165,250,0.4)'}">${isXb?'🟢 Xbox':'🟦 Steam'}</span>
               </div>
-              <small class="muted" style="font-size:11.5px">⏱️ <b>${rg.hrs2w} h</b> últ. 2 sem · ${rg.hrsTotal} h totales</small>
+              <small class="muted" style="font-size:11.5px">⏱️ <b>${rg.hrsTotal} h</b> jugadas (${rg.hrs2w} h recientes)</small>
               <div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;margin-top:2px">
                 <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${isXb?'#10b981,#34d399':'#3b82f6,#8b5cf6'});border-radius:99px"></div>
               </div>
               <div class="line" style="justify-content:space-between;font-size:11px">
                 <span style="color:var(--fg);font-weight:600">🏆 ${rg.achDone}/${rg.achTotal} logros (${pct}%)</span>
-                ${isXb ? `<span style="color:#fbbf24;font-weight:700">G ${rg.gs||750}</span>` : `<span style="color:#60a5fa;font-weight:700">Steam</span>`}
+                ${isXb ? `<span style="color:#fbbf24;font-weight:700">G ${rg.gs||480}</span>` : `<span style="color:#60a5fa;font-weight:700">Steam</span>`}
               </div>
             </div>
           </div>`;
@@ -3690,7 +3768,10 @@ function renderGamerShowcase(u, isMe){
       </div>
 
       <!-- Vitrina de Logros Desbloqueados -->
-      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">🏆 Vitrina de Logros Desbloqueados</h3>
+      <div class="line" style="justify-content:space-between;margin:0 0 10px;flex-wrap:wrap;gap:6px">
+        <h3 class="eyebrow" style="margin:0;font-size:11px">🏆 Logros Desbloqueados</h3>
+        ${isMe ? '<small class="muted" style="font-size:11px">¿Pasaste un juego en Normal, Difícil o Locura? Ajústalo en "Editar mis Logros"</small>' : ''}
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
         ${(stats.achievements||[]).map(ach => `
           <div class="glass" style="padding:12px 14px;display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(251,191,36,0.28);background:linear-gradient(135deg,rgba(251,191,36,0.07),transparent)">
@@ -3698,11 +3779,11 @@ function renderGamerShowcase(u, isMe){
             <div style="flex:1;min-width:0">
               <div class="line" style="justify-content:space-between;gap:6px">
                 <b style="font-size:13px;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ach.title)}</b>
-                <span class="badge" style="font-size:9.5px;padding:1px 6px;color:#fbbf24;border-color:rgba(251,191,36,0.45)">+${ach.gs||80} G</span>
+                <span class="badge" style="font-size:9.5px;padding:1px 6px;color:#fbbf24;border-color:rgba(251,191,36,0.45)">+${ach.gs||50} G</span>
               </div>
               <small style="display:block;font-size:11px;color:var(--accent);font-weight:700;margin-top:1px">${esc(ach.gameTitle || (G[ach.gk]?.t) || 'Juego')}</small>
               <p class="muted" style="font-size:11.5px;margin:3px 0 4px;line-height:1.35">${esc(ach.desc)}</p>
-              <span style="font-size:10.5px;color:#34d399;font-weight:600">💎 Raro · Solo el ${esc(ach.rarity||'3.4%')} de jugadores lo tiene</span>
+              <span style="font-size:10.5px;color:#34d399;font-weight:600">✅ Desbloqueado · ${esc(ach.rarity||'34.5%')} de jugadores</span>
             </div>
           </div>
         `).join('')}
@@ -3715,53 +3796,94 @@ function openGamerSyncModal(){
   const m = me();
   if(!m) return;
   const curStats = getGamerStatsForUser(m) || generateSmartGamerStats(m);
-  const savedSteamKey = localStorage.getItem('cp_steam_api_key') || '';
-  const savedXboxKey = localStorage.getItem('cp_openxbl_key') || '';
+  const curKey = (m.cur && G[m.cur]) ? m.cur : 'fc27';
+  const favKeys = (Array.isArray(m.fav) && m.fav.length ? m.fav : ['fc27','fn','gw','er']).filter(k => G[k]);
+  const pool = [...new Set([curKey, ...favKeys])].slice(0, 4);
+  const diffMap = curStats.diffByGame || {};
 
   modal(`
     <div class="hd">
       <div class="line" style="gap:10px">
         <span style="font-size:22px">🎮</span>
         <div>
-          <h2 style="font-size:18px;margin:0">Conectar Xbox Live y Steam</h2>
-          <small class="muted">Escribe tu Gamertag o tu usuario de Steam (puedes poner solo uno o ambos)</small>
+          <h2 style="font-size:18px;margin:0">Xbox Live, Steam y Mis Logros Reales</h2>
+          <small class="muted">Configura tu Gamertag y elige los logros y dificultad que realmente has desbloqueado</small>
         </div>
       </div>
       <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
     </div>
 
-    <form id="f-gamer-sync" style="display:flex;flex-direction:column;gap:12px" novalidate>
+    <form id="f-gamer-sync" onsubmit="if(window.saveGamerSyncNow){window.saveGamerSyncNow(event)}" style="display:flex;flex-direction:column;gap:12px" novalidate>
       <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;border-color:rgba(16,185,129,0.4)">
         <div class="line" style="justify-content:space-between">
-          <b style="font-size:14px;color:#34d399">🟢 Cuenta de Xbox Live / Game Pass</b>
+          <b style="font-size:14px;color:#34d399">🟢 1. Cuenta de Xbox Live / Game Pass</b>
           <span class="badge" style="font-size:10px;color:#34d399;border-color:rgba(52,211,153,0.4)">Xbox Live</span>
         </div>
-        <div class="fld">
-          <label for="gs-xbox-tag" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Xbox Gamertag</label>
-          <input id="gs-xbox-tag" type="text" value="${esc(m.xboxTag||'')}" placeholder="Escribe aquí tu Gamertag de Xbox..." autocomplete="off" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
-        </div>
-        <div class="fld">
-          <label for="gs-xbox-gs" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Gamerscore Total (G)</label>
-          <input id="gs-xbox-gs" type="number" min="0" max="2000000" step="5" value="${curStats.gamerscore||18450}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+        <div class="line" style="gap:10px;flex-wrap:wrap">
+          <div class="fld" style="flex:2;min-width:170px">
+            <label for="gs-xbox-tag" style="font-size:12px;font-weight:700;color:var(--fg)">Tu Xbox Gamertag</label>
+            <input id="gs-xbox-tag" type="text" value="${esc(m.xboxTag||'')}" placeholder="Ej. tu Gamertag de Xbox..." autocomplete="off" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+          </div>
+          <div class="fld" style="flex:1;min-width:120px">
+            <label for="gs-xbox-gs" style="font-size:12px;font-weight:700;color:var(--fg)">Tu Gamerscore (G)</label>
+            <input id="gs-xbox-gs" type="number" min="0" max="2000000" step="5" value="${curStats.gamerscore||12450}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+          </div>
         </div>
       </div>
 
       <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;border-color:rgba(59,130,246,0.4)">
         <div class="line" style="justify-content:space-between">
-          <b style="font-size:14px;color:#60a5fa">🟦 Cuenta de Steam (Opcional)</b>
+          <b style="font-size:14px;color:#60a5fa">🟦 2. Cuenta de Steam (Opcional)</b>
           <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Steam</span>
         </div>
-        <div class="fld">
-          <label for="gs-steam-id" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Usuario o Steam ID</label>
-          <input id="gs-steam-id" type="text" value="${esc(m.steamId||'')}" placeholder="Escribe aquí tu usuario o ID de Steam..." autocomplete="off" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
-        </div>
-        <div class="fld">
-          <label for="gs-steam-lvl" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Nivel de Steam</label>
-          <input id="gs-steam-lvl" type="number" min="1" max="999" value="${curStats.steamLevel||32}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+        <div class="line" style="gap:10px;flex-wrap:wrap">
+          <div class="fld" style="flex:2;min-width:170px">
+            <label for="gs-steam-id" style="font-size:12px;font-weight:700;color:var(--fg)">Usuario o ID de Steam</label>
+            <input id="gs-steam-id" type="text" value="${esc(m.steamId||'')}" placeholder="Dejar en blanco si solo usas Xbox..." autocomplete="off" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+          </div>
+          <div class="fld" style="flex:1;min-width:110px">
+            <label for="gs-steam-lvl" style="font-size:12px;font-weight:700;color:var(--fg)">Nivel Steam</label>
+            <input id="gs-steam-lvl" type="number" min="1" max="999" value="${curStats.steamLevel||25}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+          </div>
         </div>
       </div>
 
-
+      <!-- 3. Selector exacto de qué dificultad / logro real desbloqueaste en cada juego -->
+      <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;border-color:rgba(251,191,36,0.4)">
+        <div>
+          <b style="font-size:14px;color:#fde68a">🏆 3. Tus Logros y Dificultad Real por Juego</b>
+          <small class="muted" style="display:block;font-size:11.5px;margin-top:2px">Elige qué logro o dificultad desbloqueaste realmente en cada uno de tus juegos principales y cuántas horas llevas:</small>
+        </div>
+        ${pool.map((gk, idx) => {
+          const g = G[gk] || {t:gk};
+          const rg = (curStats.recentGames || []).find(x => x.gk === gk) || { hrsTotal: 40, achDone: 24, achTotal: 50, diff: 'normal' };
+          const curDiff = diffMap[gk] || rg.diff || 'normal';
+          return `
+          <div style="padding:10px;border-radius:10px;background:var(--bg);border:1px solid var(--edge);display:flex;flex-direction:column;gap:8px">
+            <div class="line" style="justify-content:space-between;gap:8px">
+              <b style="font-size:13px;color:var(--fg)">🎮 ${esc(g.t)}</b>
+              <span style="font-size:11px;color:var(--muted)">Juego #${idx+1}</span>
+            </div>
+            <div class="line" style="gap:8px;flex-wrap:wrap">
+              <label class="fld" style="flex:2;min-width:180px;font-size:11.5px">Logro / Dificultad alcanzada
+                <select class="gs-game-diff" data-gk="${esc(gk)}" style="height:36px;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);padding:0 8px;font-size:12.5px">
+                  <option value="normal" ${curDiff==='normal'?'selected':''}>✅ Campaña en Dificultad Normal (+50 G)</option>
+                  <option value="hard" ${curDiff==='hard'?'selected':''}>🔥 Campaña en Dificultad Difícil (+75 G)</option>
+                  <option value="insane" ${curDiff==='insane'?'selected':''}>💀 Campaña en Locura / Máxima (+100 G)</option>
+                  <option value="multi" ${curDiff==='multi'?'selected':''}>⚔️ Multijugador / Cooperativo Online (+60 G)</option>
+                  <option value="completionist" ${curDiff==='completionist'?'selected':''}>🏆 100% Completado / Todos los logros (+150 G)</option>
+                </select>
+              </label>
+              <label class="fld" style="flex:1;min-width:85px;font-size:11.5px">Horas totales
+                <input type="number" class="gs-game-hrs" data-gk="${esc(gk)}" min="1" max="20000" value="${rg.hrsTotal||40}" style="height:36px;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);padding:0 8px;font-size:12.5px">
+              </label>
+              <label class="fld" style="flex:1;min-width:85px;font-size:11.5px">Logros (de 50)
+                <input type="number" class="gs-game-ach" data-gk="${esc(gk)}" min="0" max="50" value="${Math.min(50, rg.achDone||24)}" style="height:36px;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);padding:0 8px;font-size:12.5px">
+              </label>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
 
       <p class="err" id="gs-err" role="alert" style="margin:0"></p>
 
@@ -3774,7 +3896,6 @@ function openGamerSyncModal(){
       </div>
     </form>
   `, false);
-  setTimeout(() => { $('#gs-xbox-tag')?.focus(); }, 60);
 }
 
 window.saveGamerSyncNow = function(ev){ if(ev) ev.preventDefault(); handleGamerSyncSubmit(); };
@@ -3783,10 +3904,8 @@ function handleGamerSyncSubmit(){
   if(!m) return;
   const steamId = ($('#gs-steam-id')?.value || '').trim();
   const xboxTag = ($('#gs-xbox-tag')?.value || '').trim();
-  const steamLevel = Number($('#gs-steam-lvl')?.value || 32);
-  const gamerscore = Number($('#gs-xbox-gs')?.value || 18450);
-  const steamKey = ($('#gs-steam-key')?.value || '').trim();
-  const xboxKey = ($('#gs-xbox-key')?.value || '').trim();
+  const steamLevel = Number($('#gs-steam-lvl')?.value || 25);
+  const gamerscore = Number($('#gs-xbox-gs')?.value || 12450);
 
   if(!steamId && !xboxTag){
     const errEl = $('#gs-err');
@@ -3794,13 +3913,37 @@ function handleGamerSyncSubmit(){
     return;
   }
 
-  if(steamKey) localStorage.setItem('cp_steam_api_key', steamKey);
-  if(xboxKey) localStorage.setItem('cp_openxbl_key', xboxKey);
+  const diffByGame = {};
+  $$('.gs-game-diff').forEach(sel => {
+    if(sel.dataset.gk) diffByGame[sel.dataset.gk] = sel.value || 'normal';
+  });
+  const customRecent = [];
+  $$('.gs-game-hrs').forEach(inp => {
+    const gk = inp.dataset.gk;
+    if(!gk) return;
+    const hrsTotal = Math.max(1, Number(inp.value) || 40);
+    const achInp = document.querySelector(`.gs-game-ach[data-gk="${gk}"]`);
+    const achDone = achInp ? Math.min(50, Math.max(0, Number(achInp.value) || 24)) : 24;
+    const diffKey = diffByGame[gk] || 'normal';
+    customRecent.push({
+      gk,
+      hrsTotal,
+      hrs2w: Math.min(hrsTotal, +(hrsTotal * 0.22).toFixed(1)),
+      achDone,
+      achTotal: 50,
+      diff: diffKey
+    });
+  });
 
-  // Guardado instantáneo (0ms) en el perfil del usuario actual y en Supabase
   m.steamId = steamId;
   m.xboxTag = xboxTag;
-  m.gamerStats = generateSmartGamerStats(m, { steamLevel, gamerscore });
+  m.gamerStats = generateSmartGamerStats(m, {
+    steamLevel,
+    gamerscore,
+    diffByGame,
+    recentGames: customRecent,
+    customEdited: true
+  });
   m.localUpdatedAt = Date.now();
 
   const idx = DB.accounts.findIndex(a => a.id === m.id);
@@ -3811,47 +3954,10 @@ function handleGamerSyncSubmit(){
   sbUpsertProfile(m);
   closeModal();
   S.route = 'perfil';
-  S.note = '🏆 Tu Gamertag y vitrina de logros se guardaron en tu perfil.';
+  S.note = '🏆 Tus logros reales, dificultad y Gamertag fueron actualizados.';
   render();
   setTimeout(() => { document.getElementById('logros')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
-
-  // Si hay conector o llaves API configuradas, actualizar en segundo plano sin trabar la ventana
-  if(steamKey || xboxKey){
-    (async () => {
-      try {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 3000);
-        const q = new URLSearchParams();
-        if(steamId) q.set('steam', steamId);
-        if(xboxTag) q.set('xbox', xboxTag);
-        if(steamKey) q.set('steam_key', steamKey);
-        if(xboxKey) q.set('xbox_key', xboxKey);
-        const res = await fetch('/api/gamer-sync?' + q.toString(), { method: 'GET', signal: ctrl.signal });
-        clearTimeout(tid);
-        if(res.ok && (res.headers.get('content-type')||'').includes('application/json')){
-          const live = await res.json();
-          if(live?.xbox?.gamerscore) m.gamerStats.gamerscore = live.xbox.gamerscore;
-          if(Array.isArray(live?.steam?.recentGames) && live.steam.recentGames.length){
-            live.steam.recentGames.slice(0, 4).forEach((sg, i) => {
-              const matchKey = Object.keys(G).find(k => G[k].t.toLowerCase().includes(String(sg.name||'').toLowerCase())) || (m.fav && m.fav[i]) || m.cur || 'fc27';
-              if(m.gamerStats.recentGames[i]){
-                m.gamerStats.recentGames[i].gk = matchKey;
-                m.gamerStats.recentGames[i].plat = 'Steam';
-                m.gamerStats.recentGames[i].hrs2w = sg.hours2Weeks || m.gamerStats.recentGames[i].hrs2w;
-                m.gamerStats.recentGames[i].hrsTotal = sg.hoursTotal || m.gamerStats.recentGames[i].hrsTotal;
-              }
-            });
-          }
-          U[m.id] = m;
-          save();
-          sbUpsertProfile(m);
-          if(!$('#modal')?.innerHTML) render();
-        }
-      } catch(e) {}
-    })();
-  }
 }
-
 
 function openConnectionsModal(targetUid, initialTab = 'followers'){
   const u = U[targetUid] || (targetUid === sess ? me() : null) || { a: targetUid, city: 'Comunidad' };
@@ -5783,7 +5889,45 @@ function decide(y, isSuper=false){
 /* ─────────── mensajes ─────────── */
 let _thr=[];const THR=()=>_thr;
 function buildThreads(){
-  _thr=[...DB.threads.filter(t=>t.owner===sess&&!BOT_IDS.has(t.u))];
+  const myAliasLow = String(me()?.a || '').trim().toLowerCase();
+  const rawList = (DB.threads || []).filter(t => {
+    if(!t || BOT_IDS.has(t.u)) return false;
+    if(!t.owner || t.owner === sess) return true;
+    const ownerAlias = String(U[t.owner]?.a || '').trim().toLowerCase();
+    return Boolean(myAliasLow && ownerAlias === myAliasLow);
+  });
+  // Deduplicar chats 1 a 1 (dm) por usuario / alias para que nunca existan dos hilos separados con el mismo contacto
+  const byPartner = new Map();
+  const deduped = [];
+  rawList.forEach(t => {
+    t.owner = sess;
+    if(t.type !== 'dm'){
+      deduped.push(t);
+      return;
+    }
+    const canonUid = resolveUserByIdOrAlias(t.u) || t.u;
+    t.u = canonUid;
+    const pAlias = String(U[canonUid]?.a || canonUid || '').trim().toLowerCase();
+    const key = pAlias || canonUid;
+    if(!byPartner.has(key)){
+      byPartner.set(key, t);
+      deduped.push(t);
+    } else {
+      const existing = byPartner.get(key);
+      // Fusionar mensajes sin duplicar
+      existing.msgIds = existing.msgIds || [];
+      (t.m || []).forEach(msg => {
+        const mId = msg[2];
+        const dup = (mId && existing.msgIds.includes(mId)) || (existing.m || []).some(em => (mId && em[2] === mId) || (em[0] === msg[0] && em[1] === msg[1]));
+        if(!dup){
+          if(mId) existing.msgIds.push(mId);
+          existing.m.push(msg);
+        }
+      });
+      if(S.thr === t.id) S.thr = existing.id;
+    }
+  });
+  _thr = deduped;
 }
 const thrName=t=>t.type==='group'?(t.name||'Grupo'):(U[t.u]?.a||t.u||'Jugador');
 const sentBy=(t,w)=>(t.m||[]).filter(x=>x[0]===w&&typeof x[1]==='string').length;
@@ -6010,11 +6154,14 @@ function autoReply(t){
 
 function openDM(k){
   if(!k) return;
+  const canonK = resolveUserByIdOrAlias(k) || k;
+  k = canonK;
   if(!U[k]){
-    U[k] = {id:k, a:String(k), city:'Comunidad', pl:['pc'], fav:['hk','hd','ce','zl'], cur:'hk', lang:'Español', h:265};
+    U[k] = {id:k, a:String(k), city:'Comunidad', pl:['pc'], fav:['fc27','fn','gw','er'], cur:'fc27', lang:'Español', h:265};
   }
-  if(! THR().length && DB.threads.length) buildThreads();
-  let t=THR().find(x=>x.type==='dm'&&x.u===k);
+  buildThreads();
+  const targetAliasLow = String(U[k]?.a || '').trim().toLowerCase();
+  let t=THR().find(x=>x.type==='dm'&&(x.u===k || (Boolean(targetAliasLow) && String(U[x.u]?.a||'').trim().toLowerCase()===targetAliasLow)));
   if(!t){
     t={id:'d'+uid(),type:'dm',u:k,known:1,un:0,m:[],owner:sess};
     _thr.unshift(t);
@@ -7673,12 +7820,10 @@ render();
 resolveOfficialCovers();
 syncFromSupabase(false);
 setInterval(() => {
-  const ae = document.activeElement;
-  const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
-  if(sess && !document.hidden && !isTyping && !$('#modal')?.innerHTML && (S.route === 'mensajes' || S.route === 'match')){
+  if(sess && !document.hidden && !$('#modal')?.innerHTML && (S.route === 'mensajes' || S.route === 'match')){
     syncFromSupabase(false);
   }
-}, 15000);
+}, 5000);
 </script>
 
 </body></html>
