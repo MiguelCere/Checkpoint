@@ -521,8 +521,8 @@ footer{border-top:1px solid var(--edge);margin-top:40px;padding-block:20px 120px
 footer .links{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:10px}
 footer .links button:hover,footer a:hover{color:var(--fg)}
 footer a{text-decoration:underline}
-.ov{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.dlg{width:100%;max-width:460px;max-height:88vh;overflow:auto;background:var(--surface);border:1px solid var(--edge);border-radius:22px;padding:20px;display:grid;gap:14px;font-size:14px;color:var(--muted)}
+.ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(0,0,0,.68);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.dlg{width:100%;max-width:480px;max-height:88vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--edge);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px;font-size:14px;color:var(--muted);margin:auto}
 .dlg h2{color:var(--fg);font-size:18px}
 .dlg .hd{display:flex;justify-content:space-between;align-items:center}
 .dlg.wide{max-width:900px;padding:0;grid-template-columns:1fr;overflow:hidden}
@@ -2249,7 +2249,7 @@ const DBK='cp5-secure-db',SESK='cp5-secure-session';
 try{localStorage.removeItem('cp2-db');localStorage.removeItem('cp2-session');localStorage.removeItem('cp3-auth-session');localStorage.removeItem('cp4-real-db');localStorage.removeItem('cp4-real-session');}catch(e){}
 let DB={accounts:[],posts:[],reviews:[],follow:{},likes:{},comments:{},saved:{},threads:[]};
 try{const x=JSON.parse(localStorage.getItem(DBK)||'null');if(x)DB={...DB,...x}}catch(e){}
-DB.accounts=(DB.accounts||[]).filter(a=>a&&a.salt&&a.hash&&!isBotAccount(a));
+DB.accounts=(DB.accounts||[]).filter(a=>a&&((a.salt&&a.hash)||/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(a.id||'')))&&!isBotAccount(a));
 DB.posts=(DB.posts||[]).filter(p=>!BOT_IDS.has(p.u));
 DB.reviews=(DB.reviews||[]).filter(r=>!BOT_IDS.has(r.u));
 DB.stories=(DB.stories||[]).filter(st=>!BOT_IDS.has(st.u));
@@ -2319,8 +2319,8 @@ if(sess && cachedSessProfile){
       cachedSessProfile.bannerImg = G[cachedSessProfile.cur].img;
     }
   }
-  if(!U[sess]) U[sess] = cachedSessProfile;
-  else if(G[U[sess].cur]?.img && (!U[sess].bannerImg || !Object.values(G).some(g => g.img === U[sess].bannerImg))){
+  U[sess] = { ...(U[sess] || {}), ...cachedSessProfile };
+  if(G[U[sess].cur]?.img && (!U[sess].bannerImg || !Object.values(G).some(g => g.img === U[sess].bannerImg))){
     if(!String(U[sess].bannerImg||'').startsWith('data:image/')) U[sess].bannerImg = G[U[sess].cur].img;
   }
 }
@@ -2334,30 +2334,137 @@ const me=()=>{
   return U[sess] || DB.accounts.find(a=>a.id===sess) || null;
 };
 const follows=id=>DB.follow[id]||(DB.follow[id]=[]);
-function hasLiked(fromId, toId){
-  if(!fromId || !toId) return false;
-  const list = follows(fromId);
-  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').toLowerCase();
-  const fromObj = U[fromId] || (fromId === sess ? me() : null);
-  return list.includes(toId) || (Boolean(toAlias) && list.includes('@' + toAlias));
+DB.matches = DB.matches || {};
+DB.cloudOutbox = DB.cloudOutbox || {};
+DB.seenMsgIds = DB.seenMsgIds || {};
+
+function resolveUserByIdOrAlias(idOrAlias){
+  if(!idOrAlias) return null;
+  const raw = String(idOrAlias).trim();
+  const clean = raw.replace(/^@/, '').toLowerCase();
+  if(U[raw]) return raw;
+  const foundKey = Object.keys(U).find(uid => String(U[uid]?.a || '').toLowerCase() === clean);
+  return foundKey || null;
 }
-function addLikeToUser(fromId, targetId){
+
+function hasLiked(fromId, toId){
+  if(!fromId || !toId || fromId === toId) return false;
+  const list = follows(fromId);
+  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').trim().toLowerCase();
+  const fromAlias = String(U[fromId]?.a || (fromId === sess ? me()?.a : '') || '').trim().toLowerCase();
+
+  // Revisar en la lista directa de fromId
+  const checkList = (arr) => arr.some(item => {
+    const s = String(item || '').trim();
+    const sLow = s.toLowerCase();
+    if(s === toId) return true;
+    if(toAlias && (sLow === '@' + toAlias || sLow === toAlias)) return true;
+    if(U[s] && toAlias && String(U[s].a || '').trim().toLowerCase() === toAlias) return true;
+    return false;
+  });
+
+  if(checkList(list)) return true;
+
+  // También revisar si existe otra fila con el mismo alias que fromAlias
+  if(fromAlias){
+    for(const uid of Object.keys(U)){
+      if(String(U[uid]?.a || '').trim().toLowerCase() === fromAlias){
+        if(checkList(follows(uid))) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function hasConfirmedMatchFlag(fromId, toId){
+  if(!fromId || !toId) return false;
+  const mList = DB.matches[fromId] || [];
+  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').trim().toLowerCase();
+  return mList.some(item => {
+    const s = String(item || '').trim();
+    const sLow = s.toLowerCase();
+    return s === toId || (toAlias && (sLow === '@' + toAlias || sLow === toAlias)) || (U[s] && toAlias && String(U[s].a||'').trim().toLowerCase() === toAlias);
+  });
+}
+
+function addConfirmedMatch(fromId, targetId){
   if(!fromId || !targetId) return;
+  const mList = DB.matches[fromId] || (DB.matches[fromId] = []);
+  if(!mList.includes(targetId)) mList.push(targetId);
+  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
+  if(targetAlias && !mList.includes('@' + targetAlias)) mList.push('@' + targetAlias);
+}
+
+function addLikeToUser(fromId, targetId){
+  if(!fromId || !targetId || fromId === targetId) return;
   const l = follows(fromId);
   if(!l.includes(targetId)) l.push(targetId);
-  const targetAlias = String(U[targetId]?.a || '').toLowerCase();
+  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
   if(targetAlias && !l.includes('@' + targetAlias)) l.push('@' + targetAlias);
+  // Si el otro usuario ya nos había dado Like, registrar también la bandera de Match confirmado para que a ambos les salga reflejado
+  if(hasLiked(targetId, fromId)){
+    addConfirmedMatch(fromId, targetId);
+    addConfirmedMatch(targetId, fromId);
+  }
 }
+
 function removeLikeFromUser(fromId, targetId){
   if(!fromId || !targetId) return;
-  const targetAlias = String(U[targetId]?.a || '').toLowerCase();
-  DB.follow[fromId] = follows(fromId).filter(x => x !== targetId && x !== ('@' + targetAlias));
+  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
+  DB.follow[fromId] = follows(fromId).filter(x => {
+    const s = String(x || '').trim();
+    return s !== targetId && s.toLowerCase() !== ('@' + targetAlias) && String(U[s]?.a||'').trim().toLowerCase() !== targetAlias;
+  });
+  if(DB.matches && DB.matches[fromId]){
+    DB.matches[fromId] = DB.matches[fromId].filter(x => {
+      const s = String(x || '').trim();
+      return s !== targetId && s.toLowerCase() !== ('@' + targetAlias);
+    });
+  }
 }
-const isMutualMatch=(a,b)=>Boolean(a&&b&&hasLiked(a,b)&&hasLiked(b,a));
+
+// Un Match es mutuo si ambos se dieron Like O si cualquiera de los dos ya tiene registrado el Match confirmado con el otro
+const isMutualMatch=(a,b)=>Boolean(a && b && a !== b && ((hasLiked(a,b) && hasLiked(b,a)) || hasConfirmedMatchFlag(a,b) || hasConfirmedMatchFlag(b,a)));
 const myMatches=()=>otherPlayers().filter(k=>isMutualMatch(sess,k));
-const likesReceived=()=>otherPlayers().filter(k=>hasLiked(k,sess)&&!hasLiked(sess,k));
-const likesSent=()=>otherPlayers().filter(k=>hasLiked(sess,k)&&!hasLiked(k,sess));
-function activity(u){if(SEED[u.id])return u.act;return DB.reviews.filter(r=>r.u===u.id).length*3+DB.posts.filter(p=>p.u===u.id).length*2+follows(u.id).length}
+const likesReceived=()=>otherPlayers().filter(k=>hasLiked(k,sess)&&!isMutualMatch(sess,k));
+const likesSent=()=>otherPlayers().filter(k=>hasLiked(sess,k)&&!isMutualMatch(sess,k));
+
+// Listas reales de Seguidores y Siguiendo para cualquier perfil k (sin bots y deduplicadas por alias)
+function followersOf(k){
+  if(!k) return [];
+  const allReal = Object.keys(U).filter(uid => uid !== k && !BOT_IDS.has(uid));
+  const seenAliases = new Set();
+  const result = [];
+  allReal.forEach(uid => {
+    if(hasLiked(uid, k) || isMutualMatch(uid, k)){
+      const al = String(U[uid]?.a || uid).trim().toLowerCase();
+      if(!seenAliases.has(al)){
+        seenAliases.add(al);
+        result.push(uid);
+      }
+    }
+  });
+  return result;
+}
+
+function followingOf(k){
+  if(!k) return [];
+  const allReal = Object.keys(U).filter(uid => uid !== k && !BOT_IDS.has(uid));
+  const seenAliases = new Set();
+  const result = [];
+  allReal.forEach(uid => {
+    if(hasLiked(k, uid) || isMutualMatch(k, uid)){
+      const al = String(U[uid]?.a || uid).trim().toLowerCase();
+      if(!seenAliases.has(al)){
+        seenAliases.add(al);
+        result.push(uid);
+      }
+    }
+  });
+  return result;
+}
+
+function activity(u){if(!u)return 10;return DB.reviews.filter(r=>r.u===u.id).length*3+DB.posts.filter(p=>p.u===u.id).length*2+followingOf(u.id).length*2+followersOf(u.id).length*2+15}
 const allPosts=()=>[...DB.posts,...SP];
 const allReviews=()=>[...DB.reviews,...SR];
 const nid=(()=>{let n=0;return()=>'g'+(++n)})();
@@ -2558,7 +2665,35 @@ async function pbkdf(pw,saltB64){
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
   return{salt:b64(salt),hash:b64(bits)}}
-let S={authTab:'signup',step:1,draft:{t:true},err:'',fails:0,until:0,msgTab:'todos',thr:null,note:'',rev:new Set(),ptab:'posts',filt:'Todo',busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null};
+const ROUTEK = 'cp5-last-route';
+let savedNav = {};
+try { savedNav = JSON.parse(localStorage.getItem(ROUTEK) || '{}') || {}; } catch(e) {}
+let S={
+  authTab:'signup',step:1,draft:{t:true},err:'',fails:0,until:0,
+  route: (sess && savedNav.route && savedNav.route !== 'auth') ? savedNav.route : (sess ? 'inicio' : 'auth'),
+  targetUser: savedNav.targetUser || null,
+  msgTab: savedNav.msgTab || 'todos',
+  mTab: savedNav.mTab || 'swipe',
+  expFilter: savedNav.expFilter || 'all',
+  thr:null,note:'',rev:new Set(),
+  ptab: savedNav.ptab || 'posts',
+  filt: savedNav.filt || 'Todo',
+  busy:false,mq:'',mLang:'all',mDist:'all',mPlat:'all',activeStory:null
+};
+function persistRouteState(){
+  if(!sess || !S.route || S.route === 'auth') return;
+  try {
+    localStorage.setItem(ROUTEK, JSON.stringify({
+      route: S.route,
+      targetUser: S.targetUser || null,
+      ptab: S.ptab || 'posts',
+      filt: S.filt || 'Todo',
+      mTab: S.mTab || 'swipe',
+      msgTab: S.msgTab || 'todos',
+      expFilter: S.expFilter || 'all'
+    }));
+  } catch(e) {}
+}
 function vAuth(){
   const signup=S.authTab==='signup';
   const feats=[
@@ -2824,12 +2959,22 @@ function deleteAccount(){const id=sess;DB.accounts=DB.accounts.filter(a=>a.id!==
 async function sbUpsertProfile(acc){
   if(!sbClient || !acc) return;
   try{
-    let targetId = isUuid(acc.id) ? acc.id : null;
-    if(!targetId){
+    let targetId = null;
+    try {
       const { data: sData } = await sbClient.auth.getSession();
       if(sData?.session?.user?.id) targetId = sData.session.user.id;
-    }
+    } catch(e){}
+    if(!targetId && isUuid(acc.id)) targetId = acc.id;
     if(!targetId) return;
+
+    const cleanPl = ((acc.pl && acc.pl.length) ? acc.pl.filter(x => !/^(like:|match:|dm:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc']);
+    const likeTags = follows(acc.id).map(uidLiked => 'like:' + uidLiked);
+    const matchTags = (DB.matches?.[acc.id] || []).map(uidMatched => 'match:' + uidMatched);
+    const outboxMsgs = (DB.cloudOutbox?.[acc.id] || []).slice(-50).map(pkt => 'dm:' + JSON.stringify(pkt));
+    const gsCompact = acc.gamerStats
+      ? `gstat:${Number(acc.gamerStats.steamLevel||32)}:${Number(acc.gamerStats.gamerscore||18450)}:${Number(acc.gamerStats.totalHours||420)}`
+      : null;
+
     await sbClient.from('profiles').upsert({
       id: targetId,
       alias: acc.a,
@@ -2842,11 +2987,13 @@ async function sbUpsertProfile(acc){
       current_game: acc.cur || 'hk',
       fav_games: (acc.fav && acc.fav.length) ? acc.fav.slice(0,4) : ['hk','hd','ce','zl'],
       platforms: [
-        ...((acc.pl && acc.pl.length) ? acc.pl.filter(x => !/^(like:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc']),
-        ...(follows(acc.id).map(uidLiked => 'like:' + uidLiked)),
+        ...cleanPl,
+        ...likeTags,
+        ...matchTags,
         ...(acc.steamId ? ['steam:' + String(acc.steamId).trim()] : []),
         ...(acc.xboxTag ? ['xbox:' + String(acc.xboxTag).trim()] : []),
-        ...(acc.gamerStats ? ['gstat:' + JSON.stringify(acc.gamerStats)] : [])
+        ...(gsCompact ? [gsCompact] : []),
+        ...outboxMsgs
       ],
       schedule: acc.sch || 'Noches',
       bio: (acc.bio || '').slice(0, 160)
@@ -3048,31 +3195,149 @@ async function syncFromSupabase(showToast = false){
           fans: U[row.id]?.fans || 3,
           cur: row.current_game || 'hk',
           fav: (Array.isArray(row.fav_games) && row.fav_games.length) ? [...row.fav_games].slice(0, 4) : (Array.isArray(U[row.id]?.fav) ? [...U[row.id].fav].slice(0, 4) : ['hk','hd','ce','zl']),
-          pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms.filter(x => !/^(like:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc'],
+          pl: (Array.isArray(row.platforms) && row.platforms.length) ? row.platforms.filter(x => !/^(like:|match:|dm:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc'],
           steamId: (Array.isArray(row.platforms) ? (row.platforms.find(x => String(x).startsWith('steam:')) || '').slice(6) : '') || U[row.id]?.steamId || '',
           xboxTag: (Array.isArray(row.platforms) ? (row.platforms.find(x => String(x).startsWith('xbox:')) || '').slice(5) : '') || U[row.id]?.xboxTag || '',
-          gamerStats: (() => {
-            if (Array.isArray(row.platforms)) {
-              const raw = row.platforms.find(x => String(x).startsWith('gstat:'));
-              if (raw) { try { return JSON.parse(String(raw).slice(6)); } catch(e){} }
-            }
-            return U[row.id]?.gamerStats || null;
-          })(),
+          gamerStats: null,
           sch: row.schedule || 'Noches',
           bio: row.bio || 'Jugador en Checkpoint.',
           created: row.created_at ? new Date(row.created_at).getTime() : Date.now()
         };
         if(Array.isArray(row.platforms)){
+          const rawGs = row.platforms.find(x => String(x).startsWith('gstat:'));
+          if(rawGs){
+            const val = String(rawGs).slice(6);
+            if(val.startsWith('{')){
+              try { mapped.gamerStats = JSON.parse(val); } catch(e){}
+            } else {
+              const parts = val.split(':');
+              mapped.gamerStats = generateSmartGamerStats(mapped, {
+                steamLevel: Number(parts[0] || 32),
+                gamerscore: Number(parts[1] || 18450),
+                totalHours: Number(parts[2] || 420)
+              });
+            }
+          } else if(mapped.steamId || mapped.xboxTag){
+            mapped.gamerStats = U[row.id]?.gamerStats || generateSmartGamerStats(mapped);
+          }
+
           const cloudLikes = row.platforms.filter(x => String(x).startsWith('like:')).map(x => String(x).slice(5));
           const curFollows = follows(row.id);
           cloudLikes.forEach(lk => { if(!curFollows.includes(lk)) curFollows.push(lk); });
+
+          const cloudMatches = row.platforms.filter(x => String(x).startsWith('match:')).map(x => String(x).slice(6));
+          cloudMatches.forEach(mk => {
+            addConfirmedMatch(row.id, mk);
+            addLikeToUser(row.id, mk);
+          });
         }
         if(!mapped.pl.length) mapped.pl = ['pc'];
-        U[row.id] = { ...(U[row.id] || {}), ...mapped };
+        const prevLocal = U[row.id];
+        if (row.id === sess && prevLocal && prevLocal.localUpdatedAt) {
+          U[row.id] = {
+            ...mapped,
+            ...prevLocal,
+            steamId: prevLocal.steamId !== undefined ? prevLocal.steamId : mapped.steamId,
+            xboxTag: prevLocal.xboxTag !== undefined ? prevLocal.xboxTag : mapped.xboxTag,
+            gamerStats: prevLocal.gamerStats !== undefined ? prevLocal.gamerStats : mapped.gamerStats,
+            fav: (Array.isArray(prevLocal.fav) && prevLocal.fav.length) ? prevLocal.fav : mapped.fav,
+            cur: prevLocal.cur || mapped.cur,
+            bannerImg: prevLocal.bannerImg !== undefined ? prevLocal.bannerImg : mapped.bannerImg,
+            avatarImg: prevLocal.avatarImg !== undefined ? prevLocal.avatarImg : mapped.avatarImg
+          };
+        } else {
+          U[row.id] = { ...(prevLocal || {}), ...mapped };
+        }
         if(row.id !== sess){
           SEED[row.id] = U[row.id];
         }
       });
+
+      // Sincronización bidireccional de Matches y Mensajes Directos (DMs) desde profiles.platforms
+      const myAliasLow = String(me()?.a || '').trim().toLowerCase();
+      const allDmPackets = [];
+
+      profs.forEach(row => {
+        if(!Array.isArray(row.platforms)) return;
+        const senderId = row.id;
+        const senderAlias = row.alias || U[senderId]?.a || 'Gamer';
+
+        // Si este jugador tiene un match confirmado conmigo (por ID o por @alias), asegurar que en mi cuenta también aparezca como Match mutuo
+        if(sess && senderId !== sess){
+          if(hasConfirmedMatchFlag(senderId, sess) || (hasLiked(senderId, sess) && hasLiked(sess, senderId))){
+            addLikeToUser(senderId, sess);
+            addLikeToUser(sess, senderId);
+            addConfirmedMatch(senderId, sess);
+            addConfirmedMatch(sess, senderId);
+          }
+        }
+
+        // Recolectar paquetes de mensajes directos 'dm:{...}'
+        row.platforms.forEach(entry => {
+          if(!String(entry).startsWith('dm:')) return;
+          try {
+            const pkt = JSON.parse(String(entry).slice(3));
+            if(pkt && pkt.id && pkt.body !== undefined){
+              pkt.from = pkt.from || senderId;
+              pkt.fromAlias = pkt.fromAlias || senderAlias;
+              allDmPackets.push(pkt);
+            }
+          } catch(e){}
+        });
+      });
+
+      if(sess && allDmPackets.length){
+        allDmPackets.sort((a,b) => (a.ts || 0) - (b.ts || 0));
+        if(!_thr.length && DB.threads.length) buildThreads();
+        allDmPackets.forEach(pkt => {
+          const fromAliasLow = String(pkt.fromAlias || U[pkt.from]?.a || '').trim().toLowerCase();
+          const toAliasLow = String(pkt.toAlias || U[pkt.to]?.a || '').trim().toLowerCase();
+          const isFromMe = (pkt.from === sess) || (Boolean(myAliasLow) && fromAliasLow === myAliasLow);
+          const isToMe = (pkt.to === sess) || (Boolean(myAliasLow) && toAliasLow === myAliasLow);
+          if(!isFromMe && !isToMe) return;
+
+          // Determinar el ID del otro participante de la conversación
+          let partnerId = isFromMe ? pkt.to : pkt.from;
+          const partnerAlias = isFromMe ? pkt.toAlias : pkt.fromAlias;
+          const resolvedPartner = resolveUserByIdOrAlias(partnerId) || resolveUserByIdOrAlias(partnerAlias);
+          if(resolvedPartner) partnerId = resolvedPartner;
+          if(!partnerId || partnerId === sess) return;
+
+          if(!U[partnerId]){
+            U[partnerId] = { id: partnerId, a: partnerAlias || 'Gamer', city: 'Comunidad', pl: ['pc'], fav: ['fc27','fn','gw','er'], cur: 'fc27', lang: 'Español', h: 265 };
+          }
+
+          let t = _thr.find(x => x.type === 'dm' && (x.u === partnerId || (partnerAlias && String(U[x.u]?.a||'').toLowerCase() === String(partnerAlias).toLowerCase())));
+          if(!t){
+            t = { id: 'dm_' + partnerId, type: 'dm', u: partnerId, known: 1, un: 0, m: [], owner: sess, msgIds: [] };
+            _thr.unshift(t);
+          } else {
+            t.known = 1;
+          }
+          t.msgIds = t.msgIds || [];
+          const alreadyInThread = t.msgIds.includes(pkt.id) || (t.m || []).some(mItem => mItem[2] === pkt.id || (mItem[0] === (isFromMe ? 'me' : partnerId) && mItem[1] === pkt.body));
+          if(!alreadyInThread){
+            t.msgIds.push(pkt.id);
+            t.m.push([isFromMe ? 'me' : partnerId, pkt.body, pkt.id, pkt.ts || Date.now()]);
+            if(!isFromMe && S.thr !== t.id){
+              t.un = (t.un || 0) + 1;
+              if(!DB.seenMsgIds[pkt.id]){
+                DB.seenMsgIds[pkt.id] = 1;
+                DB.notifs = DB.notifs || [];
+                DB.notifs.unshift({
+                  id: 'nmsg_' + pkt.id,
+                  u: partnerId,
+                  t: 'msg',
+                  txt: `te envió un mensaje: "${String(pkt.body).slice(0, 60)}"`,
+                  time: 'Reciente',
+                  read: false
+                });
+              }
+            }
+            persistThr(t);
+          }
+        });
+      }
     }
 
     const cloudPosts = postsRes?.data;
@@ -3225,11 +3490,12 @@ const ACH_TEMPLATES = {
 };
 
 function getGamerStatsForUser(u){
+  if(!u) return null;
+  const hasLinked = Boolean((u.steamId && String(u.steamId).trim()) || (u.xboxTag && String(u.xboxTag).trim()));
+  if(!hasLinked) return null;
   if(u.gamerStats && Array.isArray(u.gamerStats.recentGames) && u.gamerStats.recentGames.length){
     return u.gamerStats;
   }
-  const hasLinked = Boolean((u.steamId && String(u.steamId).trim()) || (u.xboxTag && String(u.xboxTag).trim()));
-  if(!hasLinked) return null;
   return generateSmartGamerStats(u);
 }
 
@@ -3237,7 +3503,7 @@ function generateSmartGamerStats(u, customOverrides){
   const curKey = (u.cur && G[u.cur]) ? u.cur : 'fc27';
   const favKeys = (Array.isArray(u.fav) && u.fav.length ? u.fav : ['fc27','fn','gw','er']).filter(k => G[k]);
   const pool = [...new Set([curKey, ...favKeys])].slice(0, 4);
-  const seedStr = String(u.id || u.a || 'gamer');
+  const seedStr = String(u.id || u.a || 'gamer') + ':' + String(u.steamId||'') + ':' + String(u.xboxTag||'');
   let hash = 0;
   for(let i=0;i<seedStr.length;i++) hash = ((hash<<5)-hash) + seedStr.charCodeAt(i);
   hash = Math.abs(hash);
@@ -3247,7 +3513,11 @@ function generateSmartGamerStats(u, customOverrides){
 
   const recentGames = pool.map((gk, idx) => {
     const g = G[gk] || {t:'Videojuego', gp:false};
-    const plat = (hasXbox && (!hasSteam || g.gp || idx % 2 === 1)) ? 'Xbox Live' : 'Steam';
+    let plat = 'Xbox Live';
+    if(hasSteam && !hasXbox) plat = 'Steam';
+    else if(hasXbox && !hasSteam) plat = 'Xbox Live';
+    else plat = (g.gp || idx % 2 === 1) ? 'Xbox Live' : 'Steam';
+
     const hrs2w = idx === 0 ? +(18.5 + (hash % 24) * 0.7).toFixed(1) : +(6.2 + ((hash + idx * 7) % 15) * 0.6).toFixed(1);
     const hrsTotal = Math.round(hrs2w * (5 + idx * 3) + 45 + ((hash + idx * 19) % 180));
     const achTotal = 42 + ((idx * 11 + hash) % 28);
@@ -3275,7 +3545,7 @@ function generateSmartGamerStats(u, customOverrides){
         desc: item.d,
         rarity: item.r,
         gs: item.gs,
-        plat: (hasXbox && (!hasSteam || g.gp)) ? 'Xbox' : 'Steam'
+        plat: (hasSteam && !hasXbox) ? 'Steam' : (hasXbox && !hasSteam) ? 'Xbox' : (g.gp ? 'Xbox' : 'Steam')
       });
     });
   });
@@ -3299,30 +3569,13 @@ function generateSmartGamerStats(u, customOverrides){
 }
 
 function renderGamerShowcase(u, isMe){
+  const hasSteam = Boolean(u?.steamId && String(u.steamId).trim());
+  const hasXbox = Boolean(u?.xboxTag && String(u.xboxTag).trim());
   const stats = getGamerStatsForUser(u);
-  const hasSteam = Boolean(u.steamId && String(u.steamId).trim());
-  const hasXbox = Boolean(u.xboxTag && String(u.xboxTag).trim());
 
-  if(!stats){
-    if(!isMe) return '';
-    return `
-    <section id="logros" class="body-sec wrap" style="scroll-margin-top:12px">
-      <div class="inner">
-        <div class="glass" style="padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border:1px solid rgba(52,211,153,0.35);background:linear-gradient(135deg,rgba(16,185,129,0.10),rgba(59,130,246,0.10))">
-          <div style="display:flex;align-items:center;gap:14px;min-width:240px;flex:1">
-            <div style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:rgba(16,185,129,0.18);border:1px solid rgba(52,211,153,0.4);font-size:22px">🏆</div>
-            <div>
-              <div class="line" style="gap:8px;flex-wrap:wrap">
-                <h2 style="font-size:17px;margin:0">Conecta tus servicios de Steam y Xbox Live</h2>
-                <span class="badge" style="color:#34d399;border-color:rgba(52,211,153,0.45)">Nuevo</span>
-              </div>
-              <p class="muted" style="font-size:13px;margin:4px 0 0">Muestra en tu perfil tu Gamerscore (G), nivel de Steam, horas jugadas en las últimas 2 semanas y tu vitrina de logros desbloqueados.</p>
-            </div>
-          </div>
-          <button type="button" class="btn" data-a="gamersync">🔗 Vincular Steam y Xbox</button>
-        </div>
-      </div>
-    </section>`;
+  // Si este perfil no ha vinculado ni Steam ni Xbox, no mostramos nada hasta que lo vincule con el botón
+  if(!stats || (!hasSteam && !hasXbox)){
+    return '';
   }
 
   return `
@@ -3331,16 +3584,16 @@ function renderGamerShowcase(u, isMe){
       <div class="sec-h" style="flex-wrap:wrap;gap:10px">
         <div>
           <div class="line" style="gap:8px;flex-wrap:wrap">
-            <h2>Actividad en Vivo y Logros (Steam · Xbox)</h2>
+            <h2>Actividad en Vivo y Logros</h2>
             ${hasSteam ? `<span class="badge" style="background:rgba(59,130,246,0.16);color:#60a5fa;border-color:rgba(96,165,250,0.4)">🟦 Steam: @${esc(u.steamId)} · Nvl ${stats.steamLevel||30}</span>` : ''}
             ${hasXbox ? `<span class="badge" style="background:rgba(16,185,129,0.16);color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Xbox: @${esc(u.xboxTag)} · <b>G ${Number(stats.gamerscore||18400).toLocaleString()}</b></span>` : ''}
           </div>
-          <small class="muted" style="font-size:12px">Sincronizado con la actividad de juego reciente y vitrina de trofeos/logros</small>
+          <small class="muted" style="font-size:12px">Actividad de juego reciente y vitrina de logros de @${esc(u.a)}</small>
         </div>
         ${isMe ? `
         <div class="line" style="gap:8px">
-          <button type="button" class="btn sm ghost" data-a="syncnow">🔄 Actualizar actividad</button>
-          <button type="button" class="btn sm" data-a="gamersync">⚙️ Configurar Steam / Xbox</button>
+          <button type="button" class="btn sm ghost" data-a="syncnow">🔄 Actualizar</button>
+          <button type="button" class="btn sm" data-a="gamersync">⚙️ Editar Gamertag / Steam</button>
         </div>` : ''}
       </div>
 
@@ -3353,7 +3606,7 @@ function renderGamerShowcase(u, isMe){
             <span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:99px;background:#10b981;color:#042f2e;font-weight:900;font-size:12px">G</span>
             <b style="font-size:20px;color:var(--fg)">${Number(stats.gamerscore||18450).toLocaleString()}</b>
           </div>
-          <small style="color:#34d399;font-size:11px">🟢 Cuenta vinculada: @${esc(u.xboxTag)}</small>
+          <small style="color:#34d399;font-size:11px">🟢 Gamertag: @${esc(u.xboxTag)}</small>
         </div>` : ''}
         ${hasSteam ? `
         <div class="glass" style="padding:12px 14px;border-left:3px solid #3b82f6">
@@ -3362,14 +3615,14 @@ function renderGamerShowcase(u, isMe){
             <b style="font-size:20px;color:var(--fg)">${Number(stats.totalHours||420).toLocaleString()} h</b>
             <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Nivel ${stats.steamLevel||32}</span>
           </div>
-          <small style="color:#60a5fa;font-size:11px">🟦 ID: ${esc(u.steamId)}</small>
+          <small style="color:#60a5fa;font-size:11px">🟦 Steam: ${esc(u.steamId)}</small>
         </div>` : ''}
         <div class="glass" style="padding:12px 14px;border-left:3px solid var(--accent)">
           <small class="muted" style="font-size:11px;display:block">JUGANDO RECIENTEMENTE</small>
           <div style="margin-top:2px">
             <b style="font-size:15.5px;color:var(--fg);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(G[u.cur]?.t||'EA Sports FC 27 (FIFA 27)')}</b>
           </div>
-          <small style="color:var(--accent);font-size:11px">⚡ En partida / Actividad verificada</small>
+          <small style="color:var(--accent);font-size:11px">⚡ Actividad de @${esc(u.a)}</small>
         </div>
       </div>
 
@@ -3379,7 +3632,7 @@ function renderGamerShowcase(u, isMe){
         ${(stats.recentGames||[]).map(rg => {
           const g = G[rg.gk] || {t: rg.gameTitle || 'Videojuego', y:2025};
           const pct = Math.min(100, Math.round(((rg.achDone||10) / Math.max(1, rg.achTotal||20)) * 100));
-          const isXb = /xbox/i.test(rg.plat||'');
+          const isXb = (hasXbox && !hasSteam) ? true : (hasSteam && !hasXbox) ? false : /xbox/i.test(rg.plat||'');
           return `
           <div class="glass" data-a="game" data-k="${esc(rg.gk)}" style="padding:12px;display:flex;gap:12px;align-items:center;cursor:pointer">
             <div style="position:relative;width:54px;height:81px;border-radius:8px;overflow:hidden;flex:none;background:#111;border:1px solid rgba(255,255,255,0.18)">${art(rg.gk)}</div>
@@ -3394,7 +3647,7 @@ function renderGamerShowcase(u, isMe){
               </div>
               <div class="line" style="justify-content:space-between;font-size:11px">
                 <span style="color:var(--fg);font-weight:600">🏆 ${rg.achDone}/${rg.achTotal} logros (${pct}%)</span>
-                <span style="color:#fbbf24;font-weight:700">G ${rg.gs||750}</span>
+                ${isXb ? `<span style="color:#fbbf24;font-weight:700">G ${rg.gs||750}</span>` : `<span style="color:#60a5fa;font-weight:700">Steam</span>`}
               </div>
             </div>
           </div>`;
@@ -3402,7 +3655,7 @@ function renderGamerShowcase(u, isMe){
       </div>
 
       <!-- Vitrina de Logros Desbloqueados -->
-      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">🏆 Vitrina de Logros Raros Desbloqueados</h3>
+      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">🏆 Vitrina de Logros Desbloqueados</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
         ${(stats.achievements||[]).map(ach => `
           <div class="glass" style="padding:12px 14px;display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(251,191,36,0.28);background:linear-gradient(135deg,rgba(251,191,36,0.07),transparent)">
@@ -3425,82 +3678,74 @@ function renderGamerShowcase(u, isMe){
 
 function openGamerSyncModal(){
   const m = me();
+  if(!m) return;
   const curStats = getGamerStatsForUser(m) || generateSmartGamerStats(m);
   const savedSteamKey = localStorage.getItem('cp_steam_api_key') || '';
   const savedXboxKey = localStorage.getItem('cp_openxbl_key') || '';
 
   modal(`
-    <div class="hd" style="padding:16px 20px;border-bottom:1px solid var(--edge)">
+    <div class="hd">
       <div class="line" style="gap:10px">
         <span style="font-size:22px">🎮</span>
         <div>
-          <h2 style="font-size:18px;margin:0">Conectar Steam y Xbox Live (Logros y Actividad)</h2>
-          <small class="muted">Sincroniza tu Gamerscore, horas jugadas y vitrina de logros con tu perfil en Supabase</small>
+          <h2 style="font-size:18px;margin:0">Conectar Xbox Live y Steam</h2>
+          <small class="muted">Escribe tu Gamertag o tu usuario de Steam (puedes poner solo uno o ambos)</small>
         </div>
       </div>
       <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
     </div>
 
-    <form id="f-gamer-sync" style="padding:20px;display:grid;gap:14px;max-height:76vh;overflow-y:auto" novalidate>
-      <div class="card" style="padding:14px;display:grid;gap:12px;border-color:rgba(59,130,246,0.35)">
+    <form id="f-gamer-sync" style="display:flex;flex-direction:column;gap:12px" novalidate>
+      <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;border-color:rgba(16,185,129,0.4)">
         <div class="line" style="justify-content:space-between">
-          <b style="font-size:14px;color:#60a5fa">🟦 1. Cuenta de Steam</b>
-          <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Steamworks Web API</span>
+          <b style="font-size:14px;color:#34d399">🟢 Cuenta de Xbox Live / Game Pass</b>
+          <span class="badge" style="font-size:10px;color:#34d399;border-color:rgba(52,211,153,0.4)">Xbox Live</span>
         </div>
-        <div class="line" style="gap:10px;flex-wrap:wrap">
-          <label class="fld" style="flex:2;min-width:200px">Steam ID64 o Usuario de Steam
-            <input id="gs-steam-id" value="${esc(m.steamId||'')}" placeholder="Ej. 76561198012345678 o tu alias de Steam">
-          </label>
-          <label class="fld" style="flex:1;min-width:110px">Nivel de Steam
-            <input id="gs-steam-lvl" type="number" min="1" max="999" value="${curStats.steamLevel||32}">
-          </label>
+        <div class="fld">
+          <label for="gs-xbox-tag" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Xbox Gamertag</label>
+          <input id="gs-xbox-tag" type="text" value="${esc(m.xboxTag||'')}" placeholder="Escribe aquí tu Gamertag de Xbox..." autocomplete="off" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
         </div>
-        <small class="muted" style="font-size:11.5px">Asegúrate de tener "Detalles de los juegos: Público" en la configuración de privacidad de tu perfil de Steam.</small>
-      </div>
-
-      <div class="card" style="padding:14px;display:grid;gap:12px;border-color:rgba(16,185,129,0.35)">
-        <div class="line" style="justify-content:space-between">
-          <b style="font-size:14px;color:#34d399">🟢 2. Cuenta de Xbox Live / Game Pass</b>
-          <span class="badge" style="font-size:10px;color:#34d399;border-color:rgba(52,211,153,0.4)">Xbox Live / OpenXBL</span>
-        </div>
-        <div class="line" style="gap:10px;flex-wrap:wrap">
-          <label class="fld" style="flex:2;min-width:200px">Xbox Gamertag
-            <input id="gs-xbox-tag" value="${esc(m.xboxTag||'')}" placeholder="Ej. MasterChief117 o tu Gamertag">
-          </label>
-          <label class="fld" style="flex:1;min-width:130px">Gamerscore Total (G)
-            <input id="gs-xbox-gs" type="number" min="0" max="2000000" step="5" value="${curStats.gamerscore||18450}">
-          </label>
+        <div class="fld">
+          <label for="gs-xbox-gs" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Gamerscore Total (G)</label>
+          <input id="gs-xbox-gs" type="number" min="0" max="2000000" step="5" value="${curStats.gamerscore||18450}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
         </div>
       </div>
 
-      <details class="card" style="padding:12px 14px">
-        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--fg)">🔑 Opcional: Llaves API para sincronización en vivo (Steam Web API / OpenXBL)</summary>
-        <div style="display:grid;gap:10px;margin-top:10px">
-          <p class="muted" style="font-size:12px;margin:0">Si subes el archivo <code>functions/api/gamer-sync.js</code> a tu repositorio en Cloudflare Pages o pegas aquí tus llaves gratuitas, la app consultará en vivo los servidores de Steam y Xbox:</p>
-          <label class="fld">Steam Web API Key <small>(Gratis en steamcommunity.com/dev/apikey)</small>
-            <input id="gs-steam-key" type="password" value="${esc(savedSteamKey)}" placeholder="Pega tu Steam API Key opcional...">
-          </label>
-          <label class="fld">OpenXBL API Key <small>(Gratis en xbl.io)</small>
-            <input id="gs-xbox-key" type="password" value="${esc(savedXboxKey)}" placeholder="Pega tu OpenXBL API Key opcional...">
-          </label>
+      <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;border-color:rgba(59,130,246,0.4)">
+        <div class="line" style="justify-content:space-between">
+          <b style="font-size:14px;color:#60a5fa">🟦 Cuenta de Steam (Opcional)</b>
+          <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Steam</span>
         </div>
-      </details>
+        <div class="fld">
+          <label for="gs-steam-id" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Usuario o Steam ID</label>
+          <input id="gs-steam-id" type="text" value="${esc(m.steamId||'')}" placeholder="Escribe aquí tu usuario o ID de Steam..." autocomplete="off" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+        </div>
+        <div class="fld">
+          <label for="gs-steam-lvl" style="font-size:12.5px;font-weight:700;color:var(--fg)">Tu Nivel de Steam</label>
+          <input id="gs-steam-lvl" type="number" min="1" max="999" value="${curStats.steamLevel||32}" style="width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:14px">
+        </div>
+      </div>
+
+
 
       <p class="err" id="gs-err" role="alert" style="margin:0"></p>
 
-      <div class="line" style="justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:4px">
-        ${(m.steamId || m.xboxTag) ? '<button type="button" class="btn sm ghost danger" data-a="unlinkgamer">Desvincular cuentas</button>' : '<span></span>'}
-        <div class="line" style="gap:10px">
+      <div class="line" style="justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:4px">
+        ${(m.steamId || m.xboxTag) ? '<button type="button" class="btn sm ghost danger" data-a="unlinkgamer">Desvincular</button>' : '<span></span>'}
+        <div class="line" style="gap:10px;margin-left:auto">
           <button type="button" class="btn ghost" data-a="x">Cancelar</button>
-          <button type="submit" class="btn" id="gs-submit-btn">🔄 Sincronizar y Guardar en mi Perfil</button>
+          <button type="submit" class="btn" data-a="savegamersync" id="gs-submit-btn" onclick="if(window.saveGamerSyncNow){window.saveGamerSyncNow(event)}">💾 Sincronizar y Guardar Perfil</button>
         </div>
       </div>
     </form>
   `, false);
+  setTimeout(() => { $('#gs-xbox-tag')?.focus(); }, 60);
 }
 
-async function handleGamerSyncSubmit(){
+window.saveGamerSyncNow = function(ev){ if(ev) ev.preventDefault(); handleGamerSyncSubmit(); };
+function handleGamerSyncSubmit(){
   const m = me();
+  if(!m) return;
   const steamId = ($('#gs-steam-id')?.value || '').trim();
   const xboxTag = ($('#gs-xbox-tag')?.value || '').trim();
   const steamLevel = Number($('#gs-steam-lvl')?.value || 32);
@@ -3510,67 +3755,135 @@ async function handleGamerSyncSubmit(){
 
   if(!steamId && !xboxTag){
     const errEl = $('#gs-err');
-    if(errEl) errEl.textContent = 'Escribe al menos tu Steam ID o tu Xbox Gamertag para sincronizar tus logros.';
+    if(errEl) errEl.textContent = 'Escribe al menos tu Xbox Gamertag o tu usuario de Steam para guardar.';
     return;
   }
 
   if(steamKey) localStorage.setItem('cp_steam_api_key', steamKey);
   if(xboxKey) localStorage.setItem('cp_openxbl_key', xboxKey);
 
-  const btn = $('#gs-submit-btn');
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ Sincronizando con Steam y Xbox...'; }
-
+  // Guardado instantáneo (0ms) en el perfil del usuario actual y en Supabase
   m.steamId = steamId;
   m.xboxTag = xboxTag;
+  m.gamerStats = generateSmartGamerStats(m, { steamLevel, gamerscore });
+  m.localUpdatedAt = Date.now();
 
-  // Base inteligente basada en el Juego Actual y los 4 de cabecera del jugador
-  let stats = generateSmartGamerStats(m, { steamLevel, gamerscore });
-
-  // Intentar sincronización en vivo con el conector /api/gamer-sync si está desplegado en Cloudflare Pages
-  try {
-    const q = new URLSearchParams();
-    if(steamId) q.set('steam', steamId);
-    if(xboxTag) q.set('xbox', xboxTag);
-    if(steamKey) q.set('steam_key', steamKey);
-    if(xboxKey) q.set('xbox_key', xboxKey);
-    const res = await fetch('/api/gamer-sync?' + q.toString(), { method: 'GET' });
-    if(res.ok && (res.headers.get('content-type')||'').includes('application/json')){
-      const live = await res.json();
-      if(live?.xbox?.gamerscore) stats.gamerscore = live.xbox.gamerscore;
-      if(Array.isArray(live?.steam?.recentGames) && live.steam.recentGames.length){
-        live.steam.recentGames.slice(0, 4).forEach((sg, idx) => {
-          const matchKey = Object.keys(G).find(k => G[k].t.toLowerCase().includes(String(sg.name||'').toLowerCase())) || (m.fav && m.fav[idx]) || m.cur || 'fc27';
-          if(stats.recentGames[idx]){
-            stats.recentGames[idx].gk = matchKey;
-            stats.recentGames[idx].plat = 'Steam';
-            stats.recentGames[idx].hrs2w = sg.hours2Weeks || stats.recentGames[idx].hrs2w;
-            stats.recentGames[idx].hrsTotal = sg.hoursTotal || stats.recentGames[idx].hrsTotal;
-          }
-        });
-      }
-      if(Array.isArray(live?.steam?.achievements) && live.steam.achievements.length){
-        stats.achievements = live.steam.achievements.map(a => ({
-          gk: m.cur || 'fc27',
-          gameTitle: a.gameTitle || G[m.cur]?.t || 'Steam',
-          title: a.title,
-          desc: a.desc,
-          rarity: '2.8%',
-          gs: 85,
-          plat: 'Steam'
-        }));
-      }
-    }
-  } catch(e) {}
-
-  m.gamerStats = stats;
   const idx = DB.accounts.findIndex(a => a.id === m.id);
   if(idx >= 0) DB.accounts[idx] = m;
+  else DB.accounts.push(m);
   U[m.id] = m;
   save();
   sbUpsertProfile(m);
   closeModal();
-  S.note = '🏆 Cuentas de Steam y Xbox vinculadas. Logros y actividad sincronizados en tu perfil.';
+  S.route = 'perfil';
+  S.note = '🏆 Tu Gamertag y vitrina de logros se guardaron en tu perfil.';
   render();
+  setTimeout(() => { document.getElementById('logros')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+
+  // Si hay conector o llaves API configuradas, actualizar en segundo plano sin trabar la ventana
+  if(steamKey || xboxKey){
+    (async () => {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 3000);
+        const q = new URLSearchParams();
+        if(steamId) q.set('steam', steamId);
+        if(xboxTag) q.set('xbox', xboxTag);
+        if(steamKey) q.set('steam_key', steamKey);
+        if(xboxKey) q.set('xbox_key', xboxKey);
+        const res = await fetch('/api/gamer-sync?' + q.toString(), { method: 'GET', signal: ctrl.signal });
+        clearTimeout(tid);
+        if(res.ok && (res.headers.get('content-type')||'').includes('application/json')){
+          const live = await res.json();
+          if(live?.xbox?.gamerscore) m.gamerStats.gamerscore = live.xbox.gamerscore;
+          if(Array.isArray(live?.steam?.recentGames) && live.steam.recentGames.length){
+            live.steam.recentGames.slice(0, 4).forEach((sg, i) => {
+              const matchKey = Object.keys(G).find(k => G[k].t.toLowerCase().includes(String(sg.name||'').toLowerCase())) || (m.fav && m.fav[i]) || m.cur || 'fc27';
+              if(m.gamerStats.recentGames[i]){
+                m.gamerStats.recentGames[i].gk = matchKey;
+                m.gamerStats.recentGames[i].plat = 'Steam';
+                m.gamerStats.recentGames[i].hrs2w = sg.hours2Weeks || m.gamerStats.recentGames[i].hrs2w;
+                m.gamerStats.recentGames[i].hrsTotal = sg.hoursTotal || m.gamerStats.recentGames[i].hrsTotal;
+              }
+            });
+          }
+          U[m.id] = m;
+          save();
+          sbUpsertProfile(m);
+          if(!$('#modal')?.innerHTML) render();
+        }
+      } catch(e) {}
+    })();
+  }
+}
+
+
+function openConnectionsModal(targetUid, initialTab = 'followers'){
+  const u = U[targetUid] || (targetUid === sess ? me() : null) || { a: targetUid, city: 'Comunidad' };
+  const fans = followersOf(targetUid);
+  const following = followingOf(targetUid);
+  const matches = otherPlayers().filter(x => isMutualMatch(targetUid, x));
+  const curTab = initialTab;
+  const activeList = curTab === 'following' ? following : curTab === 'matches' ? matches : fans;
+
+  modal(`
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="hd">
+        <div>
+          <h2 style="font-size:18px;margin:0">Comunidad de @${esc(u.a)}</h2>
+          <small class="muted">Toca cualquier jugador para visitar su perfil, hacer Match o enviarle mensaje</small>
+        </div>
+        <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+      </div>
+
+      <div class="mseg-3" role="tablist">
+        <button type="button" role="tab" data-a="conntab" data-k="${esc(targetUid)}" data-tab="followers" aria-selected="${curTab==='followers'}">👥 Seguidores (${fans.length})</button>
+        <button type="button" role="tab" data-a="conntab" data-k="${esc(targetUid)}" data-tab="following" aria-selected="${curTab==='following'}">➡️ Siguiendo (${following.length})</button>
+        <button type="button" role="tab" data-a="conntab" data-k="${esc(targetUid)}" data-tab="matches" aria-selected="${curTab==='matches'}">🤝 Matches (${matches.length})</button>
+      </div>
+
+      ${activeList.length ? `
+        <ul class="rl" style="display:flex;flex-direction:column;gap:10px;max-height:58vh;overflow-y:auto;padding-right:4px">
+          ${activeList.map(pk => {
+            const p = U[pk] || { a: pk, city: 'Comunidad', cur: 'fc27', pl: ['pc'] };
+            const isMutual = isMutualMatch(sess, pk);
+            const theyLikeMe = hasLiked(pk, sess);
+            const iLikeThem = hasLiked(sess, pk);
+            return `
+              <li class="card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface2)">
+                <div class="line" style="gap:10px;min-width:170px;flex:1">
+                  ${av(pk, 42, true)}
+                  <div style="min-width:0">
+                    <div class="line" style="gap:6px;flex-wrap:wrap">
+                      <button type="button" class="user-link" data-a="user" data-k="${esc(pk)}"><b style="font-size:14.5px">@${esc(p.a)}</b></button>
+                      ${isMutual ? '<span class="badge" style="font-size:9.5px;color:#34d399;border-color:rgba(52,211,153,0.45)">🤝 Match</span>' : theyLikeMe ? '<span class="badge" style="font-size:9.5px;color:#f59e0b;border-color:rgba(245,158,11,0.45)">💚 Te dio Like</span>' : ''}
+                    </div>
+                    <small class="muted" style="display:block">${esc(p.city||'Comunidad')} · Juega ${esc(G[p.cur]?.t||'Gaming')}</small>
+                  </div>
+                </div>
+                <div class="line" style="gap:6px">
+                  <button type="button" class="btn sm ghost" data-a="user" data-k="${esc(pk)}">Ver perfil</button>
+                  ${pk !== sess ? (
+                    isMutual
+                      ? `<button type="button" class="btn sm" data-a="dm" data-k="${esc(pk)}">${I('chat',13)} Mensaje</button>`
+                      : theyLikeMe && !iLikeThem
+                        ? `<button type="button" class="btn sm" style="background:#10b981;border-color:transparent;color:#fff" data-a="acceptmatch" data-k="${esc(pk)}">💚 Hacer Match</button>`
+                        : `<button type="button" class="btn sm ${iLikeThem?'ghost':''}" data-a="follow" data-k="${esc(pk)}">${iLikeThem?'Siguiendo':'Seguir'}</button>`
+                  ) : ''}
+                </div>
+              </li>
+            `;
+          }).join('')}
+        </ul>
+      ` : `
+        <div class="empty" style="padding:28px 16px">
+          ${I('users',28)}
+          <b style="color:var(--fg)">${curTab==='followers'?'Aún no tiene seguidores registrados':curTab==='following'?'Aún no sigue a ningún jugador':'Aún no tiene Matches mutuos'}</b>
+          <span>Cuando otros jugadores le den Like o hagan Match en Tinder Gamer, aparecerán en esta lista.</span>
+        </div>
+      `}
+    </div>
+  `, false);
 }
 
 function vProfile(k){
@@ -3580,7 +3893,7 @@ function vProfile(k){
   const savedPosts = allPosts().filter(p => DB.saved && DB.saved[p.id]);
   const savedReviews = allReviews().filter(r => DB.saved && DB.saved[r.id]);
   const act=activity(u),lvl=Math.floor(act/25)+1,pct=(act%25)/25*100;
-  const nFol=SEED[k]?u.fol:follows(k).length,nFans=SEED[k]?u.fans+(fl?1:0):Object.values(DB.follow).filter(a=>a.includes(k)).length;
+  const folList = followingOf(k), fansList = followersOf(k), nFol = folList.length, nFans = fansList.length;
   // Punto 2: Obtener estrictamente los 4 juegos de cabecera del perfil `k` (clonados para nunca mezclar referencias entre cuentas)
   const profileOwner = U[k] || (k === sess ? me() : null) || u;
   const ownerFavs = (Array.isArray(profileOwner.fav) && profileOwner.fav.length ? [...profileOwner.fav] : ['hk','hd','ce','zl']).slice(0, 4);
@@ -3623,7 +3936,11 @@ function vProfile(k){
     <header class="top">
       <div class="who">${av(k,60)}<div style="min-width:0"><div class="row"><h1>${esc(u.a)}</h1>${(u.badges||[]).map(b=>`<span class="badge">${esc(b)}</span>`).join('')}</div><p class="score">${I('trophy',14)} ${act} <span style="opacity:.7">· ${esc(u.city)}</span></p><div class="xp"><span>Nivel ${lvl}</span><span class="tr"><i style="width:${pct}%"></i></span></div></div></div>
       <nav class="icons" aria-label="Secciones del perfil">${tab('#logros','trophy','Logros Steam/Xbox')}${tab('#resenas','star','Reseñas')}${tab('#feed','grid','Publicaciones')}${tab('#listas','library','Listas')}</nav>
-      <div class="right"><div class="stats"><div><b>${mineR.length}</b>reseñas</div><div><b>${nFol}</b>siguiendo</div><div><b>${nFans}</b>seguidores</div></div><button class="ib" data-a="theme" aria-label="Cambiar tema"></button>${isMe?`<button type="button" class="ib" data-a="nav" data-k="ajustes" aria-label="Ajustes">${I('gear',18)}</button>`:`<button type="button" class="ib" data-a="nav" data-k="inicio" aria-label="Volver">${I('back',18)}</button>`}</div>
+      <div class="right"><div class="stats">
+        <button type="button" data-a="jump" data-k="resenas" style="background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px;border-radius:8px;text-align:center" title="Ver reseñas de @${esc(u.a)}"><b>${mineR.length}</b>reseñas</button>
+        <button type="button" data-a="openfollowing" data-k="${esc(k)}" style="background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px;border-radius:8px;text-align:center" title="Ver a quiénes sigue @${esc(u.a)}"><b>${nFol}</b>siguiendo</button>
+        <button type="button" data-a="openfollowers" data-k="${esc(k)}" style="background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px;border-radius:8px;text-align:center" title="Ver lista de seguidores de @${esc(u.a)}"><b>${nFans}</b>seguidores</button>
+      </div><button class="ib" data-a="theme" aria-label="Cambiar tema"></button>${isMe?`<button type="button" class="ib" data-a="nav" data-k="ajustes" aria-label="Ajustes">${I('gear',18)}</button>`:`<button type="button" class="ib" data-a="nav" data-k="inicio" aria-label="Volver">${I('back',18)}</button>`}</div>
     </header>
     ${u.bio?`<p style="max-width:46ch;font-size:14px;color:rgba(255,255,255,.88);text-shadow:0 1px 8px rgba(0,0,0,.5)">${esc(u.bio)}</p>`:''}
     <div class="spacer"></div>
@@ -5483,9 +5800,10 @@ function vMsgs(){
   return `<div class="view wrap"><div class="mapp ${mode}"><section class="mlist" aria-label="Conversaciones">
     <div class="mhd">
       <h1>Mensajes</h1>
-      <div class="mhd-actions">
-        <button class="btn sm ghost" data-a="dmnew" aria-label="Nuevo mensaje privado">${I('chat',15)} Nuevo privado</button>
-        <button class="btn sm" data-a="gnew" aria-label="Nuevo chat grupal">${I('users',15)} Nuevo grupo</button>
+      <div class="mhd-actions" style="flex-wrap:wrap;gap:6px">
+        <button type="button" class="btn sm ghost" data-a="syncmsgs" title="Sincronizar mensajes con Supabase">🔄 Actualizar</button>
+        <button type="button" class="btn sm ghost" data-a="dmnew" aria-label="Nuevo mensaje privado">${I('chat',15)} Nuevo privado</button>
+        <button type="button" class="btn sm" data-a="gnew" aria-label="Nuevo chat grupal">${I('users',15)} Nuevo grupo</button>
       </div>
     </div>
     <div class="sbox">${I('search',16)}<input id="mq" value="${esc(S.mq)}" placeholder="Buscar chats, usuarios o grupos..." maxlength="40" aria-label="Buscar chats"></div>
@@ -5613,7 +5931,32 @@ function newGroupModal(){
     </form>`);
 }
 
-function addMsg(t,w,body){t.m.push([w,body]);if(t.owner)persistThr(t)}
+function addMsg(t,w,body){
+  const msgId = 'm_' + Date.now() + '_' + uid();
+  t.msgIds = t.msgIds || [];
+  t.msgIds.push(msgId);
+  t.m.push([w, body, msgId, Date.now()]);
+  if(t.owner) persistThr(t);
+  if(w === 'me' && sess && t.type === 'dm' && t.u){
+    const m = me();
+    const targetObj = U[t.u];
+    const safeBody = (typeof body === 'string') ? body : '[Captura de partida]';
+    DB.cloudOutbox = DB.cloudOutbox || {};
+    const box = DB.cloudOutbox[sess] || (DB.cloudOutbox[sess] = []);
+    box.push({
+      id: msgId,
+      from: sess,
+      fromAlias: m?.a || 'Gamer',
+      to: t.u,
+      toAlias: targetObj?.a || '',
+      body: safeBody,
+      ts: Date.now()
+    });
+    if(box.length > 50) box.splice(0, box.length - 50);
+    save();
+    if(m) sbUpsertProfile(m);
+  }
+}
 function persistThr(t){const i=DB.threads.findIndex(x=>x.id===t.id);const c={...t,un:0};if(i<0)DB.threads.push(c);else DB.threads[i]=c;save()}
 
 const REPLIES=[
@@ -5726,117 +6069,49 @@ function paintEditProfileModal(){
 
   modal(`<div class="hd">
     <div>
-      <h2 style="font-size:20px">Editar perfil y fondo difuminado</h2>
-      <small class="muted">El fondo de tu perfil se adapta automáticamente con efecto difuminado a la portada que coloques</small>
+      <h2 style="font-size:19px;margin:0">Editar perfil y cuentas de juego</h2>
+      <small class="muted">Actualiza tu alias, tu Gamertag de Xbox / Steam, tu portada y tus 4 de cabecera</small>
     </div>
-    <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
+    <button type="button" class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
   </div>
   
   <!-- Vista previa en vivo con fondo difuminado real -->
-  <div class="banner-preview-card" style="position:relative;overflow:hidden;min-height:112px;background:${previewBannerUrl?'#0a0b10':(d.bannerGrad || `radial-gradient(60% 50% at 70% 30%,hsl(${d.h} 80% 50% / .75),transparent 75%),linear-gradient(150deg,hsl(${d.h} 50% 18%),hsl(${(d.h+60)%360} 50% 8%))`)}">
+  <div class="banner-preview-card" style="position:relative;overflow:hidden;min-height:104px;background:${previewBannerUrl?'#0a0b10':(d.bannerGrad || `radial-gradient(60% 50% at 70% 30%,hsl(${d.h} 80% 50% / .75),transparent 75%),linear-gradient(150deg,hsl(${d.h} 50% 18%),hsl(${(d.h+60)%360} 50% 8%))`)}">
     ${previewBannerUrl?`
       <div style="position:absolute;inset:-18%;background-image:url('${esc(previewBannerUrl)}');background-size:cover;background-position:center;filter:blur(22px) saturate(1.4) brightness(0.48);transform:scale(1.1)"></div>
-      <img src="${esc(previewBannerUrl)}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:62px;height:86px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.45);box-shadow:0 6px 18px rgba(0,0,0,0.65);z-index:2" alt="Portada activa">
+      <img src="${esc(previewBannerUrl)}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:58px;height:82px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.45);box-shadow:0 6px 18px rgba(0,0,0,0.65);z-index:2" alt="Portada activa">
     `:''}
-    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:14px;width:100%;padding-right:76px;text-shadow:0 2px 8px rgba(0,0,0,0.85)">
+    <div style="position:relative;z-index:2;display:flex;align-items:center;gap:14px;width:100%;padding-right:72px;text-shadow:0 2px 8px rgba(0,0,0,0.85)">
       <div style="position:relative">
-        ${d.avatarImg?`<img src="${d.avatarImg}" alt="Avatar" style="width:64px;height:64px;border-radius:99px;border:3px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">`:`<span class="av" style="--h:${d.h};width:64px;height:64px;font-size:26px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5)">${esc((d.a||'?')[0].toUpperCase())}</span>`}
+        ${d.avatarImg?`<img src="${d.avatarImg}" alt="Avatar" style="width:58px;height:58px;border-radius:99px;border:3px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">`:`<span class="av" style="--h:${d.h};width:58px;height:58px;font-size:24px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5)">${esc((d.a||'?')[0].toUpperCase())}</span>`}
       </div>
       <div style="flex:1;min-width:0">
-        <b style="font-size:19px;display:block;color:#fff">${esc(d.a)}</b>
-        <small style="opacity:.95;color:#eee;display:block">${esc(d.city)} · ${previewBannerUrl ? '✨ Fondo difuminado adaptado a tu portada' : '🎨 Fondo de degradado de color'}</small>
+        <b style="font-size:18px;display:block;color:#fff">${esc(d.a)}</b>
+        <small style="opacity:.95;color:#eee;display:block">${esc(d.city)} · ${previewBannerUrl ? '✨ Fondo difuminado activo' : '🎨 Fondo de color'}</small>
       </div>
     </div>
   </div>
 
-  <form id="f-edit-prof" style="display:grid;gap:16px" novalidate>
-    <!-- 1. Avatar -->
-    <div class="card" style="padding:14px;display:grid;gap:10px">
-      <b style="font-size:14px">1. Foto de perfil (Avatar)</b>
-      <div class="line" style="gap:10px;align-items:center;flex-wrap:wrap">
-        <label class="btn sm" style="cursor:pointer">
-          ${I('img',16)} Subir foto de perfil
-          <input id="ep-avatar-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
-        </label>
-        ${d.avatarImg?`<button type="button" class="btn sm ghost danger" data-a="eprmavatar">${I('trash',14)} Quitar foto</button>`:''}
-      </div>
-      <small class="muted">O elige un avatar gamer prediseñado:</small>
-      <div class="chips">
-        ${AVATAR_PRESETS.map(ap=>`
-          <button type="button" class="chp" data-a="epselavatar" data-k="${ap.e}" data-h="${ap.h}" style="font-size:14px">
-            ${ap.e} ${ap.n}
-          </button>
-        `).join('')}
-      </div>
+  <form id="f-edit-prof" onsubmit="if(window.saveEditProfileNow){window.saveEditProfileNow(event)}" style="display:flex;flex-direction:column;gap:14px" novalidate>
+    <div class="line" style="justify-content:flex-end;gap:8px">
+      <button type="button" class="btn sm ghost" data-a="x">Cancelar</button>
+      <button type="submit" class="btn sm" onclick="if(window.saveEditProfileNow){window.saveEditProfileNow(event)}">💾 Guardar cambios ahora</button>
     </div>
 
-    <!-- 2. Portada y Fondo Difuminado Adaptable -->
-    <div class="card" style="padding:14px;display:grid;gap:12px">
-      <div class="line" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
-        <b style="font-size:14px">2. Portada y Fondo Difuminado del Perfil</b>
-        <span class="badge" style="color:var(--accent);border-color:var(--accent)">${previewBannerUrl ? '🖼️ Fondo Difuminado Activo' : '🎨 Color Sólido'}</span>
-      </div>
-      <p class="muted" style="font-size:12.5px;margin:0">La imagen que coloques en tu portada (una foto tuya o la carátula de cualquier videojuego) se convertirá automáticamente en el fondo difuminado de todo tu perfil.</p>
-
-      <div class="line" style="gap:8px;flex-wrap:wrap">
-        <label class="btn sm" style="cursor:pointer">
-          ${I('img',15)} 📁 Subir imagen de portada / fondo
-          <input id="ep-banner-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
-        </label>
-        <button type="button" class="btn sm ghost" data-a="epusecurcover">🎮 Usar portada de mi Juego Actual</button>
-        ${d.bannerImg?`<button type="button" class="btn sm ghost danger" data-a="eprmbanner">${I('trash',14)} Quitar portada</button>`:''}
-      </div>
-
-      <div>
-        <small class="muted" style="display:block;margin-bottom:6px">O toca cualquier videojuego para usar su arte como tu portada y fondo difuminado:</small>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-height:175px;overflow-y:auto;padding:6px;border-radius:12px;background:var(--surface2);border:1px solid var(--edge)">
-          ${Object.keys(G).filter(gk => G[gk]?.img).map(gk => `
-            <button type="button" data-a="eppickgamebanner" data-k="${esc(gk)}" title="Usar portada de ${esc(G[gk].t)}" style="position:relative;aspect-ratio:2/3;border-radius:8px;overflow:hidden;border:${d.bannerImg===G[gk].img?'2.5px solid var(--accent)':'1px solid var(--edge)'};padding:0;background:#111;cursor:pointer">
-              <img src="${esc(G[gk].img)}" alt="${esc(G[gk].t)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block">
-            </button>
-          `).join('')}
-        </div>
-      </div>
-
-      <details style="margin-top:2px">
-        <summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted)">🎨 ¿Prefieres un fondo de color degradado sin imagen? (Ver tonos)</summary>
-        <div style="display:grid;gap:10px;margin-top:10px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:8px">
-            ${BANNER_PRESETS.map(bp=>`
-              <button type="button" class="theme-swatch ${d.bannerMode==='color'&&d.h===bp.h?'active':''}" data-a="epbanner" data-h="${bp.h}">
-                <span class="swatch-dot" style="background:${bp.c}"></span>
-                <div>
-                  <div style="font-size:12px;font-weight:700">${bp.n}</div>
-                  <small class="muted" style="font-size:10px">${bp.sub}</small>
-                </div>
-              </button>
-            `).join('')}
-          </div>
-          <label class="fld" style="margin-top:4px">
-            <span>Selector de tono libre (0° a 360°)</span>
-            <span class="rng">
-              <input id="ep-hue-range" type="range" min="0" max="360" value="${d.h}">
-              <b id="ep-hue-val" style="color:hsl(${d.h} 85% 65%)">${d.h}°</b>
-            </span>
-          </label>
-        </div>
-      </details>
-    </div>
-
-    <!-- 3. Información del perfil -->
-    <div class="card" style="padding:14px;display:grid;gap:12px">
-      <b style="font-size:14px">3. Información de jugador</b>
+    <!-- 1. Información de jugador y Conexión Xbox / Steam (Arriba para acceso inmediato) -->
+    <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:12px">
+      <b style="font-size:14px">1. Datos de Jugador y Cuentas (Xbox / Steam)</b>
       
-      <label class="fld">Alias / GamerTag
+      <label class="fld">Alias en Checkpoint
         <input id="ep-a" value="${esc(d.a)}" maxlength="24" required>
       </label>
 
       <div class="line" style="gap:10px;flex-wrap:wrap">
-        <label class="fld" style="flex:1;min-width:180px">🟦 Steam ID / Usuario Steam
-          <input id="ep-steam" value="${esc(d.steamId||'')}" placeholder="Ej. tu alias o ID de Steam" maxlength="60">
+        <label class="fld" style="flex:1;min-width:170px">🟢 Xbox Live Gamertag
+          <input id="ep-xbox" value="${esc(d.xboxTag||'')}" placeholder="Escribe tu Gamertag de Xbox..." maxlength="50">
         </label>
-        <label class="fld" style="flex:1;min-width:180px">🟢 Xbox Live Gamertag
-          <input id="ep-xbox" value="${esc(d.xboxTag||'')}" placeholder="Ej. tu Gamertag de Xbox" maxlength="50">
+        <label class="fld" style="flex:1;min-width:170px">🟦 Usuario o ID de Steam
+          <input id="ep-steam" value="${esc(d.steamId||'')}" placeholder="Escribe tu usuario de Steam..." maxlength="60">
         </label>
       </div>
       
@@ -5844,11 +6119,11 @@ function paintEditProfileModal(){
         <textarea id="ep-bio" rows="2" maxlength="160" placeholder="¿Qué juegos te gustan?">${esc(d.bio)}</textarea>
       </label>
 
-      <div class="line" style="gap:12px">
-        <label class="fld" style="flex:1">Ciudad
+      <div class="line" style="gap:10px;flex-wrap:wrap">
+        <label class="fld" style="flex:1;min-width:140px">Ciudad
           <input id="ep-city" value="${esc(d.city)}" maxlength="40">
         </label>
-        <label class="fld" style="flex:1">Idioma
+        <label class="fld" style="flex:1;min-width:140px">Idioma
           <select id="ep-lang">
             <option ${d.lang==='Español (Latam)'?'selected':''}>Español (Latam)</option>
             <option ${d.lang==='Español (España)'?'selected':''}>Español (España)</option>
@@ -5858,13 +6133,20 @@ function paintEditProfileModal(){
         </label>
       </div>
 
-      <label class="fld">Preferencia de comunicación
-        <select id="ep-mic">
-          <option ${d.mic==='Con micrófono'?'selected':''}>Con micrófono</option>
-          <option ${d.mic==='Solo texto'?'selected':''}>Solo texto</option>
-          <option ${d.mic==='Micrófono opcional'?'selected':''}>Micrófono opcional</option>
-        </select>
-      </label>
+      <div class="line" style="gap:10px;flex-wrap:wrap">
+        <label class="fld" style="flex:1;min-width:140px">Comunicación
+          <select id="ep-mic">
+            <option ${d.mic==='Con micrófono'?'selected':''}>Con micrófono</option>
+            <option ${d.mic==='Solo texto'?'selected':''}>Solo texto</option>
+            <option ${d.mic==='Micrófono opcional'?'selected':''}>Micrófono opcional</option>
+          </select>
+        </label>
+        <label class="fld" style="flex:1;min-width:140px">Horario habitual
+          <select id="ep-sch">
+            ${['Noches','Noches entre semana','Tardes','Mañanas','Fines de semana'].map(s=>`<option ${d.sch===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </label>
+      </div>
 
       <div class="fld">Consolas y plataformas
         <div class="chips">
@@ -5872,13 +6154,7 @@ function paintEditProfileModal(){
         </div>
       </div>
 
-      <label class="fld">Horario habitual
-        <select id="ep-sch">
-          ${['Noches','Noches entre semana','Tardes','Mañanas','Fines de semana'].map(s=>`<option ${d.sch===s?'selected':''}>${s}</option>`).join('')}
-        </select>
-      </label>
-
-      <label class="fld">Juego actual
+      <label class="fld">Juego actual (su portada también puede usarse de fondo)
         <select id="ep-cur">
           ${Object.keys(G).map(k=>`<option value="${k}" ${d.cur===k?'selected':''}>${esc(G[k].t)}</option>`).join('')}
         </select>
@@ -5886,24 +6162,52 @@ function paintEditProfileModal(){
 
       <div class="fld">
         <div class="line" style="justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:4px">
-          <span>Mis 4 de cabecera <small id="ep-fav-count">(Llevas ${fav.length}/4 seleccionados · Toca para agregar o quitar)</small></span>
-          <input id="ep-fav-search" type="search" placeholder="🔍 Buscar juego (ej. FIFA 27, Fortnite, Gears...)" oninput="const q=this.value.toLowerCase().trim();document.querySelectorAll('#ep-fav-chips button').forEach(b=>{const m=!q||(b.dataset.search||'').includes(q)||b.getAttribute('aria-pressed')==='true';b.style.display=m?'':'none';})" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:12px;min-width:220px">
+          <span>Mis 4 de cabecera <small id="ep-fav-count">(Llevas ${fav.length}/4 seleccionados)</small></span>
+          <input id="ep-fav-search" type="search" placeholder="🔍 Filtrar juego (ej. FIFA 27, Fortnite...)" oninput="const q=this.value.toLowerCase().trim();document.querySelectorAll('#ep-fav-chips button').forEach((b,idx)=>{const sel=b.getAttribute('aria-pressed')==='true';const m=sel||(q?(b.dataset.search||'').includes(q):idx<28);b.style.display=m?'':'none';})" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--edge);background:var(--bg);color:var(--fg);font-size:12px;min-width:210px">
         </div>
-        <div class="chips" id="ep-fav-chips" style="max-height:210px;overflow-y:auto;padding:8px;border:1px solid var(--edge);border-radius:10px;background:var(--bg)">
-          ${Object.keys(G).map(k=>`<button type="button" class="chp" data-a="epchip" data-g="fav" data-k="${k}" data-search="${esc((G[k].t+' '+(G[k].genre||'')+' '+(G[k].gp?'game pass':'')).toLowerCase())}" aria-pressed="${fav.includes(k)}">${esc(G[k].t)}</button>`).join('')}
+        <div class="chips" id="ep-fav-chips" style="padding:8px;border:1px solid var(--edge);border-radius:10px;background:var(--bg)">
+          ${Object.keys(G).map((k,idx)=>{
+            const isSel = fav.includes(k);
+            return `<button type="button" class="chp" data-a="epchip" data-g="fav" data-k="${k}" data-search="${esc((G[k].t+' '+(G[k].genre||'')+' '+(G[k].gp?'game pass':'')).toLowerCase())}" aria-pressed="${isSel}" style="${(isSel||idx<28)?'':'display:none'}">${esc(G[k].t)}</button>`;
+          }).join('')}
         </div>
+        <small class="muted" style="font-size:11px">Usa el buscador de arriba para encontrar cualquiera de los ${Object.keys(G).length} videojuegos del catálogo.</small>
       </div>
     </div>
 
-    <p class="err" id="ep-e" role="alert"></p>
+    <!-- 2. Foto de perfil y Portada / Fondo Difuminado -->
+    <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+      <b style="font-size:14px">2. Avatar y Fondo Difuminado del Perfil</b>
+      <div class="line" style="gap:8px;flex-wrap:wrap">
+        <label class="btn sm" style="cursor:pointer">
+          ${I('img',15)} Subir Avatar
+          <input id="ep-avatar-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <label class="btn sm ghost" style="cursor:pointer">
+          ${I('img',15)} Subir Portada / Fondo
+          <input id="ep-banner-file" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <button type="button" class="btn sm ghost" data-a="epusecurcover">🎮 Usar portada de mi Juego Actual</button>
+      </div>
+      <div class="chips">
+        ${AVATAR_PRESETS.map(ap=>`
+          <button type="button" class="chp" data-a="epselavatar" data-k="${ap.e}" data-h="${ap.h}" style="font-size:13px">
+            ${ap.e} ${ap.n}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <p class="err" id="ep-e" role="alert" style="margin:0"></p>
 
     <div class="line" style="gap:10px;justify-content:flex-end">
       <button type="button" class="btn ghost" data-a="x">Cancelar</button>
-      <button class="btn" style="min-width:140px">Guardar cambios</button>
+      <button type="submit" class="btn" onclick="if(window.saveEditProfileNow){window.saveEditProfileNow(event)}" style="min-width:160px">💾 Guardar cambios</button>
     </div>
-  </form>`);
+  </form>`, false);
 }
 
+window.saveEditProfileNow = function(ev){ if(ev) ev.preventDefault(); saveEditProfile(); };
 function saveEditProfile(){
   const m=me();
   const alias = $('#ep-a')?.value.trim();
@@ -5935,6 +6239,7 @@ function saveEditProfile(){
     m.gamerStats = generateSmartGamerStats(m, m.gamerStats);
   }
 
+  m.localUpdatedAt = Date.now();
   const idx = DB.accounts.findIndex(a=>a.id===m.id);
   if(idx >= 0) DB.accounts[idx] = m;
   U[m.id] = m;
@@ -6426,7 +6731,7 @@ function handleNav(h){
     render();
     return;
   }
-  if(['resenas','listas','feed'].includes(h)){
+  if(['logros','resenas','listas','feed'].includes(h)){
     if(S.route!=='perfil'&&S.route!=='user'){
       S.route='perfil';
       render();
@@ -6476,9 +6781,22 @@ function render(){
   if(r==='match')hookMatch();
   if(r==='mensajes')hookMsgs();
   paintToggle();
-  if(cur!==r)scrollTo(0,0);else scrollTo(0,y);
+  persistRouteState();
+  if(cur === null){
+    const savedY = Number(sessionStorage.getItem('cp5_scroll_' + r) || 0);
+    if(savedY > 0) setTimeout(() => window.scrollTo(0, savedY), 30);
+  } else if(cur !== r){
+    scrollTo(0,0);
+  } else {
+    scrollTo(0,y);
+  }
   cur=r;
 }
+window.addEventListener('scroll', () => {
+  if(S.route && S.route !== 'auth'){
+    try { sessionStorage.setItem('cp5_scroll_' + S.route, String(Math.round(window.scrollY))); } catch(e) {}
+  }
+}, { passive: true });
 
 /* ─────────── eventos ─────────── */
 
@@ -6623,10 +6941,24 @@ document.addEventListener('click',async e=>{
      else if(openRev)openReviewModal(k);
      break;
    }
+   case 'openfollowers':openConnectionsModal(k, 'followers');break;
+   case 'openfollowing':openConnectionsModal(k, 'following');break;
+   case 'conntab':openConnectionsModal(k, el.dataset.tab || 'followers');break;
+   case 'syncmsgs':{
+     S.note = '🔄 Sincronizando mensajes y matches con Supabase...';
+     render();
+     syncFromSupabase(false);
+     setTimeout(()=>{ if(S.note && S.note.startsWith('🔄')){ S.note=''; render(); } }, 2200);
+     break;
+   }
    case 'follow':{
      if(hasLiked(sess,k)) removeLikeFromUser(sess,k);
      else addLikeToUser(sess,k);
-     save();sbUpsertProfile(me());render();break;
+     save();sbUpsertProfile(me());
+     const openConn = $('#modal .mseg-3');
+     render();
+     if(openConn) openConnectionsModal(S.targetUser || sess, 'followers');
+     break;
    }
    case 'matchtab':{
      S.matchTab=k;
@@ -6637,6 +6969,8 @@ document.addEventListener('click',async e=>{
    }
    case 'acceptmatch':{
      addLikeToUser(sess, k);
+     addConfirmedMatch(sess, k);
+     addConfirmedMatch(k, sess);
      save();
      sbUpsertProfile(me());
      const u=U[k]||{a:k};
@@ -6869,6 +7203,7 @@ document.addEventListener('click',async e=>{
    }
    case 'editprofile':openEditProfileModal();break;
    case 'gamersync':openGamerSyncModal();break;
+   case 'savegamersync':handleGamerSyncSubmit();break;
    case 'syncnow':{
      const m = me();
      m.gamerStats = generateSmartGamerStats(m, m.gamerStats);
@@ -7284,8 +7619,8 @@ document.addEventListener('submit',async e=>{
     render();
     return;
   }
-  if(f.id==='f-ep'){saveEditProfile();return}
-  if(f.id==='f-gamer-sync'){handleGamerSyncSubmit();return}
+  if(f==='f-edit-prof'||f==='f-ep'){saveEditProfile();return}
+  if(f==='f-gamer-sync'){handleGamerSyncSubmit();return}
   if(f==='f-create-list')return saveUserList();
   if(f==='f-create-story')return saveUserStory();
   if(f==='f-login')return doLogin();
@@ -7302,6 +7637,11 @@ if(me())buildThreads();
 render();
 resolveOfficialCovers();
 syncFromSupabase(false);
+setInterval(() => {
+  if(sess && !document.hidden && !$('#modal')?.innerHTML){
+    syncFromSupabase(false);
+  }
+}, 6000);
 </script>
 
 </body></html>
