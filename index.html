@@ -2327,6 +2327,7 @@ if(sess && cachedSessProfile){
 const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
   sess=null;
+  _thr=[];
   try{localStorage.removeItem(SESK)}catch(e){}
 }
 const me=()=>{
@@ -2950,6 +2951,7 @@ function renewSession(){
 function logout(){
   if(sbClient){try{sbClient.auth.signOut()}catch(e){}}
   sess=null;
+  _thr=[];
   try{localStorage.removeItem(SESK)}catch(e){};
   S={...S,authTab:'login',thr:null,err:'',route:'auth'};
   render();
@@ -2970,7 +2972,6 @@ async function sbUpsertProfile(acc){
     const cleanPl = ((acc.pl && acc.pl.length) ? acc.pl.filter(x => !/^(like:|match:|dm:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc']);
     const likeTags = follows(acc.id).map(uidLiked => 'like:' + uidLiked);
     const matchTags = (DB.matches?.[acc.id] || []).map(uidMatched => 'match:' + uidMatched);
-    const outboxMsgs = (DB.cloudOutbox?.[acc.id] || []).slice(-50).map(pkt => 'dm:' + JSON.stringify(pkt));
     const gsCompact = acc.gamerStats
       ? `gstat:${Number(acc.gamerStats.steamLevel||25)}:${Number(acc.gamerStats.gamerscore||12450)}:${Number(acc.gamerStats.totalHours||180)}:${encodeURIComponent(JSON.stringify(acc.gamerStats.diffByGame||{}))}`
       : null;
@@ -2992,8 +2993,7 @@ async function sbUpsertProfile(acc){
         ...matchTags,
         ...(acc.steamId ? ['steam:' + String(acc.steamId).trim()] : []),
         ...(acc.xboxTag ? ['xbox:' + String(acc.xboxTag).trim()] : []),
-        ...(gsCompact ? [gsCompact] : []),
-        ...outboxMsgs
+        ...(gsCompact ? [gsCompact] : [])
       ],
       schedule: acc.sch || 'Noches',
       bio: (acc.bio || '').slice(0, 160)
@@ -3149,6 +3149,7 @@ async function syncFromSupabase(showToast = false){
   if(!sbClient) return;
   const loader = $('#top-loader');
   if(loader && showToast) loader.hidden = false;
+  let messageSyncFailed = false;
   const beforeSnap = JSON.stringify({
     uCount: Object.keys(U).length,
     pCount: DB.posts?.length || 0,
@@ -3270,119 +3271,20 @@ async function syncFromSupabase(showToast = false){
         }
       });
 
-      // Sincronización bidireccional de Matches y Mensajes Directos (DMs) desde profiles.platforms
-      const myAliasLow = String(me()?.a || sbUser?.user_metadata?.alias || '').trim().toLowerCase();
-      const myIdSet = new Set([sess, sbUser?.id].filter(Boolean));
-      profs.forEach(r => {
-        if(r.id && myAliasLow && String(r.alias || '').trim().toLowerCase() === myAliasLow){
-          myIdSet.add(r.id);
-        }
-      });
-
-      const allDmPackets = [];
-      DB.cloudOutbox = DB.cloudOutbox || {};
-      const myOutbox = DB.cloudOutbox[sess] || (DB.cloudOutbox[sess] = []);
-
+      // Los matches conservan su representación existente; los DMs usan su tabla privada.
       profs.forEach(row => {
-        if(!Array.isArray(row.platforms)) return;
-        const senderId = row.id;
-        const senderAlias = row.alias || U[senderId]?.a || 'Gamer';
-        const isSenderMe = myIdSet.has(senderId) || (Boolean(myAliasLow) && String(senderAlias).trim().toLowerCase() === myAliasLow);
-
-        // Si este jugador tiene un match confirmado conmigo (por ID o por @alias), asegurar que en mi cuenta también aparezca como Match mutuo
-        if(sess && !isSenderMe){
-          if(hasConfirmedMatchFlag(senderId, sess) || (hasLiked(senderId, sess) && hasLiked(sess, senderId))){
-            addLikeToUser(senderId, sess);
-            addLikeToUser(sess, senderId);
-            addConfirmedMatch(senderId, sess);
-            addConfirmedMatch(sess, senderId);
-          }
+        if(sess && row.id !== sess && (hasConfirmedMatchFlag(row.id, sess) ||
+          (hasLiked(row.id, sess) && hasLiked(sess, row.id)))){
+          addLikeToUser(row.id, sess);
+          addLikeToUser(sess, row.id);
+          addConfirmedMatch(row.id, sess);
+          addConfirmedMatch(sess, row.id);
         }
-
-        // Recolectar paquetes de mensajes directos 'dm:{...}' de todos los perfiles
-        row.platforms.forEach(entry => {
-          if(!String(entry).startsWith('dm:')) return;
-          try {
-            const pkt = JSON.parse(String(entry).slice(3));
-            if(pkt && pkt.id && pkt.body !== undefined){
-              // Usar siempre el ID y alias reales de la fila de Supabase que emitió el paquete
-              pkt.from = senderId;
-              pkt.fromAlias = senderAlias;
-              allDmPackets.push(pkt);
-              // Si el paquete fue enviado por mí, asegurar que esté en mi outbox local para no perderlo al guardar mi perfil
-              if(isSenderMe && !myOutbox.some(x => x.id === pkt.id)){
-                myOutbox.push(pkt);
-              }
-            }
-          } catch(e){}
-        });
       });
-
-      if(sess && allDmPackets.length){
-        allDmPackets.sort((a,b) => (a.ts || 0) - (b.ts || 0));
-        buildThreads();
-        allDmPackets.forEach(pkt => {
-          const fromAliasLow = String(pkt.fromAlias || U[pkt.from]?.a || '').trim().toLowerCase();
-          const toAliasLow = String(pkt.toAlias || U[pkt.to]?.a || '').trim().toLowerCase();
-          const isFromMe = myIdSet.has(pkt.from) || (Boolean(myAliasLow) && fromAliasLow === myAliasLow);
-          const isToMe = myIdSet.has(pkt.to) || (Boolean(myAliasLow) && toAliasLow === myAliasLow);
-          if(!isFromMe && !isToMe) return;
-          if(isFromMe && isToMe) return;
-
-          // Determinar el ID y alias canónicos del contacto con el que estamos chateando
-          let partnerId = isFromMe ? pkt.to : pkt.from;
-          const partnerAlias = isFromMe ? (pkt.toAlias || U[pkt.to]?.a || '') : (pkt.fromAlias || U[pkt.from]?.a || '');
-          const resolvedPartner = resolveUserByIdOrAlias(partnerId) || resolveUserByIdOrAlias(partnerAlias);
-          if(resolvedPartner) partnerId = resolvedPartner;
-          if(!partnerId || myIdSet.has(partnerId)) return;
-
-          if(!U[partnerId]){
-            U[partnerId] = { id: partnerId, a: partnerAlias || 'Gamer', city: 'Comunidad', pl: ['pc'], fav: ['fc27','fn','gw','er'], cur: 'fc27', lang: 'Español', h: 265 };
-          }
-
-          const pAliasLow = String(U[partnerId]?.a || partnerAlias || '').trim().toLowerCase();
-          let t = _thr.find(x => x.type === 'dm' && (
-            x.u === partnerId ||
-            (Boolean(pAliasLow) && String(U[x.u]?.a || '').trim().toLowerCase() === pAliasLow)
-          ));
-          if(!t){
-            t = { id: 'dm_' + partnerId, type: 'dm', u: partnerId, known: 1, un: 0, m: [], owner: sess, msgIds: [] };
-            _thr.unshift(t);
-          } else {
-            t.u = partnerId;
-            t.known = 1;
-            t.owner = sess;
-          }
-          t.msgIds = t.msgIds || [];
-          const senderTag = isFromMe ? 'me' : partnerId;
-          const alreadyInThread = t.msgIds.includes(pkt.id) || (t.m || []).some(mItem =>
-            mItem[2] === pkt.id ||
-            (mItem[0] === senderTag && mItem[1] === pkt.body && Math.abs((mItem[3] || 0) - (pkt.ts || 0)) < 15000)
-          );
-          if(!alreadyInThread){
-            t.msgIds.push(pkt.id);
-            t.m.push([senderTag, pkt.body, pkt.id, pkt.ts || Date.now()]);
-            // Ordenar cronológicamente los mensajes que tengan timestamp
-            t.m.sort((a, b) => (a[3] || 0) - (b[3] || 0));
-            if(!isFromMe && S.thr !== t.id){
-              t.un = (t.un || 0) + 1;
-              if(!DB.seenMsgIds[pkt.id]){
-                DB.seenMsgIds[pkt.id] = 1;
-                DB.notifs = DB.notifs || [];
-                DB.notifs.unshift({
-                  id: 'nmsg_' + pkt.id,
-                  u: partnerId,
-                  t: 'msg',
-                  txt: `te envió un mensaje: "${String(pkt.body).slice(0, 60)}"`,
-                  time: 'Reciente',
-                  read: false
-                });
-              }
-            }
-            persistThr(t);
-          }
-        });
-      }
+    }
+    if(sbUser && sbUser.id === sess){
+      const ok = await syncDirectMessages(sbUser.id);
+      if(ok === false){ showToast = false; messageSyncFailed = true; }
     }
 
     const cloudPosts = postsRes?.data;
@@ -3526,7 +3428,7 @@ async function syncFromSupabase(showToast = false){
       meSteam: me()?.steamId || ''
     });
     const hasChanges = (beforeSnap !== afterSnap);
-    if((showToast || hasChanges) && !$('#modal')?.innerHTML){
+    if((showToast || hasChanges || messageSyncFailed) && !$('#modal')?.innerHTML){
       const ae = document.activeElement;
       const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
       if(!isTyping || showToast){
@@ -5892,9 +5794,7 @@ function buildThreads(){
   const myAliasLow = String(me()?.a || '').trim().toLowerCase();
   const rawList = (DB.threads || []).filter(t => {
     if(!t || BOT_IDS.has(t.u)) return false;
-    if(!t.owner || t.owner === sess) return true;
-    const ownerAlias = String(U[t.owner]?.a || '').trim().toLowerCase();
-    return Boolean(myAliasLow && ownerAlias === myAliasLow);
+    return t.owner === sess;
   });
   // Deduplicar chats 1 a 1 (dm) por usuario / alias para que nunca existan dos hilos separados con el mismo contacto
   const byPartner = new Map();
@@ -5905,10 +5805,10 @@ function buildThreads(){
       deduped.push(t);
       return;
     }
-    const canonUid = resolveUserByIdOrAlias(t.u) || t.u;
+    const canonUid = isUuid(t.u) ? t.u : (resolveUserByIdOrAlias(t.u) || t.u);
     t.u = canonUid;
     const pAlias = String(U[canonUid]?.a || canonUid || '').trim().toLowerCase();
-    const key = pAlias || canonUid;
+    const key = canonUid;
     if(!byPartner.has(key)){
       byPartner.set(key, t);
       deduped.push(t);
@@ -5918,7 +5818,7 @@ function buildThreads(){
       existing.msgIds = existing.msgIds || [];
       (t.m || []).forEach(msg => {
         const mId = msg[2];
-        const dup = (mId && existing.msgIds.includes(mId)) || (existing.m || []).some(em => (mId && em[2] === mId) || (em[0] === msg[0] && em[1] === msg[1]));
+        const dup = (mId && existing.msgIds.includes(mId)) || (existing.m || []).some(em => (mId && em[2] === mId));
         if(!dup){
           if(mId) existing.msgIds.push(mId);
           existing.m.push(msg);
@@ -6110,33 +6010,101 @@ function newGroupModal(){
     </form>`);
 }
 
-function addMsg(t,w,body){
-  const msgId = 'm_' + Date.now() + '_' + uid();
+// Nunca transportar mensajes privados en profiles.platforms.
+let dmSyncBusy = false;
+const dmSending = new Set();
+function mergeDirectMessage(row, owner){
+  if(owner !== sess || (row.from_id !== owner && row.to_id !== owner)) return;
+  const partner = row.from_id === owner ? row.to_id : row.from_id;
+  let t = _thr.find(x => x.owner === owner && x.type === 'dm' && x.u === partner);
+  if(!t){
+    t = {id:'dm_' + partner, type:'dm', u:partner, owner, known:1, un:0, m:[], msgIds:[]};
+    _thr.unshift(t);
+  }
+  if(t.m.some(m => m[2] === row.id)) return;
+  // Reconciliar IDs del formato anterior sin confundir mensajes repetidos.
+  const legacy = t.m.find(m => String(m[2] || '').startsWith('m_') &&
+    m[0] === (row.from_id === owner ? 'me' : partner) && m[1] === row.body &&
+    Math.abs((m[3] || 0) - Date.parse(row.created_at)) < 50);
+  if(legacy){
+    legacy[2] = row.id;
+    t.msgIds = t.m.map(m => m[2]).filter(Boolean);
+    persistThr(t);
+    return;
+  }
   t.msgIds = t.msgIds || [];
-  t.msgIds.push(msgId);
-  t.m.push([w, body, msgId, Date.now()]);
-  if(t.owner) persistThr(t);
-  if(w === 'me' && sess && t.type === 'dm' && t.u){
-    const m = me();
-    const targetObj = U[t.u];
-    const safeBody = (typeof body === 'string') ? body : '[Captura de partida]';
-    DB.cloudOutbox = DB.cloudOutbox || {};
-    const box = DB.cloudOutbox[sess] || (DB.cloudOutbox[sess] = []);
-    box.push({
-      id: msgId,
-      from: sess,
-      fromAlias: m?.a || 'Gamer',
-      to: t.u,
-      toAlias: targetObj?.a || '',
-      body: safeBody,
-      ts: Date.now()
-    });
-    if(box.length > 50) box.splice(0, box.length - 50);
-    save();
-    if(m) sbUpsertProfile(m);
+  t.msgIds.push(row.id);
+  t.m.push([row.from_id === owner ? 'me' : partner, row.body, row.id, Date.parse(row.created_at)]);
+  t.m.sort((a,b) => (a[3] || 0) - (b[3] || 0));
+  if(row.from_id !== owner && S.thr !== t.id) t.un = (t.un || 0) + 1;
+  persistThr(t);
+}
+async function syncDirectMessages(owner){
+  if(dmSyncBusy) return;
+  dmSyncBusy = true;
+  try{
+    buildThreads();
+    // Paginación para no truncar el historial al límite de la API.
+    for(let offset=0;;offset+=500){
+      const {data,error} = await sbClient.from('dm_messages')
+        .select('id,from_id,to_id,body,created_at')
+        .or(`from_id.eq.${owner},to_id.eq.${owner}`)
+        .order('created_at',{ascending:true}).order('id',{ascending:true})
+        .range(offset,offset+499);
+      if(error) throw error;
+      if(owner !== sess) return;
+      (data || []).forEach(row => mergeDirectMessage(row,owner));
+      if(!data || data.length < 500) break;
+    }
+  }catch(error){
+    if(owner !== sess) return;
+    S.note = 'No se pudieron actualizar los mensajes. Pulsa Actualizar para reintentar.';
+    return false;
+    console.error('Error al leer mensajes:', error.code || error.message);
+  }finally{dmSyncBusy=false;}
+  return true;
+}
+async function addMsg(t,w,body){
+  if(!t || t.owner !== sess || dmSending.has(t.id)) return false;
+  if(t.type !== 'dm' || typeof body !== 'string'){
+    S.note = 'Por ahora el envío sincronizado admite mensajes privados de texto. Grupos y archivos aún no están disponibles.';
+    render();
+    return false;
+  }
+  const owner = sess;
+  const text = body.trim();
+  if(!text || text.length > 1000) return false;
+  dmSending.add(t.id);
+  try{
+    if(!sbClient) throw new Error('Sin conexión');
+    const {data:auth,error:authError} = await sbClient.auth.getSession();
+    if(authError || !auth?.session || auth.session.user.id !== owner || owner !== sess)
+      throw new Error('Inicia sesión de nuevo');
+    if(!isUuid(t.u) || t.u === owner || w !== 'me') throw new Error('Destinatario inválido');
+    const {data,error} = await sbClient.from('dm_messages').insert({
+      id:crypto.randomUUID(), from_id:owner, to_id:t.u, body:text
+    }).select('id,from_id,to_id,body,created_at').single();
+    if(error) throw error;
+    if(!data?.id) throw new Error('Respuesta incompleta');
+    if(owner !== sess) return false;
+    mergeDirectMessage(data,owner);
+    return true;
+  }catch(error){
+    if(owner === sess) S.note = 'No se confirmó el envío. Conservamos tu texto; actualiza el chat antes de reintentar.';
+    console.error('Error al enviar mensaje:', error.code || error.message);
+    return false;
+  }finally{
+    dmSending.delete(t.id);
+    if(owner === sess){
+      const input = $('#ci');
+      const draft = input?.value;
+      render();
+      if(draft !== undefined && $('#ci')) $('#ci').value = draft;
+    }
   }
 }
-function persistThr(t){const i=DB.threads.findIndex(x=>x.id===t.id);const c={...t,un:0};if(i<0)DB.threads.push(c);else DB.threads[i]=c;save()}
+
+function persistThr(t){const i=DB.threads.findIndex(x=>x.id===t.id);const c={...t};if(i<0)DB.threads.push(c);else DB.threads[i]=c;save()}
 
 const REPLIES=[
   '¡Jaja va, me apunto!',
@@ -6154,14 +6122,14 @@ function autoReply(t){
 
 function openDM(k){
   if(!k) return;
-  const canonK = resolveUserByIdOrAlias(k) || k;
+  const canonK = isUuid(k) ? k : (resolveUserByIdOrAlias(k) || k);
   k = canonK;
   if(!U[k]){
     U[k] = {id:k, a:String(k), city:'Comunidad', pl:['pc'], fav:['fc27','fn','gw','er'], cur:'fc27', lang:'Español', h:265};
   }
   buildThreads();
   const targetAliasLow = String(U[k]?.a || '').trim().toLowerCase();
-  let t=THR().find(x=>x.type==='dm'&&(x.u===k || (Boolean(targetAliasLow) && String(U[x.u]?.a||'').trim().toLowerCase()===targetAliasLow)));
+  let t=THR().find(x=>x.type==='dm'&&(x.u===k));
   if(!t){
     t={id:'d'+uid(),type:'dm',u:k,known:1,un:0,m:[],owner:sess};
     _thr.unshift(t);
@@ -7813,7 +7781,7 @@ document.addEventListener('submit',async e=>{
   if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};DB.reviews.unshift(rv);save();sbInsertReview(rv);closeModal();S.ptab='reviews';S.route='perfil';render();return}
   if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;(DB.comments[id]||(DB.comments[id]=[])).push({u:sess,t:v});save();render();openPost(id);return}
   if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<1){er.textContent='Elige al menos 1 jugador de tus matches.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='grupos';S.route='mensajes';render();return}
-  if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;addMsg(t,'me',v);render();autoReply(t);$('#ci')?.focus()}
+  if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;const owner=sess,threadId=t?.id;const ok=await addMsg(t,'me',v);if(ok && sess===owner && S.thr===threadId && $('#ci')?.value===v)$('#ci').value='';$('#ci')?.focus()}
 });
 if(me())buildThreads();
 render();
@@ -7827,3 +7795,4 @@ setInterval(() => {
 </script>
 
 </body></html>
+
