@@ -2324,9 +2324,10 @@ if(sess && cachedSessProfile){
     if(!String(U[sess].bannerImg||'').startsWith('data:image/')) U[sess].bannerImg = G[U[sess].cur].img;
   }
 }
-const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k));
+const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k)&&isUuid(k)&&!blockedUsers.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
   sess=null;
+  socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;DB.likes={};DB.comments={};DB.notifs=[];
   _thr=[];
   try{localStorage.removeItem(SESK)}catch(e){}
 }
@@ -2348,84 +2349,60 @@ function resolveUserByIdOrAlias(idOrAlias){
   return foundKey || null;
 }
 
-function hasLiked(fromId, toId){
-  if(!fromId || !toId || fromId === toId) return false;
-  const list = follows(fromId);
-  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').trim().toLowerCase();
-  const fromAlias = String(U[fromId]?.a || (fromId === sess ? me()?.a : '') || '').trim().toLowerCase();
-
-  // Revisar en la lista directa de fromId
-  const checkList = (arr) => arr.some(item => {
-    const s = String(item || '').trim();
-    const sLow = s.toLowerCase();
-    if(s === toId) return true;
-    if(toAlias && (sLow === '@' + toAlias || sLow === toAlias)) return true;
-    if(U[s] && toAlias && String(U[s].a || '').trim().toLowerCase() === toAlias) return true;
-    return false;
-  });
-
-  if(checkList(list)) return true;
-
-  // También revisar si existe otra fila con el mismo alias que fromAlias
-  if(fromAlias){
-    for(const uid of Object.keys(U)){
-      if(String(U[uid]?.a || '').trim().toLowerCase() === fromAlias){
-        if(checkList(follows(uid))) return true;
-      }
-    }
+let socialOwner = null, socialRows = [], blockedUsers = new Set(), socialEpoch = 0;
+const socialPending = new Set();
+function hasLiked(a,b){return socialOwner===sess && a!==b && !blockedUsers.has(a) && !blockedUsers.has(b) && socialRows.some(r=>r.from_id===a&&r.to_id===b)}
+function hasConfirmedMatchFlag(a,b){return hasLiked(a,b)&&hasLiked(b,a)}
+function addConfirmedMatch(){ /* Reciprocidad derivada del servidor, nunca de banderas locales. */ }
+const isMutualMatch=(a,b)=>Boolean(a&&b&&a!==b&&hasLiked(a,b)&&hasLiked(b,a));
+async function requireCloud(){
+  if(!sbClient) throw new Error('No hay conexión con el servidor.');
+  const {data,error}=await sbClient.auth.getSession();
+  if(error||!data?.session?.user||data.session.user.id!==sess) throw new Error('Inicia sesión de nuevo.');
+  return data.session.user.id;
+}
+async function readAll(query){
+  const rows=[];
+  for(let offset=0;;offset+=500){const {data,error}=await query().range(offset,offset+499);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<500)return rows;}
+}
+async function syncSocial(){
+  const owner=await requireCloud(),epoch=++socialEpoch;
+  const [rows,blocks]=await Promise.all([
+    readAll(()=>sbClient.from('user_likes').select('from_id,to_id').or(`from_id.eq.${owner},to_id.eq.${owner}`).order('from_id').order('to_id')),
+    readAll(()=>sbClient.from('user_blocks').select('blocker_id,blocked_id').or(`blocker_id.eq.${owner},blocked_id.eq.${owner}`).order('blocker_id').order('blocked_id'))
+  ]);
+  const ids=[...new Set(rows.flatMap(r=>[r.from_id,r.to_id]))].filter(id=>!U[id]);
+  for(let i=0;i<ids.length;i+=100){
+    const {data,error}=await sbClient.from('profiles').select('*').in('id',ids.slice(i,i+100));
+    if(error)throw error;
+    if(sess!==owner||epoch!==socialEpoch)return false;
+    for(const r of data||[])U[r.id]={id:r.id,a:r.alias||'Jugador',city:r.city||'',lang:r.lang||'',sch:r.schedule||'',pl:(r.platforms||[]).filter(x=>!String(x).includes(':')),fav:r.fav_games||[],cur:r.current_game,avatarImg:r.avatar_url,h:r.hue||270};
   }
-  return false;
+  if(sess!==owner||epoch!==socialEpoch)return false;
+  socialRows=rows;socialOwner=owner;
+  blockedUsers=new Set(blocks.map(r=>r.blocker_id===owner?r.blocked_id:r.blocker_id));
+  DB.follow={};for(const r of rows)(DB.follow[r.from_id]||(DB.follow[r.from_id]=[])).push(r.to_id);
+  DB.matches={};buildThreads();return true;
 }
-
-function hasConfirmedMatchFlag(fromId, toId){
-  if(!fromId || !toId) return false;
-  const mList = DB.matches[fromId] || [];
-  const toAlias = String(U[toId]?.a || (toId === sess ? me()?.a : '') || '').trim().toLowerCase();
-  return mList.some(item => {
-    const s = String(item || '').trim();
-    const sLow = s.toLowerCase();
-    return s === toId || (toAlias && (sLow === '@' + toAlias || sLow === toAlias)) || (U[s] && toAlias && String(U[s].a||'').trim().toLowerCase() === toAlias);
-  });
+function showFailure(error){S.note='No se confirmó el cambio: '+(error?.message||'error de conexión');render();}
+async function setInterest(target,enabled){
+  const key=`${sess}:${target}`;if(socialPending.has(key))return false;socialPending.add(key);
+  try{
+    const owner=await requireCloud();if(!isUuid(target)||target===owner||blockedUsers.has(target))throw new Error('Contacto no disponible.');
+    const q=enabled?sbClient.from('user_likes').upsert({from_id:owner,to_id:target},{onConflict:'from_id,to_id',ignoreDuplicates:true}):sbClient.from('user_likes').delete().eq('from_id',owner).eq('to_id',target);
+    const {error}=await q;if(error)throw error;
+    if(sess!==owner)return false;
+    await syncSocial();save();return true;
+  }catch(e){showFailure(e);return false}finally{socialPending.delete(key)}
 }
-
-function addConfirmedMatch(fromId, targetId){
-  if(!fromId || !targetId) return;
-  const mList = DB.matches[fromId] || (DB.matches[fromId] = []);
-  if(!mList.includes(targetId)) mList.push(targetId);
-  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
-  if(targetAlias && !mList.includes('@' + targetAlias)) mList.push('@' + targetAlias);
+async function addLikeToUser(from,target){return from===sess?setInterest(target,true):false}
+async function removeLikeFromUser(from,target){return from===sess?setInterest(target,false):false}
+async function blockContact(target){
+  const owner=await requireCloud();if(!isUuid(target)||target===owner)throw new Error('Contacto inválido.');
+  const {error}=await sbClient.from('user_blocks').upsert({blocker_id:owner,blocked_id:target},{onConflict:'blocker_id,blocked_id',ignoreDuplicates:true});
+  if(error)throw error;if(owner!==sess)return;
+  await syncSocial();S.thr=null;S.note='Contacto bloqueado. No podrán enviarse mensajes ni nuevos likes.';render();
 }
-
-function addLikeToUser(fromId, targetId){
-  if(!fromId || !targetId || fromId === targetId) return;
-  const l = follows(fromId);
-  if(!l.includes(targetId)) l.push(targetId);
-  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
-  if(targetAlias && !l.includes('@' + targetAlias)) l.push('@' + targetAlias);
-  // Si el otro usuario ya nos había dado Like, registrar también la bandera de Match confirmado para que a ambos les salga reflejado
-  if(hasLiked(targetId, fromId)){
-    addConfirmedMatch(fromId, targetId);
-    addConfirmedMatch(targetId, fromId);
-  }
-}
-
-function removeLikeFromUser(fromId, targetId){
-  if(!fromId || !targetId) return;
-  const targetAlias = String(U[targetId]?.a || '').trim().toLowerCase();
-  DB.follow[fromId] = follows(fromId).filter(x => {
-    const s = String(x || '').trim();
-    return s !== targetId && s.toLowerCase() !== ('@' + targetAlias) && String(U[s]?.a||'').trim().toLowerCase() !== targetAlias;
-  });
-  if(DB.matches && DB.matches[fromId]){
-    DB.matches[fromId] = DB.matches[fromId].filter(x => {
-      const s = String(x || '').trim();
-      return s !== targetId && s.toLowerCase() !== ('@' + targetAlias);
-    });
-  }
-}
-
-// Un Match es mutuo si ambos se dieron Like O si cualquiera de los dos ya tiene registrado el Match confirmado con el otro
-const isMutualMatch=(a,b)=>Boolean(a && b && a !== b && ((hasLiked(a,b) && hasLiked(b,a)) || hasConfirmedMatchFlag(a,b) || hasConfirmedMatchFlag(b,a)));
 const myMatches=()=>otherPlayers().filter(k=>isMutualMatch(sess,k));
 const likesReceived=()=>otherPlayers().filter(k=>hasLiked(k,sess)&&!isMutualMatch(sess,k));
 const likesSent=()=>otherPlayers().filter(k=>hasLiked(sess,k)&&!isMutualMatch(sess,k));
@@ -2798,7 +2775,8 @@ async function doSignup2(){
   else if(!pf.city)S.err='Escribe tu ciudad o región.';
   if(S.err)return render();
   S.busy=true;render();
-  const {salt,hash}=await pbkdf(d.p,null);
+  const salt='',hash='';
+  if(!sbClient){S.busy=false;S.err='No hay conexión con el servidor.';return render();}
   const favList=(d.fav&&d.fav.length?d.fav:['hk','hd','ce','zl']).slice(0,4);
   const langVal=pf.lang||'Español';
   let newId = 'u_'+uid();
@@ -2819,18 +2797,12 @@ async function doSignup2(){
           }
         }
       });
-      if(error){
-        const msg = String(error.message || '').toLowerCase();
-        if(msg.includes('already registered') || msg.includes('already exists')){
-          S.busy=false;
-          S.err='Ese correo ya está registrado en la nube. Cambia a la pestaña "Iniciar sesión".';
-          return render();
-        }
-      }
+      if(error){S.busy=false;S.err=error.message;return render();}
+      if(!data?.session){S.busy=false;S.draft={t:true};S.step=1;S.err='Revisa tu correo para confirmar la cuenta y después inicia sesión.';return render();}
       if(data?.user?.id){
         newId = data.user.id;
       }
-    }catch(e){}
+    }catch(e){S.busy=false;S.err='No se pudo crear la cuenta. Inténtalo nuevamente.';return render();}
   }
 
   const acc={
@@ -2849,7 +2821,8 @@ async function doSignup2(){
     created:Date.now()
   };
   DB.accounts.push(acc);U[acc.id]=acc;save();
-  await sbUpsertProfile(acc);
+  const profileSaved=await sbUpsertProfile(acc);
+  if(!profileSaved)cloudNote='Cuenta creada, pero el perfil no se guardó. Completa el perfil al iniciar sesión.';
   S.busy=false;S.draft={t:true};S.step=1;S.err='';
   startSession(acc.id);
   S.note=cloudNote;
@@ -2917,15 +2890,7 @@ async function doLogin(){
     }catch(e){}
   }
 
-  // 2. Verificación estricta de contraseña cifrada (PBKDF2 SHA-256)
-  const acc=DB.accounts.find(x=>(x.e===idv||x.a.toLowerCase()===idv)&&x.salt&&x.hash);
-  let ok=false;
-  if(acc && pw && acc.salt && acc.hash){
-    const r=await pbkdf(pw,acc.salt);
-    ok=(r.hash===acc.hash);
-  }
   S.busy=false;
-  if(ok){S.fails=0;startSession(acc.id);S.route='perfil';return render()}
   S.fails++;S.err='Correo o contraseña incorrectos (si creaste tu cuenta en otro dispositivo, inicia sesión con tu correo electrónico).';
   if(S.fails>=5){S.until=Date.now()+30000;S.fails=0;S.err='Demasiados intentos. Espera 30 segundos.'}
   render();}
@@ -2939,44 +2904,44 @@ function startSession(id){
   }catch(e){}
   buildThreads();
 }
-function renewSession(){
-  if(!sess) return;
-  sessExp = Date.now() + ENV_CONFIG.SESSION_TTL_MS;
-  try{
-    localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp}));
-  }catch(e){}
-  S.note = '🔒 Sesión renovada por 24 horas adicionales.';
-  render();
-}
+async function renewSession(){try{const {error}=await sbClient.auth.refreshSession();if(error)throw error;S.note='Sesión actualizada con el servidor.';render();}catch(e){showFailure(e)}}
+
 function logout(){
   if(sbClient){try{sbClient.auth.signOut()}catch(e){}}
   sess=null;
+  socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;DB.likes={};DB.comments={};DB.notifs=[];
   _thr=[];
   try{localStorage.removeItem(SESK)}catch(e){};
   S={...S,authTab:'login',thr:null,err:'',route:'auth'};
   render();
 }
-function deleteAccount(){const id=sess;DB.accounts=DB.accounts.filter(a=>a.id!==id);DB.posts=DB.posts.filter(p=>p.u!==id);DB.reviews=DB.reviews.filter(r=>r.u!==id);delete DB.follow[id];DB.threads=DB.threads.filter(t=>t.owner!==id);delete U[id];save();logout()}
+async function deleteAccount(){
+ const box=$('#del-e');
+ try{const owner=await requireCloud();const password=$('#del-pw')?.value;if(!password)throw new Error('Escribe tu contraseña para confirmar.');
+ const {data,error}=await sbClient.functions.invoke('delete-account',{body:{password,confirm:true}});
+ if(error||!data?.deleted)throw new Error('No se eliminó la cuenta. Comprueba la contraseña y vuelve a intentar.');
+ if(sess!==owner)return;DB.accounts=DB.accounts.filter(a=>a.id!==owner);DB.posts=DB.posts.filter(p=>p.u!==owner);DB.reviews=DB.reviews.filter(r=>r.u!==owner);DB.threads=DB.threads.filter(t=>t.owner!==owner);delete U[owner];save();logout();
+ }catch(e){if(box)box.textContent=e.message;}
+}
 
 async function sbUpsertProfile(acc){
-  if(!sbClient || !acc) return;
+  if(!sbClient || !acc) return false;
   try{
     let targetId = null;
     try {
       const { data: sData } = await sbClient.auth.getSession();
       if(sData?.session?.user?.id) targetId = sData.session.user.id;
     } catch(e){}
-    if(!targetId && isUuid(acc.id)) targetId = acc.id;
-    if(!targetId) return;
+    if(!targetId || targetId!==acc.id) throw new Error('Sesión inválida para este perfil.');
 
     const cleanPl = ((acc.pl && acc.pl.length) ? acc.pl.filter(x => !/^(like:|match:|dm:|steam:|xbox:|gstat:)/.test(String(x))) : ['pc']);
-    const likeTags = follows(acc.id).map(uidLiked => 'like:' + uidLiked);
-    const matchTags = (DB.matches?.[acc.id] || []).map(uidMatched => 'match:' + uidMatched);
+    const likeTags = [];
+    const matchTags = [];
     const gsCompact = acc.gamerStats
       ? `gstat:${Number(acc.gamerStats.steamLevel||25)}:${Number(acc.gamerStats.gamerscore||12450)}:${Number(acc.gamerStats.totalHours||180)}:${encodeURIComponent(JSON.stringify(acc.gamerStats.diffByGame||{}))}`
       : null;
 
-    await sbClient.from('profiles').upsert({
+    const {data,error}=await sbClient.from('profiles').upsert({
       id: targetId,
       alias: acc.a,
       city: acc.city || 'Cd. Juárez',
@@ -2997,31 +2962,42 @@ async function sbUpsertProfile(acc){
       ],
       schedule: acc.sch || 'Noches',
       bio: (acc.bio || '').slice(0, 160)
-    });
-  }catch(e){}
+    }).select('id').single();
+    if(error || !data?.id) throw error||new Error('No se confirmó el perfil.');
+    delete acc.localUpdatedAt;return true;
+  }catch(e){S.note='No se guardó el perfil: '+(e.message||'error de conexión');return false;}
 }
 
-async function getActiveCloudUid(){
-  if(isUuid(sess)) return sess;
-  if(!sbClient) return null;
-  try{
-    const { data } = await sbClient.auth.getSession();
-    return data?.session?.user?.id || null;
-  }catch(e){ return null; }
+async function syncCommunity(){
+ const owner=await requireCloud();
+ const [likes,comments]=await Promise.all([
+ readAll(()=>sbClient.from('post_likes').select('item_id,user_id').order('item_id').order('user_id')),
+ readAll(()=>sbClient.from('post_comments').select('id,item_id,user_id,body').order('id'))]);
+ if(sess!==owner)return;
+ DB.likes={};DB.likeCounts={};DB.comments={};
+ for(const r of likes){DB.likeCounts[r.item_id]=(DB.likeCounts[r.item_id]||0)+1;if(r.user_id===owner)DB.likes[r.item_id]=1;}
+ for(const r of comments)(DB.comments[r.item_id]||(DB.comments[r.item_id]=[])).push({id:r.id,u:r.user_id,t:r.body});
 }
+async function togglePostLike(id,enabled=!DB.likes[id]){
+ try{const owner=await requireCloud();const {error}=await(enabled?sbClient.from('post_likes').upsert({user_id:owner,item_id:id},{onConflict:'user_id,item_id',ignoreDuplicates:true}):sbClient.from('post_likes').delete().eq('user_id',owner).eq('item_id',id));if(error)throw error;await syncCommunity();save();return true;}catch(e){showFailure(e);return false;}
+}
+async function addComment(id,body){
+ try{const owner=await requireCloud();const {data,error}=await sbClient.from('post_comments').insert({id:crypto.randomUUID(),item_id:id,user_id:owner,body}).select('id').single();if(error||!data?.id)throw error||new Error('Comentario sin confirmar');await syncCommunity();save();return true;}catch(e){S.note='No se publicó el comentario: '+(e.message||'error de conexión');const n=document.createElement('p');n.className='err';n.textContent=S.note;document.activeElement?.closest('form')?.append(n);return false;}
+}
+async function getActiveCloudUid(){try{return await requireCloud()}catch{return null}}
 
 async function sbInsertPost(p){
   const uidCloud = await getActiveCloudUid();
-  if(!sbClient || !uidCloud) return;
+  if(!sbClient || !uidCloud) return false;
   try{
-    const { data } = await sbClient.from('posts').insert({
+    const { data, error } = await sbClient.from('posts').insert({
       user_id: uidCloud,
       category: p.c || 'Gameplay',
       caption: (p.t || '').slice(0, 280),
       image_url: p.img || null
     }).select().single();
-    if(data && data.id){ p.id = String(data.id); p.u = uidCloud; save(); }
-  }catch(e){}
+    if(error||!data?.id)throw error||new Error('No se guardó');p.id=String(data.id);p.u=uidCloud;return true;
+  }catch(e){S.note='El servidor no confirmó el cambio. Conserva tu borrador e inténtalo de nuevo.';return false;}
 }
 
 async function sbUpdatePost(p){
@@ -3033,29 +3009,29 @@ async function sbUpdatePost(p){
       caption: (p.t || '').slice(0, 280)
     };
     if(p.img) payload.image_url = p.img;
-    const { error } = await sbClient
+    const { data,error } = await sbClient
       .from('posts')
       .update(payload)
       .eq('id', p.id)
-      .eq('user_id', uidCloud);
-    return !error;
+      .eq('user_id', uidCloud).select('id');
+    return !error&&data?.length===1;
   }catch(e){ return false; }
 }
 
 async function sbDeletePostOrReview(itemId, isReview = false){
   const uidCloud = await getActiveCloudUid();
-  if(!sbClient || !uidCloud) return;
+  if(!sbClient || !uidCloud) return false;
   try{
     const table = isReview ? 'reviews' : 'posts';
-    await sbClient.from(table).delete().eq('id', itemId).eq('user_id', uidCloud);
-  }catch(e){}
+    const {data,error}=await sbClient.from(table).delete().eq('id',itemId).eq('user_id',uidCloud).select('id');return !error && data?.length===1;
+  }catch(e){S.note='El servidor no confirmó el cambio. Conserva tu borrador e inténtalo de nuevo.';return false;}
 }
 
 async function sbInsertReview(r){
   const uidCloud = await getActiveCloudUid();
-  if(!sbClient || !uidCloud) return;
+  if(!sbClient || !uidCloud) return false;
   try{
-    const { data } = await sbClient.from('reviews').insert({
+    const { data, error } = await sbClient.from('reviews').insert({
       user_id: uidCloud,
       game_key: r.g || 'hk',
       stars: Number(r.s) || 4,
@@ -3063,15 +3039,15 @@ async function sbInsertReview(r){
       platform: r.p || 'pc',
       body: (r.t || '').slice(0, 600)
     }).select().single();
-    if(data && data.id){ r.id = String(data.id); r.u = uidCloud; save(); }
-  }catch(e){}
+    if(error||!data?.id)throw error||new Error('No se guardó');r.id=String(data.id);r.u=uidCloud;return true;
+  }catch(e){S.note='El servidor no confirmó el cambio. Conserva tu borrador e inténtalo de nuevo.';return false;}
 }
 
 async function sbUpdateReview(r){
   const uidCloud = await getActiveCloudUid();
   if(!sbClient || !uidCloud || !r) return false;
   try{
-    const { error } = await sbClient
+    const { data,error } = await sbClient
       .from('reviews')
       .update({
         game_key: r.g || 'hk',
@@ -3081,68 +3057,51 @@ async function sbUpdateReview(r){
         body: (r.t || '').slice(0, 600)
       })
       .eq('id', r.id)
-      .eq('user_id', uidCloud);
-    return !error;
+      .eq('user_id', uidCloud).select('id');
+    return !error&&data?.length===1;
   }catch(e){ return false; }
 }
 
 async function sbInsertUserList(lst){
   const uidCloud = await getActiveCloudUid();
-  if(!sbClient || !uidCloud || !lst) return;
+  if(!sbClient || !uidCloud || !lst) return false;
   try{
-    const { data } = await sbClient.from('user_lists').insert({
+    const { data, error } = await sbClient.from('user_lists').insert({
       user_id: uidCloud,
       title: (lst.t || '').slice(0, 80),
       description: (lst.d || '').slice(0, 240),
       games: Array.isArray(lst.g) ? lst.g : []
     }).select().single();
+    if(error||!data?.id)throw error||new Error('No se guardó');
     if(data && data.id){
       lst.id = String(data.id);
       lst.u = uidCloud;
       lst.user_id = uidCloud;
-      save();
+      return true;
     }
-  }catch(e){}
+  }catch(e){S.note='El servidor no confirmó el cambio. Conserva tu borrador e inténtalo de nuevo.';return false;}
 }
 
 async function sbInsertStory(st){
-  if(!sbClient || !isUuid(sess)) return;
+  if(!sbClient || !isUuid(sess)) return false;
   try{
-    const { data } = await sbClient.from('stories').insert({
+    const { data, error } = await sbClient.from('stories').insert({
       user_id: sess,
       game_key: st.g || 'hk',
       caption: (st.txt || '').slice(0, 140),
       image_url: st.img || null
     }).select().single();
-    if(data && data.id){ st.id = data.id; save(); }
-  }catch(e){}
+    if(error||!data?.id)throw error||new Error('No se guardó');st.id=data.id;return true;
+  }catch(e){S.note='El servidor no confirmó el cambio. Conserva tu borrador e inténtalo de nuevo.';return false;}
 }
 
-async function sbToggleSaved(itemId, isSavedNow){
-  if(!sbClient || !isUuid(sess)) return;
-  try{
-    if(isSavedNow){
-      await sbClient.from('saved_items').upsert({
-        user_id: sess,
-        item_id: String(itemId),
-        item_type: String(itemId).startsWith('v') ? 'review' : 'post'
-      });
-    } else {
-      await sbClient.from('saved_items').delete().eq('user_id', sess).eq('item_id', String(itemId));
-    }
-  }catch(e){}
+async function sbToggleSaved(itemId,enabled){
+ try{const owner=await requireCloud();const itemType=DB.reviews.some(r=>String(r.id)===String(itemId))?'review':'post';
+ const {error}=await(enabled?sbClient.from('saved_items').upsert({user_id:owner,item_id:String(itemId),item_type:itemType},{onConflict:'user_id,item_id'}):sbClient.from('saved_items').delete().eq('user_id',owner).eq('item_id',String(itemId)));
+ if(error)throw error;return true;}catch(e){showFailure(e);return false;}
 }
-
-async function sbInsertReport(targetId, reason){
-  if(!sbClient || !isUuid(sess)) return;
-  try{
-    await sbClient.from('reports').insert({
-      reporter_id: sess,
-      target_id: String(targetId),
-      reason: String(reason).slice(0, 120),
-      details: 'Reporte enviado desde Checkpoint Web'
-    });
-  }catch(e){}
+async function sbInsertReport(targetId,reason){
+ try{const owner=await requireCloud();const {data,error}=await sbClient.from('reports').insert({reporter_id:owner,target_id:String(targetId),reason:String(reason).slice(0,120),details:'Reporte desde Checkpoint'}).select('id').single();if(error||!data?.id)throw error||new Error('Sin confirmación');return true;}catch(e){showFailure(e);return false;}
 }
 
 async function syncFromSupabase(showToast = false){
@@ -3150,7 +3109,7 @@ async function syncFromSupabase(showToast = false){
   const loader = $('#top-loader');
   if(loader && showToast) loader.hidden = false;
   let messageSyncFailed = false;
-  const beforeSnap = JSON.stringify({
+  const beforeSnap = JSON.stringify({social:JSON.stringify(socialRows),community:JSON.stringify([DB.likes,DB.comments,DB.likeCounts]),
     uCount: Object.keys(U).length,
     pCount: DB.posts?.length || 0,
     rCount: DB.reviews?.length || 0,
@@ -3167,6 +3126,7 @@ async function syncFromSupabase(showToast = false){
   try{
     const { data: sessionData } = await sbClient.auth.getSession();
     const sbUser = sessionData?.session?.user;
+    if(sess && (!sbUser || sbUser.id!==sess)){sess=null;socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;_thr=[];}
     if(sbUser && !sess){
       sess = sbUser.id;
       sessExp = Date.now() + ENV_CONFIG.SESSION_TTL_MS;
@@ -3239,50 +3199,21 @@ async function syncFromSupabase(showToast = false){
             mapped.gamerStats = U[row.id]?.gamerStats || generateSmartGamerStats(mapped);
           }
 
-          const cloudLikes = row.platforms.filter(x => String(x).startsWith('like:')).map(x => String(x).slice(5));
-          const curFollows = follows(row.id);
-          cloudLikes.forEach(lk => { if(!curFollows.includes(lk)) curFollows.push(lk); });
 
-          const cloudMatches = row.platforms.filter(x => String(x).startsWith('match:')).map(x => String(x).slice(6));
-          cloudMatches.forEach(mk => {
-            addConfirmedMatch(row.id, mk);
-            addLikeToUser(row.id, mk);
-          });
         }
         if(!mapped.pl.length) mapped.pl = ['pc'];
         const prevLocal = U[row.id];
-        if (row.id === sess && prevLocal && prevLocal.localUpdatedAt) {
-          U[row.id] = {
-            ...mapped,
-            ...prevLocal,
-            steamId: prevLocal.steamId !== undefined ? prevLocal.steamId : mapped.steamId,
-            xboxTag: prevLocal.xboxTag !== undefined ? prevLocal.xboxTag : mapped.xboxTag,
-            gamerStats: prevLocal.gamerStats !== undefined ? prevLocal.gamerStats : mapped.gamerStats,
-            fav: (Array.isArray(prevLocal.fav) && prevLocal.fav.length) ? prevLocal.fav : mapped.fav,
-            cur: prevLocal.cur || mapped.cur,
-            bannerImg: prevLocal.bannerImg !== undefined ? prevLocal.bannerImg : mapped.bannerImg,
-            avatarImg: prevLocal.avatarImg !== undefined ? prevLocal.avatarImg : mapped.avatarImg
-          };
-        } else {
-          U[row.id] = { ...(prevLocal || {}), ...mapped };
-        }
+        U[row.id] = { ...(prevLocal || {}), ...mapped };
         if(row.id !== sess){
           SEED[row.id] = U[row.id];
         }
       });
 
-      // Los matches conservan su representación existente; los DMs usan su tabla privada.
-      profs.forEach(row => {
-        if(sess && row.id !== sess && (hasConfirmedMatchFlag(row.id, sess) ||
-          (hasLiked(row.id, sess) && hasLiked(sess, row.id)))){
-          addLikeToUser(row.id, sess);
-          addLikeToUser(sess, row.id);
-          addConfirmedMatch(row.id, sess);
-          addConfirmedMatch(sess, row.id);
-        }
-      });
     }
+
     if(sbUser && sbUser.id === sess){
+      await syncSocial();
+      await syncCommunity();
       const ok = await syncDirectMessages(sbUser.id);
       if(ok === false){ showToast = false; messageSyncFailed = true; }
     }
@@ -3413,7 +3344,7 @@ async function syncFromSupabase(showToast = false){
       S.note = `☁️ Sincronizado: ${nMat} match(es) y ${nReq} solicitud(es) de Like.`;
       setTimeout(()=>{ if(S.note && S.note.startsWith('☁️')){ S.note=''; render(); } }, 4000);
     }
-    const afterSnap = JSON.stringify({
+    const afterSnap = JSON.stringify({social:JSON.stringify(socialRows),community:JSON.stringify([DB.likes,DB.comments,DB.likeCounts]),
       uCount: Object.keys(U).length,
       pCount: DB.posts?.length || 0,
       rCount: DB.reviews?.length || 0,
@@ -3447,7 +3378,7 @@ async function syncFromSupabase(showToast = false){
         }
       }
     }
-  }catch(e){}finally{
+  }catch(e){S.note='No se pudo sincronizar: '+(e.message||'error de conexión');if(!document.activeElement?.matches('input,textarea,select'))render();}finally{
     if(loader) setTimeout(()=>{ loader.hidden = true; }, 180);
   }
 }
@@ -3585,114 +3516,7 @@ function generateSmartGamerStats(u, customOverrides){
   };
 }
 
-function renderGamerShowcase(u, isMe){
-  const hasSteam = Boolean(u?.steamId && String(u.steamId).trim());
-  const hasXbox = Boolean(u?.xboxTag && String(u.xboxTag).trim());
-  const stats = getGamerStatsForUser(u);
-
-  if(!stats || (!hasSteam && !hasXbox)){
-    return '';
-  }
-
-  return `
-  <section id="logros" class="body-sec wrap" style="scroll-margin-top:12px">
-    <div class="inner">
-      <div class="sec-h" style="flex-wrap:wrap;gap:10px">
-        <div>
-          <div class="line" style="gap:8px;flex-wrap:wrap">
-            <h2>Actividad y Logros de Jugador</h2>
-            ${hasSteam ? `<span class="badge" style="background:rgba(59,130,246,0.16);color:#60a5fa;border-color:rgba(96,165,250,0.4)">🟦 Steam: @${esc(u.steamId)} · Nvl ${stats.steamLevel||25}</span>` : ''}
-            ${hasXbox ? `<span class="badge" style="background:rgba(16,185,129,0.16);color:#34d399;border-color:rgba(52,211,153,0.45)">🟢 Xbox: @${esc(u.xboxTag)} · <b>G ${Number(stats.gamerscore||12450).toLocaleString()}</b></span>` : ''}
-          </div>
-          <small class="muted" style="font-size:12px">Progreso y logros configurados por @${esc(u.a)}</small>
-        </div>
-        ${isMe ? `
-        <div class="line" style="gap:8px">
-          <button type="button" class="btn sm" data-a="gamersync">✏️ Editar mis Logros, Dificultad y Gamertag</button>
-        </div>` : ''}
-      </div>
-
-      <!-- Tarjetas de resumen rápido de horas y logros -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin-bottom:16px">
-        ${hasXbox ? `
-        <div class="glass" style="padding:12px 14px;border-left:3px solid #10b981">
-          <small class="muted" style="font-size:11px;display:block">XBOX LIVE GAMERSCORE</small>
-          <div class="line" style="gap:6px;margin-top:2px">
-            <span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:99px;background:#10b981;color:#042f2e;font-weight:900;font-size:12px">G</span>
-            <b style="font-size:20px;color:var(--fg)">${Number(stats.gamerscore||12450).toLocaleString()}</b>
-          </div>
-          <small style="color:#34d399;font-size:11px">🟢 Gamertag: @${esc(u.xboxTag)}</small>
-        </div>` : ''}
-        ${hasSteam ? `
-        <div class="glass" style="padding:12px 14px;border-left:3px solid #3b82f6">
-          <small class="muted" style="font-size:11px;display:block">NIVEL Y HORAS EN STEAM</small>
-          <div class="line" style="gap:8px;margin-top:2px">
-            <b style="font-size:20px;color:var(--fg)">${Number(stats.totalHours||180).toLocaleString()} h</b>
-            <span class="badge" style="font-size:10px;color:#60a5fa;border-color:rgba(96,165,250,0.4)">Nivel ${stats.steamLevel||25}</span>
-          </div>
-          <small style="color:#60a5fa;font-size:11px">🟦 Steam: ${esc(u.steamId)}</small>
-        </div>` : ''}
-        <div class="glass" style="padding:12px 14px;border-left:3px solid var(--accent)">
-          <small class="muted" style="font-size:11px;display:block">JUGANDO ACTUALMENTE</small>
-          <div style="margin-top:2px">
-            <b style="font-size:15.5px;color:var(--fg);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(G[u.cur]?.t||'EA Sports FC 27 (FIFA 27)')}</b>
-          </div>
-          <small style="color:var(--accent);font-size:11px">⚡ Juego principal de @${esc(u.a)}</small>
-        </div>
-      </div>
-
-      <!-- Actividad por juego -->
-      <h3 class="eyebrow" style="margin:0 0 10px;font-size:11px">⏱️ Historial de Juego y Progreso de Logros</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:18px">
-        ${(stats.recentGames||[]).map(rg => {
-          const g = G[rg.gk] || {t: rg.gameTitle || 'Videojuego', y:2025};
-          const pct = Math.min(100, Math.round(((rg.achDone||10) / Math.max(1, rg.achTotal||20)) * 100));
-          const isXb = (hasXbox && !hasSteam) ? true : (hasSteam && !hasXbox) ? false : /xbox/i.test(rg.plat||'');
-          return `
-          <div class="glass" data-a="game" data-k="${esc(rg.gk)}" style="padding:12px;display:flex;gap:12px;align-items:center;cursor:pointer">
-            <div style="position:relative;width:54px;height:81px;border-radius:8px;overflow:hidden;flex:none;background:#111;border:1px solid rgba(255,255,255,0.18)">${art(rg.gk)}</div>
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-              <div class="line" style="justify-content:space-between;gap:4px">
-                <b style="font-size:13.5px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.t)}</b>
-                <span class="badge" style="font-size:9.5px;padding:1px 6px;color:${isXb?'#34d399':'#60a5fa'};border-color:${isXb?'rgba(52,211,153,0.4)':'rgba(96,165,250,0.4)'}">${isXb?'🟢 Xbox':'🟦 Steam'}</span>
-              </div>
-              <small class="muted" style="font-size:11.5px">⏱️ <b>${rg.hrsTotal} h</b> jugadas (${rg.hrs2w} h recientes)</small>
-              <div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;margin-top:2px">
-                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${isXb?'#10b981,#34d399':'#3b82f6,#8b5cf6'});border-radius:99px"></div>
-              </div>
-              <div class="line" style="justify-content:space-between;font-size:11px">
-                <span style="color:var(--fg);font-weight:600">🏆 ${rg.achDone}/${rg.achTotal} logros (${pct}%)</span>
-                ${isXb ? `<span style="color:#fbbf24;font-weight:700">G ${rg.gs||480}</span>` : `<span style="color:#60a5fa;font-weight:700">Steam</span>`}
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <!-- Vitrina de Logros Desbloqueados -->
-      <div class="line" style="justify-content:space-between;margin:0 0 10px;flex-wrap:wrap;gap:6px">
-        <h3 class="eyebrow" style="margin:0;font-size:11px">🏆 Logros Desbloqueados</h3>
-        ${isMe ? '<small class="muted" style="font-size:11px">¿Pasaste un juego en Normal, Difícil o Locura? Ajústalo en "Editar mis Logros"</small>' : ''}
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
-        ${(stats.achievements||[]).map(ach => `
-          <div class="glass" style="padding:12px 14px;display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(251,191,36,0.28);background:linear-gradient(135deg,rgba(251,191,36,0.07),transparent)">
-            <div style="width:38px;height:38px;border-radius:10px;background:rgba(251,191,36,0.18);border:1px solid rgba(251,191,36,0.45);display:grid;place-items:center;flex:none;font-size:18px">🏆</div>
-            <div style="flex:1;min-width:0">
-              <div class="line" style="justify-content:space-between;gap:6px">
-                <b style="font-size:13px;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ach.title)}</b>
-                <span class="badge" style="font-size:9.5px;padding:1px 6px;color:#fbbf24;border-color:rgba(251,191,36,0.45)">+${ach.gs||50} G</span>
-              </div>
-              <small style="display:block;font-size:11px;color:var(--accent);font-weight:700;margin-top:1px">${esc(ach.gameTitle || (G[ach.gk]?.t) || 'Juego')}</small>
-              <p class="muted" style="font-size:11.5px;margin:3px 0 4px;line-height:1.35">${esc(ach.desc)}</p>
-              <span style="font-size:10.5px;color:#34d399;font-weight:600">✅ Desbloqueado · ${esc(ach.rarity||'34.5%')} de jugadores</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  </section>`;
-}
+function renderGamerShowcase(u,isMe){return `<section class="card" style="padding:20px"><h2>Identidad gamer</h2><p>Identificadores declarados por el jugador; sin estadísticas verificadas.</p><p>Steam: ${esc(u.steamId||'Sin indicar')} · Xbox: ${esc(u.xboxTag||'Sin indicar')}</p>${isMe?'<button class="btn ghost" data-a="editprofile">Editar identidad</button>':''}</section>`;}
 
 function openGamerSyncModal(){
   const m = me();
@@ -3801,7 +3625,7 @@ function openGamerSyncModal(){
 }
 
 window.saveGamerSyncNow = function(ev){ if(ev) ev.preventDefault(); handleGamerSyncSubmit(); };
-function handleGamerSyncSubmit(){
+async function handleGamerSyncSubmit(){
   const m = me();
   if(!m) return;
   const steamId = ($('#gs-steam-id')?.value || '').trim();
@@ -3846,14 +3670,13 @@ function handleGamerSyncSubmit(){
     recentGames: customRecent,
     customEdited: true
   });
-  m.localUpdatedAt = Date.now();
+  if(!await sbUpsertProfile(m)){const err=$('#ep-e')||$('#modal');if(err){const p=document.createElement('p');p.className='err';p.textContent=S.note;err.append(p);}return;}
 
   const idx = DB.accounts.findIndex(a => a.id === m.id);
   if(idx >= 0) DB.accounts[idx] = m;
   else DB.accounts.push(m);
   U[m.id] = m;
   save();
-  sbUpsertProfile(m);
   closeModal();
   S.route = 'perfil';
   S.note = '🏆 Tus logros reales, dificultad y Gamertag fueron actualizados.';
@@ -3945,8 +3768,8 @@ function vProfile(k){
   const lists = (DB.lists || []).filter(l => String(l.user_id || l.u) === String(k));
   const tab=(h,i,l)=>`<button type="button" class="ib" data-a="jump" data-k="${h.slice(1)}" title="${l}" aria-label="${l}">${I(i,18)}</button>`;
   const posts=S.filt==='Todo'?mineP:mineP.filter(p=>p.c===S.filt);
-  const tiles=posts.map(p=>`<li><button class="tile" data-a="post" data-k="${p.id}" aria-label="Abrir publicación de ${esc(p.c)}">${pimg(p)}<span class="cat">${I(CATS[p.c],14)}</span><span class="ov2"><span>${I('heart',18)} ${p.l+(DB.likes[p.id]?1:0)}</span><span>${I('chat',18)} ${(DB.comments[p.id]||[]).length+2}</span></span></button></li>`).join('');
-  const savedTiles=savedPosts.map(p=>`<li><button class="tile" data-a="post" data-k="${p.id}" aria-label="Abrir publicación guardada">${pimg(p)}<span class="cat">${I('bookmark',14)}</span><span class="ov2"><span>${I('heart',18)} ${p.l+(DB.likes[p.id]?1:0)}</span><span>${I('chat',18)} ${(DB.comments[p.id]||[]).length+2}</span></span></button></li>`).join('');
+  const tiles=posts.map(p=>`<li><button class="tile" data-a="post" data-k="${p.id}" aria-label="Abrir publicación de ${esc(p.c)}">${pimg(p)}<span class="cat">${I(CATS[p.c],14)}</span><span class="ov2"><span>${I('heart',18)} ${(DB.likeCounts?.[p.id]||0)}</span><span>${I('chat',18)} ${(DB.comments[p.id]||[]).length}</span></span></button></li>`).join('');
+  const savedTiles=savedPosts.map(p=>`<li><button class="tile" data-a="post" data-k="${p.id}" aria-label="Abrir publicación guardada">${pimg(p)}<span class="cat">${I('bookmark',14)}</span><span class="ov2"><span>${I('heart',18)} ${(DB.likeCounts?.[p.id]||0)}</span><span>${I('chat',18)} ${(DB.comments[p.id]||[]).length}</span></span></button></li>`).join('');
   const emptyP=isMe?`<div class="empty">${I('img',30)}<b style="color:var(--fg)">Aún no hay publicaciones</b><span>Comparte una captura de partida, tu setup o lo que acabas de comprar.</span><button class="btn" data-a="up">Publicar mi primera foto</button></div>`:`<div class="empty">${I('img',30)}<span>${esc(u.a)} todavía no publica nada.</span></div>`;
   const rvEmpty=isMe?`<div class="empty">${I('star',30)}<b style="color:var(--fg)">Escribe tu primera reseña</b><span>Califica un juego y su banda sonora por separado.</span><button class="btn" data-a="up" data-k="rev">Escribir reseña</button></div>`:`<div class="empty"><span>Sin reseñas todavía.</span></div>`;
   const savedEmpty=`<div class="empty">${I('bookmark',30)}<b style="color:var(--fg)">Tu colección privada de Guardados está vacía</b><span>Pulsa el icono de marcador (${I('bookmark',14)}) en cualquier publicación o reseña del feed para guardarla aquí. Solo tú puedes ver esta sección.</span></div>`;
@@ -4338,7 +4161,7 @@ function openPost(id){
   const r = allReviews().find(x => x.id === id);
   if(r) return openReviewModal(id);
   const p=allPosts().find(x=>x.id===id);if(!p)return;
-  const u=U[p.u]||{a:p.u,city:'Comunidad'},liked=!!DB.likes[id],saved=!!DB.saved[id],n=p.l+(liked?1:0);
+  const u=U[p.u]||{a:p.u,city:'Comunidad'},liked=!!DB.likes[id],saved=!!DB.saved[id],n=(DB.likeCounts?.[p.id]||0);
   const cm=DB.comments[id]||[];
   modal(`<div class="pm">
     <div class="pimg">
@@ -4472,7 +4295,7 @@ function postCard(x){
   }
   const p=x,u=U[p.u]||{a:p.u,city:'Comunidad'},liked=!!DB.likes[p.id],saved=!!DB.saved[p.id];
   const cm=DB.comments[p.id]||[];
-  const nLikes=p.l+(liked?1:0);
+  const nLikes=(DB.likeCounts?.[p.id]||0);
   return `<article class="card post" id="post-${p.id}">
     <div class="hd">
       <span class="ring ig" style="width:40px;height:40px;padding:2px;flex:none">${av(p.u,32,true)}</span>
@@ -4657,7 +4480,7 @@ function resumeStoryTimer(idx){
   }, 4050);
 }
 
-function sendStoryReply(storyId){
+async function sendStoryReply(storyId){
   const inp = $('#st-rep');
   const val = inp ? inp.value.trim() : '';
   if(!val){
@@ -4675,7 +4498,7 @@ function sendStoryReply(storyId){
     _thr.unshift(t);
   }
   const gameTitle = G[st.g]?.t || 'tu historia';
-  addMsg(t, 'me', `💬 Respondió a tu historia (${gameTitle}): "${val}"`);
+  if(!await addMsg(t, 'me', `💬 Respondió a tu historia (${gameTitle}): "${val}"`))return;
   persistThr(t);
   autoReply(t);
 
@@ -5433,17 +5256,18 @@ function candidateDeck(){
 }
 
 function aff(a,b){
-  const aFav = a?.fav || ['hk'], bFav = b?.fav || ['hk'];
-  const aPl = a?.pl || ['pc'], bPl = b?.pl || ['pc'];
-  const cg=aFav.filter(x=>bFav.includes(x)),cp=aPl.filter(x=>bPl.includes(x)),sc=a?.sch===b?.sch,sm=a?.city===b?.city;
-  const langMatch = a?.lang === b?.lang || (b?.lang && b.lang.includes('Español'));
-  return {cg,cp,sc,sm,langMatch,pct:Math.min(100,cg.length*20+cp.length*15+(sc?15:0)+(sm?15:5)+(langMatch?20:10)+10)};
+ const intersect=(x,y)=>[...new Set(x||[])].filter(v=>(y||[]).includes(v)).sort();
+ const cg=intersect(a?.fav,b?.fav),cp=intersect(a?.pl,b?.pl);
+ const sc=Boolean(a?.sch&&a.sch===b?.sch),sm=Boolean(a?.city&&a.city===b?.city);
+ const langs=x=>x==='Bilingüe'?['Español','Inglés']:(x?[x]:[]);
+ const langMatch=intersect(langs(a?.lang),langs(b?.lang)).length>0;
+ return {cg,cp,sc,sm,langMatch,pct:Math.min(100,Math.min(cg.length,4)*10+(cp.length?25:0)+(sc?20:0)+(langMatch?15:0))};
 }
 
 function openMatchCelebrationModal(k){
   const u=U[k]||{a:k,city:'Comunidad',dist:'En línea',lang:'Español',mic:'Con micrófono',cur:'hk'};
   modal(`<div class="match-popup">
-    <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">CHECKPOINT TINDER SOCIAL</span>
+    <span class="eyebrow" style="color:#f59e0b;font-size:12px;letter-spacing:.2em">COMPAÑEROS DE PARTIDA</span>
     <h2 style="font-size:26px;color:#fff;margin:0">🔥 ¡ES UN MATCH! 🔥</h2>
     <div class="match-avatars">
       ${av(sess,64)}
@@ -5511,7 +5335,7 @@ function vMatch(){
                 <div style="flex:1;min-width:0">
                   <div class="line" style="gap:6px">
                     <button type="button" class="user-link" data-a="user" data-k="${uidKey}"><b style="font-size:15px">@${esc(u.a)}</b></button>
-                    <span class="badge" style="color:#34d399;border-color:rgba(52,211,153,0.5);font-size:10px">💚 Te dio Like · ${a.pct}% afinidad</span>
+                    <span class="badge" style="color:#34d399;border-color:rgba(52,211,153,0.5);font-size:10px">💚 Te dio Like · ${a.pct}/100 coincidencias</span>
                   </div>
                   <small class="muted" style="display:block;margin-top:2px">${esc(u.city||'Comunidad')} · Juega ${esc(G[u.cur]?.t||'Gaming')} · ${(u.pl||['pc']).map(p=>PL[p]||p).join(', ')}</small>
                 </div>
@@ -5663,7 +5487,7 @@ function vMatch(){
     <div class="mstack">
       ${nextU?`<div class="mcard-bg"><div class="mhead" style="--h:${nextU.h};height:120px"></div></div>`:''}
       <div class="card mcard mcard-top" id="mc" data-k="${k}">
-        <span class="stamp stamp-like" id="stamp-like">¡MATCH! 🔥</span>
+        <span class="stamp stamp-like" id="stamp-like">ME INTERESA</span>
         <span class="stamp stamp-nope" id="stamp-nope">PASAR ✕</span>
         
         <div class="mhead" style="--h:${u.h}">
@@ -5675,7 +5499,7 @@ function vMatch(){
             </div>
             <p style="font-size:13px;opacity:.95;display:flex;gap:5px;align-items:center;margin-top:3px">${I('pin',14)} ${esc(u.city)} <span style="opacity:.75">(${esc(u.dist)})</span></p>
           </div>
-          <span class="pct">${a.pct}%</span>
+          <span class="pct">${a.pct}/100</span>
         </div>
         
         <div class="mbody">
@@ -5750,15 +5574,14 @@ function hookMatch(){
   $('#mf-plat')?.addEventListener('change',e=>{S.mPlat=e.target.value;mi=0;render();});
 }
 
-function decide(y, isSuper=false){
+async function decide(y, isSuper=false){
   const mc=$('#mc');if(!mc)return;
   const k=mc.dataset.k;
   if(!k)return;
   const u=U[k]||{a:k,city:'Comunidad',dist:'En línea',lang:'Español',mic:'Con micrófono',cur:'hk'};
   if(y){
-    addLikeToUser(sess, k);
+    if(!await addLikeToUser(sess,k))return;
     save();
-    sbUpsertProfile(me());
 
     const theyLikedMe = hasLiked(k, sess);
     if(theyLikedMe){
@@ -5794,7 +5617,7 @@ function buildThreads(){
   const myAliasLow = String(me()?.a || '').trim().toLowerCase();
   const rawList = (DB.threads || []).filter(t => {
     if(!t || BOT_IDS.has(t.u)) return false;
-    return t.owner === sess;
+    return t.owner === sess && !blockedUsers.has(t.u);
   });
   // Deduplicar chats 1 a 1 (dm) por usuario / alias para que nunca existan dos hilos separados con el mismo contacto
   const byPartner = new Map();
@@ -5882,7 +5705,7 @@ function vMsgs(){
       <div class="mhd-actions" style="flex-wrap:wrap;gap:6px">
         <button type="button" class="btn sm ghost" data-a="syncmsgs" title="Sincronizar mensajes con Supabase">🔄 Actualizar</button>
         <button type="button" class="btn sm ghost" data-a="dmnew" aria-label="Nuevo mensaje privado">${I('chat',15)} Nuevo privado</button>
-        <button type="button" class="btn sm" data-a="gnew" aria-label="Nuevo chat grupal">${I('users',15)} Nuevo grupo</button>
+        <button type="button" class="btn sm" disabled title="Grupos todavía no disponibles" aria-label="Grupos todavía no disponibles">${I('users',15)} Nuevo grupo</button>
       </div>
     </div>
     <div class="sbox">${I('search',16)}<input id="mq" value="${esc(S.mq)}" placeholder="Buscar chats, usuarios o grupos..." maxlength="40" aria-label="Buscar chats"></div>
@@ -5983,11 +5806,11 @@ function vChat(t){
     ${pend?`<div class="accept"><span>${esc(thrName(t))} aún no tiene conexión contigo.</span><button class="btn sm" data-a="accept">Aceptar</button></div>`:''}
     <ul class="msgs" id="ms">${rows || `<li class="empty" style="margin:auto;padding:24px">${I('chat',28)}<b style="color:var(--fg)">Conversación con @${esc(thrName(t))}</b><span>Escribe el primer mensaje aquí abajo para saludar y coordinar partida.</span></li>`}</ul>
     <form class="compose" id="f-msg">
-      <button type="button" class="cb" data-a="att" ${u.ok&&!pend?'':'disabled'} aria-label="${u.ok?'Adjuntar imagen':'Imágenes bloqueadas'}" title="${u.ok?'Adjuntar imagen':`Se desbloquea con 5 mensajes de cada lado (llevan ${Math.min(u.mine,5)} y ${Math.min(u.theirs,5)})`}">${I(u.ok&&!pend?'img':'lock',18)}</button>
+      <button type="button" class="cb" data-a="att" disabled aria-label="Adjuntos todavía no disponibles" title="${u.ok?'Adjuntar imagen':`Se desbloquea con 5 mensajes de cada lado (llevan ${Math.min(u.mine,5)} y ${Math.min(u.theirs,5)})`}">${I(u.ok&&!pend?'img':'lock',18)}</button>
       <input id="ci" maxlength="1000" placeholder="Escribe un mensaje..." autocomplete="off" ${pend?'disabled':''}>
       <button class="cb send" aria-label="Enviar" ${pend?'disabled':''}>${I('send',17)}</button>
     </form>
-    ${u.ok?'':`<p class="lockmsg">Las fotos se desbloquean cuando ambos lados hayan enviado 5 mensajes${left?` (faltan ${left})`:''}. Toda foto llega difuminada por seguridad.</p>`}
+    <p class="lockmsg">Chat privado de texto. Adjuntos todavía no disponibles.</p>
   </section>`;
 }
 
@@ -6014,6 +5837,7 @@ function newGroupModal(){
 let dmSyncBusy = false;
 const dmSending = new Set();
 function mergeDirectMessage(row, owner){
+  if(blockedUsers.has(row.from_id)||blockedUsers.has(row.to_id))return;
   if(owner !== sess || (row.from_id !== owner && row.to_id !== owner)) return;
   const partner = row.from_id === owner ? row.to_id : row.from_id;
   let t = _thr.find(x => x.owner === owner && x.type === 'dm' && x.u === partner);
@@ -6080,6 +5904,7 @@ async function addMsg(t,w,body){
     const {data:auth,error:authError} = await sbClient.auth.getSession();
     if(authError || !auth?.session || auth.session.user.id !== owner || owner !== sess)
       throw new Error('Inicia sesión de nuevo');
+    if(blockedUsers.has(t.u)) throw new Error('Contacto bloqueado');
     if(!isUuid(t.u) || t.u === owner || w !== 'me') throw new Error('Destinatario inválido');
     const {data,error} = await sbClient.from('dm_messages').insert({
       id:crypto.randomUUID(), from_id:owner, to_id:t.u, body:text
@@ -6121,7 +5946,7 @@ function autoReply(t){
 }
 
 function openDM(k){
-  if(!k) return;
+  if(!k || blockedUsers.has(k)) return;
   const canonK = isUuid(k) ? k : (resolveUserByIdOrAlias(k) || k);
   k = canonK;
   if(!U[k]){
@@ -6358,8 +6183,8 @@ function paintEditProfileModal(){
 }
 
 window.saveEditProfileNow = function(ev){ if(ev) ev.preventDefault(); saveEditProfile(); };
-function saveEditProfile(){
-  const m=me();
+async function saveEditProfile(){
+  const m={...me()};
   const alias = $('#ep-a')?.value.trim();
   if(!alias || alias.length < 3){
     $('#ep-e').textContent = 'El alias debe tener al menos 3 caracteres.';
@@ -6389,12 +6214,11 @@ function saveEditProfile(){
     m.gamerStats = generateSmartGamerStats(m, m.gamerStats);
   }
 
-  m.localUpdatedAt = Date.now();
+  if(!await sbUpsertProfile(m)){const err=$('#ep-e')||$('#modal');if(err){const p=document.createElement('p');p.className='err';p.textContent=S.note;err.append(p);}return;}
   const idx = DB.accounts.findIndex(a=>a.id===m.id);
   if(idx >= 0) DB.accounts[idx] = m;
   U[m.id] = m;
   save();
-  sbUpsertProfile(m);
   closeModal();
   S.note = '✨ Perfil y fondo difuminado actualizados y sincronizados.';
   render();
@@ -6522,7 +6346,7 @@ function openCreateListModal(){
   }
 }
 
-function saveUserList(){
+async function saveUserList(){
   const t = $('#lst-t')?.value.trim();
   const d = $('#lst-d')?.value.trim() || 'Selección personalizada';
   const checked = $$('input[name="lst_games"]:checked').map(x=>x.value);
@@ -6550,9 +6374,10 @@ function saveUserList(){
   };
 
   DB.lists = DB.lists || [];
+  if(!await sbInsertUserList(newList)){if(err)err.textContent='No se guardó la lista. Reintenta.';return;}
   DB.lists.unshift(newList);
   save();
-  try{ sbInsertUserList(newList); }catch(e){}
+
   closeModal();
   S.route = 'perfil';
   cur = 'perfil';
@@ -6644,7 +6469,7 @@ function openCreateStoryModal(){
   `, false);
 }
 
-function saveUserStory(){
+async function saveUserStory(){
   const game = $('#st-g')?.value || 'hk';
   const rawTxt = $('#st-txt')?.value.trim();
   const txt = rawTxt || `Jugando ${G[game]?.t || 'en Checkpoint'} 🔥`;
@@ -6663,9 +6488,10 @@ function saveUserStory(){
   };
 
   DB.stories = DB.stories || [];
+  if(!await sbInsertStory(newStory)){S.note='No se publicó la historia. Tu borrador se conserva.';return;}
   DB.stories.unshift(newStory);
   save();
-  sbInsertStory(newStory);
+
   storyDraftImg = null;
   S.route = 'inicio';
   S.note = '¡Tu historia se ha subido a la sección de historias!';
@@ -6718,88 +6544,7 @@ function openAttachImageModal(){
 
 
 
-function openSecurityCenterModal(){
-  const remMin = sessExp ? Math.max(1, Math.round((sessExp - Date.now()) / 60000)) : 1440;
-  const items = [
-    {num: 1, title: 'Rate Limiting (Límite de peticiones)', status: 'Activo en App + Edge', desc: 'Token Bucket activo: máx. 5 intentos de login/30s, 12 mensajes/10s, 4 posts/min y 8 comentarios/15s.'},
-    {num: 2, title: 'Env File (.env.local)', status: 'Configurado', desc: 'Variables sensibles aisladas del código fuente y excluidas en .gitignore.'},
-    {num: 3, title: 'Secrets en Vercel, Supabase y GitHub', status: 'Arquitectura lista', desc: 'Las llaves privadas (SUPABASE_SERVICE_ROLE_KEY y RAWG_API_KEY) viven solo en el servidor de Vercel.'},
-    {num: 4, title: 'IP Limiting & Anti-DDoS', status: 'Protegido', desc: 'Control por huella de sesión/IP en endpoints de autenticación, subida de imágenes y API de juegos.'},
-    {num: 5, title: 'Input Sanity (Sanitización XSS)', status: 'Activo (esc + sanitizeInput)', desc: 'Todo texto de usuario pasa por escape HTML estricto y filtro de etiquetas <script>, eventos inline y caracteres de control.'},
-    {num: 6, title: 'Server-Side Validation', status: 'Validación doble', desc: 'Validación de esquemas, tipos MIME (JPG/PNG/WebP), tamaño máximo y edad (+18) tanto en cliente como en base de datos (CHECK constraints).'},
-    {num: 7, title: 'RLS (Row Level Security)', status: 'Políticas SQL listas', desc: 'Ningún usuario puede editar perfiles ajenos, leer chats donde no participa ni ver la colección privada de Guardados de otro jugador.'},
-    {num: 8, title: 'Encryption (Cifrado)', status: 'PBKDF2 SHA-256 (150k iter)', desc: 'Contraseñas derivadas con WebCrypto PBKDF2 + sal aleatoria de 128 bits (y bcrypt/Argon2id en Supabase Auth + HTTPS TLS 1.3).'},
-    {num: 9, title: 'Autenticación con expiración de sesión', status: `Expira en ${remMin} min`, desc: 'Sesión con timestamp de emisión (iat), tiempo de expiración (TTL 24h) y cierre automático por inactividad.'},
-    {num: 10, title: 'CORS bien configurado', status: ' Lista blanca estricta', desc: 'Cabeceras Access-Control-Allow-Origin restringidas exclusivamente a tu dominio oficial en producción.'}
-  ];
-
-  modal(`
-    <div class="game-modal-hero" style="--h:150">
-      <div style="width:56px;height:56px;border-radius:16px;background:rgba(16,185,129,0.25);border:1px solid #34d399;display:grid;place-items:center;color:#34d399;flex:none">
-        ${I('shield', 28)}
-      </div>
-      <div style="flex:1;min-width:0;color:#fff">
-        <span class="badge" style="background:rgba(16,185,129,0.3);color:#fff;border-color:#34d399;margin-bottom:4px">AUDITORÍA DE SEGURIDAD 10/10</span>
-        <h2 style="font-size:21px;margin:0;color:#fff">Centro de Seguridad de Checkpoint</h2>
-        <div style="font-size:12.5px;opacity:.9;margin-top:2px">Protección activa en cliente + Plantillas listas para producción (Supabase & Vercel)</div>
-      </div>
-      <button type="button" class="cb" data-a="x" aria-label="Cerrar" style="color:#fff;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.4);border-radius:99px">${I('x',18)}</button>
-    </div>
-
-    <div class="game-modal-body">
-      <!-- Estado de la sesión actual (Punto 9) -->
-      <div class="game-section-card" style="border-color:rgba(52,211,153,0.4)">
-        <div class="line" style="justify-content:space-between;align-items:center">
-          <div>
-            <span class="game-section-title" style="color:var(--ok);margin-bottom:4px">🔒 SESIÓN ACTIVA CON EXPIRACIÓN (PUNTO 9)</span>
-            <p style="font-size:13.5px;color:var(--fg)">Usuario: <b>${esc(me()?.a || sess)}</b> · Token válido por <b>${remMin} minutos</b> restantes.</p>
-          </div>
-          <button type="button" class="btn sm ghost" data-a="renewsess">Renovar token (+24h)</button>
-        </div>
-      </div>
-
-      <!-- Checklist de los 10 puntos del video -->
-      <div class="game-section-card">
-        <span class="game-section-title">✅ LOS 10 CONTROLES DE SEGURIDAD IMPLEMENTADOS</span>
-        <div style="display:grid;gap:10px">
-          ${items.map(it => `
-            <div style="padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--edge);display:flex;flex-direction:column;gap:4px">
-              <div class="line" style="justify-content:space-between;align-items:center">
-                <b style="font-size:14px;color:var(--fg)">#${it.num}. ${esc(it.title)}</b>
-                <span class="badge" style="color:var(--ok);border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.1)">${esc(it.status)}</span>
-              </div>
-              <p class="muted" style="font-size:12.5px;line-height:1.45;margin:0">${esc(it.desc)}</p>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Plantilla SQL de RLS para Supabase (Puntos 6, 7 y 8) -->
-      <div class="game-section-card">
-        <span class="game-section-title">🗄️ SCRIPT SQL DE RLS (ROW LEVEL SECURITY) PARA SUPABASE</span>
-        <p class="muted" style="font-size:12.5px;margin-bottom:10px">Copia y pega este script en el SQL Editor de Supabase cuando conectes tu base de datos en producción:</p>
-        <pre style="background:#09090b;color:#a7f3d0;padding:14px;border-radius:12px;border:1px solid var(--edge);font-size:11.5px;overflow-x:auto;line-height:1.5;margin:0"><code>-- 1. Activar Row Level Security (RLS) en todas las tablas
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE saved_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-
--- 2. Perfil: lectura pública, pero SOLO el dueño puede editar su perfil
-CREATE POLICY "Perfiles visibles para todos" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Solo el dueño edita su perfil" ON profiles FOR UPDATE USING (auth.uid() = id);
-
--- 3. Guardados: 100% PRIVADO (nadie más puede leer ni modificar tus guardados)
-CREATE POLICY "Guardados privados del dueño" ON saved_items
-  FOR ALL USING (auth.uid() = user_id);
-
--- 4. Mensajes: solo los participantes del hilo pueden leer o enviar mensajes
-CREATE POLICY "Acceso a mensajes solo para miembros del chat" ON messages
-  FOR SELECT USING (auth.uid() IN (SELECT user_id FROM thread_members WHERE thread_id = messages.thread_id));</code></pre>
-      </div>
-    </div>
-  `, true);
-}
-
+function openSecurityCenterModal(){modal('<h2>Privacidad y seguridad</h2><p>Los mensajes privados se guardan en la base de datos con permisos para sus participantes. Los bloqueos requieren la actualización de base de datos incluida. Esta página no representa una certificación de seguridad.</p><button class="btn" data-a="x">Cerrar</button>');}
 
 function vSettings(){
   const m=me();
@@ -6830,14 +6575,14 @@ function vSettings(){
       <div class="line" style="justify-content:space-between">
         <div class="line" style="gap:8px">
           <span style="color:var(--ok)">${I('shield',20)}</span>
-          <h2 style="font-size:16px;margin:0">Seguridad y Privacidad (10/10)</h2>
+          <h2 style="font-size:16px;margin:0">Privacidad y cuenta</h2>
         </div>
-        <span class="badge" style="color:var(--ok);border-color:var(--ok)">Protegido</span>
+        <span class="badge" style="color:var(--ok);border-color:var(--ok)">Información</span>
       </div>
-      <p class="muted" style="font-size:13px">Rate limiting activo, sanitización anti-XSS, cifrado PBKDF2 SHA-256, expiración de sesión (24h) y políticas RLS listas para producción.</p>
+      <p class="muted" style="font-size:13px">La sesión se valida con Supabase. Los permisos de la base de datos deben instalarse junto con esta versión.</p>
       <div class="line" style="gap:10px">
-        <button type="button" class="btn sm" data-a="secmodal">${I('shield',15)} Ver Auditoría de Seguridad (10 puntos)</button>
-        <button type="button" class="btn sm ghost" data-a="renewsess">Renovar sesión (+24h)</button>
+        <button type="button" class="btn sm" data-a="secmodal">${I('shield',15)} Ver controles de privacidad</button>
+        <button type="button" class="btn sm ghost" data-a="renewsess">Actualizar sesión</button>
       </div>
     </div>
 
@@ -6855,7 +6600,7 @@ function vSettings(){
       <h2 style="font-size:16px;color:var(--bad)">Eliminar cuenta</h2>
       <p class="muted" style="font-size:13px">Se borran tu perfil, publicaciones, reseñas y chats. No se puede deshacer. Escribe tu alias exacto para confirmar.</p>
       <input id="del-a" class="fld" style="border-radius:12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);padding:11px 14px;font:inherit;font-size:16px" placeholder="${esc(m.a)}" autocomplete="off">
-      <button class="btn danger" data-a="del">${I('trash',16)} Eliminar mi cuenta</button>
+      <input id="del-pw" type="password" class="fld" placeholder="Confirma tu contraseña" autocomplete="current-password"><button class="btn danger" data-a="del">${I('trash',16)} Eliminar mi cuenta</button>
       <p class="err" id="del-e" role="alert"></p>
     </div>
   </div>${footer()}</div>`;
@@ -6960,24 +6705,7 @@ document.addEventListener('dblclick', e => {
     hp.classList.add('pop');
     setTimeout(() => hp.classList.remove('pop'), 650);
   }
-  if(!DB.likes[id]){
-    DB.likes[id] = 1;
-    const post = allPosts().find(p => p.id === id);
-    if(post && post.u !== sess){
-      DB.notifs = DB.notifs || [];
-      DB.notifs.unshift({
-        id: 'n_' + uid(),
-        u: sess,
-        t: 'like',
-        post: id,
-        txt: 'le dio like a tu publicación en el feed.',
-        time: 'hace un momento',
-        read: false
-      });
-    }
-    save();
-    setTimeout(() => render(), 450);
-  }
+  if(!DB.likes[id]) togglePostLike(id,true).then(ok=>{if(ok)render()});
 });
 
 // Pause story timer automatically when user focuses or types in #st-rep
@@ -7064,33 +6792,7 @@ document.addEventListener('click',async e=>{
    case 'ptab':S.ptab=k;render();break;
    case 'openrev':openReviewModal(k);break;
    case 'post':openPost(k);break;
-   case 'like':{
-     if(DB.likes[k]) {
-       delete DB.likes[k];
-     } else {
-       DB.likes[k]=1;
-       const post = allPosts().find(p=>p.id===k);
-       if(post && post.u !== sess){
-         DB.notifs = DB.notifs || [];
-         DB.notifs.unshift({
-           id: 'n_' + uid(),
-           u: sess,
-           t: 'like',
-           post: k,
-           txt: 'le dio like a tu publicación en el feed.',
-           time: 'hace un momento',
-           read: false
-         });
-       }
-     }
-     save();
-     const openPm=$('.pm');
-     const openRev=$('.rev-detail-modal');
-     render();
-     if(openPm)openPost(k);
-     else if(openRev)openReviewModal(k);
-     break;
-   }
+   case 'like':{if(await togglePostLike(k)){const pm=$('.pm'),rev=$('.rev-detail-modal');render();if(pm)openPost(k);else if(rev)openReviewModal(k);}break;}
    case 'openfollowers':openConnectionsModal(k, 'followers');break;
    case 'openfollowing':openConnectionsModal(k, 'following');break;
    case 'conntab':openConnectionsModal(k, el.dataset.tab || 'followers');break;
@@ -7102,9 +6804,8 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'follow':{
-     if(hasLiked(sess,k)) removeLikeFromUser(sess,k);
-     else addLikeToUser(sess,k);
-     save();sbUpsertProfile(me());
+     if(!await setInterest(k,!hasLiked(sess,k)))break;
+     save();
      const openConn = $('#modal .mseg-3');
      render();
      if(openConn) openConnectionsModal(S.targetUser || sess, 'followers');
@@ -7118,11 +6819,9 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'acceptmatch':{
-     addLikeToUser(sess, k);
-     addConfirmedMatch(sess, k);
-     addConfirmedMatch(k, sess);
+     if(!await addLikeToUser(sess,k))break;
+     if(!isMutualMatch(sess,k)){S.note='Solicitud enviada; falta la aceptación del otro jugador.';render();break;}
      save();
-     sbUpsertProfile(me());
      const u=U[k]||{a:k};
      if(!matched.includes(u.a)) matched.push(u.a);
      DB.notifs = DB.notifs || [];
@@ -7142,9 +6841,8 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'unfollow':{
-     removeLikeFromUser(sess, k);
+     if(!await removeLikeFromUser(sess,k))break;
      save();
-     sbUpsertProfile(me());
      S.matchTab='swipe';
      mi=0;
      S.note='↩️ Perfil devuelto a tu baraja de Swipe.';
@@ -7161,28 +6859,15 @@ document.addEventListener('click',async e=>{
    case 'up':openUpload(k==='rev'?'rev':'post');break;
    case 'utab':upTab=k;paintUpload();break;
    case 'ucat':upCat=k;$$('[data-a="ucat"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));break;
-   case 'mrst':{
-     // Reiniciar baraja devolviendo al Swipe los perfiles que aún no son Match mutuo
-     const keepMutual = follows(sess).filter(x => {
-       const matchUser = otherPlayers().find(p => p === x || ('@' + String(U[p]?.a||'').toLowerCase()) === x);
-       return matchUser && hasLiked(matchUser, sess);
-     });
-     DB.follow[sess] = keepMutual;
-     mi=0;
-     save();
-     sbUpsertProfile(me());
-     syncFromSupabase(false);
-     S.note='🔄 Baraja reiniciada: los perfiles sin Match mutuo volvieron a tu Swipe.';
-     render();
-     break;
-   }
+   case 'mrst':{mi=0;S.note='Baraja actualizada. Tus solicitudes se conservan.';render();break;}
    case 'mno':decide(false);break;
    case 'myes':decide(true);break;
    case 'mtab':S.msgTab=k;S.thr=null;render();break;
    case 'thr':{const t=THR().find(x=>x.id===k);S.thr=k;S.note='';if(t)t.un=0;render();break}
    case 'tback':S.thr=null;S.note='';render();break;
    case 'note':S.note=k;render();break;
-   case 'tblock':{const t=THR().find(x=>x.id===S.thr);_thr=_thr.filter(x=>x!==t);DB.threads=DB.threads.filter(x=>x.id!==S.thr);save();S.thr=null;S.note='';render();break}
+   case 'reportchat':{const t=THR().find(x=>x.id===S.thr);if(t&&await sbInsertReport(t.u,'Reporte de conversación')){S.note='Reporte guardado.';render();}break;}
+   case 'tblock':{const t=THR().find(x=>x.id===S.thr);if(t)try{await blockContact(t.u)}catch(err){showFailure(err)}break;}
    case 'tleave':{const t=THR().find(x=>x.id===S.thr);_thr=_thr.filter(x=>x!==t);DB.threads=DB.threads.filter(x=>x.id!==S.thr);save();S.thr=null;S.note='';render();break}
    case 'accept':{const t=THR().find(x=>x.id===S.thr);t.known=1;render();break}
    case 'rev':S.rev.add(k);render();break;
@@ -7257,16 +6942,18 @@ document.addEventListener('click',async e=>{
      const pIdx = DB.posts.findIndex(x => String(x.id) === String(k) && String(x.u) === String(sess));
      const rIdx = DB.reviews.findIndex(x => String(x.id) === String(k) && String(x.u) === String(sess));
      if(pIdx >= 0){
+       if(!await sbDeletePostOrReview(k,false)){showFailure(new Error('No se eliminó la publicación.'));break;}
        DB.posts.splice(pIdx, 1);
        save();
-       sbDeletePostOrReview(k, false);
+
        closeModal();
        S.note = '🗑️ Publicación eliminada.';
        render();
      } else if(rIdx >= 0){
+       if(!await sbDeletePostOrReview(k,true)){showFailure(new Error('No se eliminó la reseña.'));break;}
        DB.reviews.splice(rIdx, 1);
        save();
-       sbDeletePostOrReview(k, true);
+
        closeModal();
        S.note = '🗑️ Reseña eliminada.';
        render();
@@ -7314,7 +7001,7 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'save':{
-     if(DB.saved[k]){delete DB.saved[k];sbToggleSaved(k,false);}else{DB.saved[k]=1;sbToggleSaved(k,true);}
+     const enabled=!DB.saved[k];if(!await sbToggleSaved(k,enabled))break;if(enabled)DB.saved[k]=1;else delete DB.saved[k];
      save();
      const openPm=$('.pm');
      const openRev=$('.rev-detail-modal');
@@ -7329,7 +7016,7 @@ document.addEventListener('click',async e=>{
    }
    case 'reportpost':{
      const reason = el.dataset.r || 'Revisión general';
-     sbInsertReport(k, reason);
+     if(!await sbInsertReport(k,reason))break;
      S.note=`✅ Reporte enviado y registrado en Supabase (${reason}).`;
      closeModal();
      render();
@@ -7339,17 +7026,11 @@ document.addEventListener('click',async e=>{
    case 'dblike':{
      const hp=$('#hp-'+k);
      if(hp){hp.classList.add('pop');setTimeout(()=>hp.classList.remove('pop'),600);}
-     if(!DB.likes[k]){DB.likes[k]=1;save();}
+     if(!DB.likes[k]){if(!await togglePostLike(k,true))break;}
      render();break;
    }
    case 'delstory':{
-     DB.stories = (DB.stories || []).filter(st => String(st.id) !== String(k));
-     save();
-     if(sbClient && isUuid(k)){ try{ sbClient.from('stories').delete().eq('id', k).eq('user_id', sess); }catch(e){} }
-     closeModal();
-     S.note = '🗑️ Tu historia fue eliminada.';
-     render();
-     break;
+     try{const owner=await requireCloud();const {data,error}=await sbClient.from('stories').delete().eq('id',k).eq('user_id',owner).select('id');if(error||data?.length!==1)throw error||new Error('No se eliminó la historia.');DB.stories=(DB.stories||[]).filter(st=>String(st.id)!==String(k));save();closeModal();S.note='Historia eliminada.';render();}catch(err){showFailure(err)}break;
    }
    case 'editprofile':openEditProfileModal();break;
    case 'gamersync':openGamerSyncModal();break;
@@ -7359,7 +7040,7 @@ document.addEventListener('click',async e=>{
      m.gamerStats = generateSmartGamerStats(m, m.gamerStats);
      U[m.id] = m;
      save();
-     sbUpsertProfile(m);
+     if(!await sbUpsertProfile(m)){render();break;}
      S.note = '🔄 Actividad y logros de Steam y Xbox actualizados.';
      render();
      break;
@@ -7371,7 +7052,7 @@ document.addEventListener('click',async e=>{
      m.gamerStats = null;
      U[m.id] = m;
      save();
-     sbUpsertProfile(m);
+     if(!await sbUpsertProfile(m)){render();break;}
      closeModal();
      S.note = 'Cuentas de Steam y Xbox desvinculadas.';
      render();
@@ -7497,7 +7178,7 @@ document.addEventListener('click',async e=>{
        m.cur = k;
        U[m.id] = m;
        save();
-       sbUpsertProfile(m);
+       if(!await sbUpsertProfile(m)){render();break;}
        closeModal();
        S.note = `🎮 Ahora estás jugando: ${G[k].t}`;
        S.route = 'perfil';
@@ -7520,7 +7201,7 @@ document.addEventListener('click',async e=>{
        }
        U[m.id] = m;
        save();
-       sbUpsertProfile(m);
+       if(!await sbUpsertProfile(m)){render();break;}
        openGameModal(k);
        render();
      }
@@ -7669,8 +7350,8 @@ document.addEventListener('submit',async e=>{
     if(!checkRateLimit('comment'))return;
     const id=e.target.dataset.k,inp=e.target.querySelector('input'),v=sanitizeInput(inp?.value||'',200);
     if(!v)return;
-    (DB.comments[id]||(DB.comments[id]=[])).push({u:sess,t:v});
-    save();render();return;
+    if(!await addComment(id,v))return;
+    inp.value='';render();return;
   }
 
   e.preventDefault();const f=e.target.id;
@@ -7739,7 +7420,7 @@ document.addEventListener('submit',async e=>{
     p.t = sanitizeInput($('#epost-t')?.value || '', 280);
     if(editPostDraftImg) p.img = editPostDraftImg;
     save();
-    await sbUpdatePost(p);
+    if(!await sbUpdatePost(p)){const er=$('#epost-e');if(er)er.textContent='No se guardó. Reintenta sin cerrar el borrador.';return;}
     closeModal();
     S.note = '✅ Publicación actualizada correctamente.';
     render();
@@ -7763,7 +7444,7 @@ document.addEventListener('submit',async e=>{
     r.p = $('#erev-p')?.value || r.p;
     r.t = bodyTxt;
     save();
-    await sbUpdateReview(r);
+    if(!await sbUpdateReview(r)){const er=$('#erev-e');if(er)er.textContent='No se guardó. Reintenta sin cerrar el borrador.';return;}
     closeModal();
     S.note = '✅ Reseña actualizada correctamente.';
     render();
@@ -7776,14 +7457,15 @@ document.addEventListener('submit',async e=>{
   if(f==='f-login')return doLogin();
   if(f==='f-su1')return doSignup1();
   if(f==='f-su2')return doSignup2();
-  if(f==='f-set'){const m=me(),pf=readProfile();Object.assign(m,pf,{pl:m.pl,fav:m.fav});if(!m.pl.length){S.note='Elige al menos una plataforma.';return render()}if(!pf.city){S.note='Escribe tu ciudad.';return render()}const i=DB.accounts.findIndex(a=>a.id===m.id);DB.accounts[i]=m;save();sbUpsertProfile(m);S.note='Cambios guardados en tu cuenta y en Supabase.';return render()}
-  if(f==='f-up'){if(!checkRateLimit('post'))return;if(!upImg){$('#up-e').textContent='Elige una foto primero.';return}const p={id:'u'+uid(),u:sess,c:upCat,t:sanitizeInput($('#up-t').value,280),d:'ahora',l:0,img:upImg,ts:Date.now(),h:0};DB.posts.unshift(p);save();if(storeFull){DB.posts.shift();$('#up-e').textContent='No hay espacio en este navegador para más fotos.';return}sbInsertPost(p);closeModal();S.filt='Todo';S.ptab='posts';S.route='perfil';render();return}
-  if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};DB.reviews.unshift(rv);save();sbInsertReview(rv);closeModal();S.ptab='reviews';S.route='perfil';render();return}
-  if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;(DB.comments[id]||(DB.comments[id]=[])).push({u:sess,t:v});save();render();openPost(id);return}
+  if(f==='f-set'){const m={...me()},pf=readProfile();Object.assign(m,pf,{pl:m.pl,fav:m.fav});if(!m.pl.length||!pf.city){S.note='Completa ciudad y plataformas.';return render()}if(!await sbUpsertProfile(m)){const err=document.createElement('p');err.className='err';err.textContent=S.note;e.target.append(err);return;}U[m.id]=m;const i=DB.accounts.findIndex(a=>a.id===m.id);if(i>=0)DB.accounts[i]=m;save();S.note='Cambios confirmados por el servidor.';return render()}
+  if(f==='f-up'){if(!checkRateLimit('post'))return;if(!upImg){$('#up-e').textContent='Elige una foto primero.';return}const p={id:'u'+uid(),u:sess,c:upCat,t:sanitizeInput($('#up-t').value,280),d:'ahora',l:0,img:upImg,ts:Date.now(),h:0};if(!await sbInsertPost(p)){$('#up-e').textContent='No se publicó. Tu borrador sigue aquí.';return;}DB.posts.unshift(p);save();closeModal();S.filt='Todo';S.ptab='posts';S.route='perfil';render();return}
+  if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};if(!await sbInsertReview(rv)){$('#up-e').textContent='No se publicó. Tu borrador sigue aquí.';return;}DB.reviews.unshift(rv);save();closeModal();S.ptab='reviews';S.route='perfil';render();return}
+  if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;if(!await addComment(id,v))return;render();openPost(id);return}
   if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<1){er.textContent='Elige al menos 1 jugador de tus matches.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='grupos';S.route='mensajes';render();return}
   if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;const owner=sess,threadId=t?.id;const ok=await addMsg(t,'me',v);if(ok && sess===owner && S.thr===threadId && $('#ci')?.value===v)$('#ci').value='';$('#ci')?.focus()}
 });
-if(me())buildThreads();
+// La caché local no autoriza una sesión. Supabase la restaura al sincronizar.
+sess=null;
 render();
 resolveOfficialCovers();
 syncFromSupabase(false);
@@ -7795,4 +7477,5 @@ setInterval(() => {
 </script>
 
 </body></html>
+
 
