@@ -81,6 +81,17 @@
   overflow: hidden !important;
 }
 </style>
+<style>
+/* Bloque 1 · estados claros, foco accesible y controles cómodos en móvil */
+.match-intro{margin:0 0 20px;padding:18px 20px;border:1px solid var(--edge);border-radius:18px;background:var(--surface);display:grid;gap:8px}
+.match-intro p{font-size:19px;font-weight:750;margin:0;color:var(--fg)}
+.match-intro span{font-size:13px;color:var(--muted);max-width:56ch;line-height:1.55}
+.sync-status{justify-self:start;border:1px solid var(--edge);background:var(--surface2);color:var(--muted);border-radius:99px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer}
+.sync-status[data-state="ok"]{color:var(--ok)}.sync-status[data-state="error"]{color:var(--bad)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:600px){.match-intro{padding:16px}.chat-h .cb{min-width:40px;min-height:40px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
 </head><body>
 <div id="top-loader" class="top-loader" hidden></div>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -2276,6 +2287,7 @@ Object.keys(DB.customGames).forEach(gk => {
     }
   }
 });
+for(const account of DB.accounts||[]){delete account.salt;delete account.hash;}
 let storeFull=false;
 function save(){
   try{
@@ -2327,8 +2339,6 @@ if(sess && cachedSessProfile){
 const otherPlayers=()=>Object.keys(U).filter(k=>k!==sess&&!BOT_IDS.has(k)&&isUuid(k)&&!blockedUsers.has(k));
 if(sess && !U[sess] && !DB.accounts.some(a=>a.id===sess)){
   sess=null;
-  socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;DB.likes={};DB.comments={};DB.notifs=[];
-  _thr=[];
   try{localStorage.removeItem(SESK)}catch(e){}
 }
 const me=()=>{
@@ -2350,13 +2360,14 @@ function resolveUserByIdOrAlias(idOrAlias){
 }
 
 let socialOwner = null, socialRows = [], blockedUsers = new Set(), socialEpoch = 0;
+let ownedBlocks = [], socialSyncPromise = null, socialSyncAgain = false;
 const socialPending = new Set();
 function hasLiked(a,b){return socialOwner===sess && a!==b && !blockedUsers.has(a) && !blockedUsers.has(b) && socialRows.some(r=>r.from_id===a&&r.to_id===b)}
 function hasConfirmedMatchFlag(a,b){return hasLiked(a,b)&&hasLiked(b,a)}
 function addConfirmedMatch(){ /* Reciprocidad derivada del servidor, nunca de banderas locales. */ }
 const isMutualMatch=(a,b)=>Boolean(a&&b&&a!==b&&hasLiked(a,b)&&hasLiked(b,a));
 async function requireCloud(){
-  if(!sbClient) throw new Error('No hay conexión con el servidor.');
+  if(!sbClient || loggingOut) throw new Error('No hay sesión disponible.');
   const {data,error}=await sbClient.auth.getSession();
   if(error||!data?.session?.user||data.session.user.id!==sess) throw new Error('Inicia sesión de nuevo.');
   return data.session.user.id;
@@ -2366,6 +2377,15 @@ async function readAll(query){
   for(let offset=0;;offset+=500){const {data,error}=await query().range(offset,offset+499);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<500)return rows;}
 }
 async function syncSocial(){
+  if(socialSyncPromise){socialSyncAgain=true;return socialSyncPromise;}
+  socialSyncPromise=(async()=>{
+    let result;
+    do{socialSyncAgain=false;result=await loadSocialState();}while(socialSyncAgain && sess);
+    return result;
+  })();
+  try{return await socialSyncPromise;}finally{socialSyncPromise=null;}
+}
+async function loadSocialState(){
   const owner=await requireCloud(),epoch=++socialEpoch;
   const [rows,blocks]=await Promise.all([
     readAll(()=>sbClient.from('user_likes').select('from_id,to_id').or(`from_id.eq.${owner},to_id.eq.${owner}`).order('from_id').order('to_id')),
@@ -2380,11 +2400,12 @@ async function syncSocial(){
   }
   if(sess!==owner||epoch!==socialEpoch)return false;
   socialRows=rows;socialOwner=owner;
+  ownedBlocks=blocks.filter(r=>r.blocker_id===owner).map(r=>r.blocked_id);
   blockedUsers=new Set(blocks.map(r=>r.blocker_id===owner?r.blocked_id:r.blocker_id));
   DB.follow={};for(const r of rows)(DB.follow[r.from_id]||(DB.follow[r.from_id]=[])).push(r.to_id);
   DB.matches={};buildThreads();return true;
 }
-function showFailure(error){S.note='No se confirmó el cambio: '+(error?.message||'error de conexión');render();}
+function showFailure(error){S.note='No se confirmó el cambio: '+(error?.message||'error de conexión');requestCloudRender();}
 async function setInterest(target,enabled){
   const key=`${sess}:${target}`;if(socialPending.has(key))return false;socialPending.add(key);
   try{
@@ -2392,7 +2413,7 @@ async function setInterest(target,enabled){
     const q=enabled?sbClient.from('user_likes').upsert({from_id:owner,to_id:target},{onConflict:'from_id,to_id',ignoreDuplicates:true}):sbClient.from('user_likes').delete().eq('from_id',owner).eq('to_id',target);
     const {error}=await q;if(error)throw error;
     if(sess!==owner)return false;
-    await syncSocial();save();return true;
+    const synced=await syncSocial();if(!synced||sess!==owner)return false;save();requestCloudRender();return true;
   }catch(e){showFailure(e);return false}finally{socialPending.delete(key)}
 }
 async function addLikeToUser(from,target){return from===sess?setInterest(target,true):false}
@@ -2402,6 +2423,17 @@ async function blockContact(target){
   const {error}=await sbClient.from('user_blocks').upsert({blocker_id:owner,blocked_id:target},{onConflict:'blocker_id,blocked_id',ignoreDuplicates:true});
   if(error)throw error;if(owner!==sess)return;
   await syncSocial();S.thr=null;S.note='Contacto bloqueado. No podrán enviarse mensajes ni nuevos likes.';render();
+}
+async function unblockContact(target){
+  const owner=await requireCloud();
+  const {error}=await sbClient.from('user_blocks').delete().eq('blocker_id',owner).eq('blocked_id',target);
+  if(error)throw error;if(sess!==owner)return;
+  await syncSocial();S.note='Bloqueo retirado. Tus intereses anteriores pueden volver a aparecer.';render();
+}
+function openBlockedContacts(){
+  modal(`<div class="hd"><h2>Personas bloqueadas</h2><button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button></div>
+    <p class="muted">Bloquear impide nuevos mensajes e intereses en ambas direcciones. El historial no se borra.</p>
+    <ul class="rl">${ownedBlocks.map(id=>`<li class="line" style="justify-content:space-between;padding:12px 0"><span>${esc(U[id]?.a||'Jugador bloqueado')}</span><button class="btn sm ghost" data-a="unblock" data-k="${esc(id)}">Desbloquear</button></li>`).join('')||'<li class="empty">No has bloqueado a nadie.</li>'}</ul>`);
 }
 const myMatches=()=>otherPlayers().filter(k=>isMutualMatch(sess,k));
 const likesReceived=()=>otherPlayers().filter(k=>hasLiked(k,sess)&&!isMutualMatch(sess,k));
@@ -2627,7 +2659,7 @@ const DOCS={
  d:['Eliminación de datos',['Puedes borrar tu cuenta desde Ajustes. Se eliminan tu perfil, reseñas, publicaciones, listas y archivos.','También puedes pedirlo por correo. Se atiende en un máximo de 30 días.']]};
 const footer=()=>`<footer class="wrap"><div class="inner"><div class="links"><button data-a="doc" data-k="t">Términos de Servicio</button><button data-a="doc" data-k="p">Aviso de Privacidad</button><button data-a="doc" data-k="d">Eliminar mis datos</button></div><p>Datos de videojuegos cortesía de <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> e <a href="https://www.igdb.com" target="_blank" rel="noopener">IGDB</a>. Las portadas se muestran con fines informativos y de reseña (uso legítimo / Fair Use) y pertenecen a sus titulares. Checkpoint no está afiliada con Xbox, PlayStation, Nintendo ni Valve. En esta vista previa las portadas y las fotos de ejemplo son ilustraciones generadas.</p></div></footer>`;
 function modal(h,wide=false){$('#modal').innerHTML=`<div class="ov" data-a="ovl"><div class="dlg${wide?' wide':''}" role="dialog" aria-modal="true">${h}</div></div>`}
-const closeModal=()=>{ if(storyTimer){ clearTimeout(storyTimer); storyTimer=null; } $('#modal').innerHTML=''};
+const closeModal=()=>{ if(storyTimer){ clearTimeout(storyTimer); storyTimer=null; } $('#modal').innerHTML='';setTimeout(flushCloudRender,0)};
 
 /* ─────────── autenticación (demo en navegador) ─────────── */
 const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
@@ -2854,8 +2886,7 @@ async function doLogin(){
             id: uidCloud,
             a: prof?.alias || data.user.user_metadata?.alias || localMatch?.a || loginEmail.split('@')[0],
             e: data.user.email || loginEmail,
-            salt: localMatch?.salt || '',
-            hash: localMatch?.hash || '',
+            salt:'',hash:'',
             city: prof?.city || data.user.user_metadata?.city || localMatch?.city || 'Cd. Juárez',
             dist: 'Aquí',
             lang: langVal,
@@ -2895,6 +2926,8 @@ async function doLogin(){
   if(S.fails>=5){S.until=Date.now()+30000;S.fails=0;S.err='Demasiados intentos. Espera 30 segundos.'}
   render();}
 function startSession(id){
+  authGeneration++;socialEpoch++;
+  if(sess!==id){socialOwner=null;socialRows=[];blockedUsers=new Set();ownedBlocks=[];DB.likes={};DB.comments={};DB.saved={};DB.notifs=[];_thr=[];S.thr=null;}
   sess=id;
   sessExp=Date.now() + ENV_CONFIG.SESSION_TTL_MS;
   S.ptab='posts';
@@ -2906,25 +2939,44 @@ function startSession(id){
 }
 async function renewSession(){try{const {error}=await sbClient.auth.refreshSession();if(error)throw error;S.note='Sesión actualizada con el servidor.';render();}catch(e){showFailure(e)}}
 
-function logout(){
-  if(sbClient){try{sbClient.auth.signOut()}catch(e){}}
-  sess=null;
-  socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;DB.likes={};DB.comments={};DB.notifs=[];
-  _thr=[];
-  try{localStorage.removeItem(SESK)}catch(e){};
-  S={...S,authTab:'login',thr:null,err:'',route:'auth'};
-  render();
-}
-async function deleteAccount(){
- const box=$('#del-e');
- try{const owner=await requireCloud();const password=$('#del-pw')?.value;if(!password)throw new Error('Escribe tu contraseña para confirmar.');
- const {data,error}=await sbClient.functions.invoke('delete-account',{body:{password,confirm:true}});
- if(error||!data?.deleted)throw new Error('No se eliminó la cuenta. Comprueba la contraseña y vuelve a intentar.');
- if(sess!==owner)return;DB.accounts=DB.accounts.filter(a=>a.id!==owner);DB.posts=DB.posts.filter(p=>p.u!==owner);DB.reviews=DB.reviews.filter(r=>r.u!==owner);DB.threads=DB.threads.filter(t=>t.owner!==owner);delete U[owner];save();logout();
- }catch(e){if(box)box.textContent=e.message;}
+async function logout(){
+  loggingOut=true;authGeneration++;socialEpoch++;
+  const owner=sess;
+  sess=null;socialOwner=null;socialRows=[];blockedUsers=new Set();ownedBlocks=[];
+  DB.likes={};DB.comments={};DB.saved={};DB.notifs=[];
+  DB.threads=DB.threads.filter(t=>t.owner!==owner);_thr=[];cloudRenderPending=false;
+  try{localStorage.removeItem(SESK);save();}catch{}
+  S={...S,authTab:'login',thr:null,err:'',note:'',route:'auth'};render();
+  try{if(sbClient){const {error}=await sbClient.auth.signOut({scope:'local'});if(error)throw error;}}catch{S.err='No se pudo cerrar la sesión del servidor. Reintenta al recuperar conexión.';render();}finally{loggingOut=false;}
 }
 
+let deletingAccount=false;
+async function deleteAccount(){
+  if(deletingAccount)return;
+  const box=$('#del-e'),button=$('[data-a="del"]');
+  deletingAccount=true;if(button)button.disabled=true;
+  try{
+    const owner=await requireCloud(),password=$('#del-pw')?.value;
+    if(!password)throw new Error('Escribe tu contraseña para confirmar.');
+    const {data,error}=await sbClient.functions.invoke('delete-account',{body:{password,confirm:true}});
+    let failure=data?.error;
+    if(error?.context){try{failure=(await error.context.json()).error||failure;}catch{}}
+    if(error||!data?.deleted)throw new Error(failure||'No se confirmó la eliminación. Comprueba la contraseña y la conexión.');
+    if(sess!==owner)return;
+    DB.accounts=DB.accounts.filter(a=>a.id!==owner);
+    DB.posts=DB.posts.filter(p=>p.u!==owner);DB.reviews=DB.reviews.filter(r=>r.u!==owner);
+    DB.stories=DB.stories.filter(r=>r.u!==owner);DB.lists=DB.lists.filter(r=>r.u!==owner);
+    DB.threads=DB.threads.filter(t=>t.owner!==owner);
+    delete DB.follow[owner];delete DB.matches[owner];delete DB.cloudOutbox[owner];
+    delete DB.mutedThreads?.[owner];delete U[owner];save();await logout();
+    S.err='Tu cuenta se eliminó.';render();
+  }catch(e){if(box)box.textContent=e.message;}
+  finally{deletingAccount=false;if(button)button.disabled=false;}
+}
+
+let profileWriteVersion=0;
 async function sbUpsertProfile(acc){
+  const profileSession=sess;
   if(!sbClient || !acc) return false;
   try{
     let targetId = null;
@@ -2958,13 +3010,13 @@ async function sbUpsertProfile(acc){
         ...matchTags,
         ...(acc.steamId ? ['steam:' + String(acc.steamId).trim()] : []),
         ...(acc.xboxTag ? ['xbox:' + String(acc.xboxTag).trim()] : []),
-        ...(gsCompact ? [gsCompact] : [])
+        ...[]
       ],
       schedule: acc.sch || 'Noches',
       bio: (acc.bio || '').slice(0, 160)
     }).select('id').single();
     if(error || !data?.id) throw error||new Error('No se confirmó el perfil.');
-    delete acc.localUpdatedAt;return true;
+    if(sess!==profileSession)return false;profileWriteVersion++;delete acc.localUpdatedAt;return true;
   }catch(e){S.note='No se guardó el perfil: '+(e.message||'error de conexión');return false;}
 }
 
@@ -3104,11 +3156,71 @@ async function sbInsertReport(targetId,reason){
  try{const owner=await requireCloud();const {data,error}=await sbClient.from('reports').insert({reporter_id:owner,target_id:String(targetId),reason:String(reason).slice(0,120),details:'Reporte desde Checkpoint'}).select('id').single();if(error||!data?.id)throw error||new Error('Sin confirmación');return true;}catch(e){showFailure(e);return false;}
 }
 
-async function syncFromSupabase(showToast = false){
-  if(!sbClient) return;
+// Bloque 1: sincronización independiente y repintado diferido, sin perder formularios.
+let cloudRenderPending=false, fullSyncPromise=null, liveSyncPromise=null;
+let authGeneration=0,loggingOut=false;
+const syncStatus={state:'loading',at:0,error:''};
+function paintSyncStatus(){
+  const el=$('#connection-status');if(!el)return;
+  el.dataset.state=syncStatus.state;
+  el.textContent=syncStatus.state==='error'?'Sin actualizar · Reintentar':syncStatus.state==='loading'?'Actualizando…':
+    'Actualizado '+new Date(syncStatus.at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  el.title=syncStatus.error||'Matches y mensajes se actualizan automáticamente';
+}
+function requestCloudRender(){cloudRenderPending=true;flushCloudRender();}
+function flushCloudRender(){
+  paintSyncStatus();
+  if(!cloudRenderPending || $('#modal')?.innerHTML)return;
+  const ae=document.activeElement;
+  // Se difiere mientras haya texto en un formulario; #ci se conserva explícitamente.
+  const fields=[...document.querySelectorAll('#app input:not([type=checkbox]):not([type=radio]),#app textarea')];
+  const hasDraft=fields.some(el=>el.id!=='ci'&&el.value&&el.type!=='hidden');
+  if((ae?.matches('input,textarea,select')&&ae.id!=='ci')||hasDraft)return;
+  const ci=$('#ci'),draft=ci?.value,start=ci?.selectionStart,end=ci?.selectionEnd,focused=ae===ci;
+  const thread=S.thr,oldMs=$('#ms'),scroll=oldMs?.scrollTop;
+  const nearBottom=oldMs?oldMs.scrollHeight-oldMs.scrollTop-oldMs.clientHeight<80:true;
+  cloudRenderPending=false;render();
+  if(S.thr===thread&&draft!==undefined&&$('#ci')){
+    $('#ci').value=draft;if(focused){$('#ci').focus();try{$('#ci').setSelectionRange(start,end)}catch{}}
+    if(!nearBottom&&$('#ms'))$('#ms').scrollTop=scroll;
+  }
+}
+function liveFingerprint(){return JSON.stringify([sess,socialRows,[...blockedUsers],_thr.map(t=>[t.id,t.un,t.m]),DB.notifs]);}
+async function refreshLiveState(){
+  if(!sess||!sbClient||document.hidden)return;
+  if(liveSyncPromise)return liveSyncPromise;
+  const owner=sess,generation=authGeneration,before=liveFingerprint();
+  liveSyncPromise=(async()=>{
+    try{
+      const socialOK=await syncSocial();
+      if(owner!==sess||generation!==authGeneration||socialOK===false)return;
+      const messagesOK=await syncDirectMessages(owner);
+      if(owner!==sess||generation!==authGeneration)return;
+      if(messagesOK===false)throw new Error('No se pudieron leer los mensajes.');
+      syncStatus.state='ok';syncStatus.at=Date.now();syncStatus.error='';
+    }catch(e){
+      if(owner!==sess||generation!==authGeneration)return;
+      syncStatus.state='error';syncStatus.error=e.message||'Sin conexión';
+    }finally{
+      if(owner===sess&&generation===authGeneration){
+        if(before!==liveFingerprint())requestCloudRender();else paintSyncStatus();
+      }
+    }
+  })();
+  try{return await liveSyncPromise;}finally{liveSyncPromise=null;}
+}
+async function syncFromSupabase(showToast=false){
+  if(fullSyncPromise)return fullSyncPromise;
+  fullSyncPromise=loadCloudContent(showToast);
+  try{return await fullSyncPromise;}finally{fullSyncPromise=null;}
+}
+async function loadCloudContent(showToast = false){
+  if(!sbClient || loggingOut) return;
   const loader = $('#top-loader');
   if(loader && showToast) loader.hidden = false;
   let messageSyncFailed = false;
+  let generation=authGeneration;
+  const profileVersion=profileWriteVersion;
   const beforeSnap = JSON.stringify({social:JSON.stringify(socialRows),community:JSON.stringify([DB.likes,DB.comments,DB.likeCounts]),
     uCount: Object.keys(U).length,
     pCount: DB.posts?.length || 0,
@@ -3125,9 +3237,11 @@ async function syncFromSupabase(showToast = false){
   });
   try{
     const { data: sessionData } = await sbClient.auth.getSession();
+    if(generation!==authGeneration)return;
     const sbUser = sessionData?.session?.user;
-    if(sess && (!sbUser || sbUser.id!==sess)){sess=null;socialOwner=null;socialRows=[];blockedUsers=new Set();socialEpoch++;_thr=[];}
+    if(sess && (!sbUser || sbUser.id!==sess)){authGeneration++;generation=authGeneration;sess=null;socialOwner=null;socialRows=[];blockedUsers=new Set();ownedBlocks=[];socialEpoch++;_thr=[];DB.saved={};DB.likes={};DB.comments={};DB.notifs=[];S.thr=null;}
     if(sbUser && !sess){
+      DB.likes={};DB.comments={};DB.notifs=[];DB.saved={};
       sess = sbUser.id;
       sessExp = Date.now() + ENV_CONFIG.SESSION_TTL_MS;
       try{ localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp})); }catch(e){}
@@ -3147,9 +3261,11 @@ async function syncFromSupabase(showToast = false){
       (sess && isUuid(sess)) ? sbClient.from('saved_items').select('item_id').eq('user_id', sess) : Promise.resolve({ data: null })
     ]);
 
+    if(generation!==authGeneration || (sbUser?.id||null)!==sess)return;
     const profs = profsRes?.data;
     if(Array.isArray(profs)){
       profs.forEach(row => {
+        if(row.id===sess&&profileVersion!==profileWriteVersion)return;
         if(isBotAccount({id:row.id, a:row.alias, e:''})) return;
         const langVal = row.lang || 'Español';
         const mapped = {
@@ -3212,10 +3328,8 @@ async function syncFromSupabase(showToast = false){
     }
 
     if(sbUser && sbUser.id === sess){
-      await syncSocial();
-      await syncCommunity();
-      const ok = await syncDirectMessages(sbUser.id);
-      if(ok === false){ showToast = false; messageSyncFailed = true; }
+      await Promise.all([refreshLiveState(),syncCommunity()]);
+      if(generation!==authGeneration || sbUser.id!==sess)return;
     }
 
     const cloudPosts = postsRes?.data;
@@ -3359,26 +3473,9 @@ async function syncFromSupabase(showToast = false){
       meSteam: me()?.steamId || ''
     });
     const hasChanges = (beforeSnap !== afterSnap);
-    if((showToast || hasChanges || messageSyncFailed) && !$('#modal')?.innerHTML){
-      const ae = document.activeElement;
-      const isTyping = ae && /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName);
-      if(!isTyping || showToast){
-        render();
-      } else if(S.route === 'mensajes' && ae?.id === 'ci'){
-        // Actualizar la ventana de mensajes en vivo sin perder el texto ni el foco de #ci
-        const savedText = ae.value;
-        const selStart = ae.selectionStart;
-        const selEnd = ae.selectionEnd;
-        render();
-        const newCi = $('#ci');
-        if(newCi){
-          newCi.value = savedText;
-          newCi.focus();
-          try { newCi.setSelectionRange(selStart, selEnd); } catch(e){}
-        }
-      }
-    }
-  }catch(e){S.note='No se pudo sincronizar: '+(e.message||'error de conexión');if(!document.activeElement?.matches('input,textarea,select'))render();}finally{
+    if(showToast || hasChanges || messageSyncFailed)requestCloudRender();
+
+  }catch(e){if(generation===authGeneration){S.note='No se pudo sincronizar: '+(e.message||'error de conexión');requestCloudRender();}}finally{
     if(loader) setTimeout(()=>{ loader.hidden = true; }, 180);
   }
 }
@@ -5305,13 +5402,13 @@ function vMatch(){
       </div>
       <button type="button" class="btn sm ghost" data-a="syncmatch" title="Sincronizar likes y matches con Supabase">🔄 Actualizar</button>
     </div>
-    <p class="muted" style="margin:0 0 12px;font-size:13px">Desliza perfiles, acepta a quienes ya te dieron Like o chatea con tus Matches.</p>
+    <div class="match-intro"><p>Encuentra tu próximo compañero de partida.</p><span>Tu perfil cuenta quién eres. Las conexiones se confirman cuando ambos muestran interés.</span><button id="connection-status" class="sync-status" data-a="refreshlive" type="button" aria-live="polite">Actualizando…</button></div>
 
     <!-- Pestañas de Match: Swipe | Te dieron Like (Solicitudes) | Posibles (Enviados) | Mis Matches -->
     <div class="mseg-4" role="tablist" style="margin-bottom:14px">
       <button type="button" role="tab" data-a="matchtab" data-k="swipe" aria-selected="${tab==='swipe'}">🔥 Swipe (${d.length})</button>
       <button type="button" role="tab" data-a="matchtab" data-k="likes" aria-selected="${tab==='likes'}" style="${reqList.length?'color:#34d399;font-weight:800':''}">💚 Te dieron Like${reqList.length?` (${reqList.length})`:''}</button>
-      <button type="button" role="tab" data-a="matchtab" data-k="sent" aria-selected="${tab==='sent'}">⏳ Posibles${sentList.length?` (${sentList.length})`:''}</button>
+      <button type="button" role="tab" data-a="matchtab" data-k="sent" aria-selected="${tab==='sent'}">⏳ Enviados${sentList.length?` (${sentList.length})`:''}</button>
       <button type="button" role="tab" data-a="matchtab" data-k="matches" aria-selected="${tab==='matches'}">🤝 Matches${matchList.length?` (${matchList.length})`:''}</button>
     </div>
     ${S.note ? `<div class="status" role="status" style="margin-bottom:14px;border-radius:12px">${esc(S.note)}</div>` : ''}
@@ -5350,7 +5447,7 @@ function vMatch(){
         </ul>` : `<div class="empty" style="padding:28px 16px">
           ${I('heart',30)}
           <b style="color:var(--fg)">No tienes solicitudes de Like pendientes</b>
-          <span>Si un amigo te acaba de dar Like desde su celular, pulsa el botón <b>🔄 Actualizar</b> arriba o revisa la pestaña <b>⏳ Posibles</b> si tú ya le habías dado Like antes.</span>
+          <span>Si un amigo te acaba de dar Like desde su celular, pulsa el botón <b>🔄 Actualizar</b> arriba o revisa la pestaña <b>⏳ Enviados</b> si tú ya le habías dado Like antes.</span>
           <button type="button" class="btn sm" data-a="syncmatch">🔄 Sincronizar con la nube</button>
         </div>`}
       </div>
@@ -5362,8 +5459,8 @@ function vMatch(){
       ${headerAndTabs}
       <div class="card" style="padding:16px;display:grid;gap:12px">
         <div>
-          <h2 style="font-size:17px;margin:0">⏳ Posibles Matches (Likes que enviaste)</h2>
-          <p class="muted" style="font-size:12.5px;margin-top:3px">Ya les diste Like a estos perfiles (por eso ya no salen en tu baraja de Swipe). En cuanto ellos te den Like de vuelta y actualices, pasarán a <b>Matches</b>.</p>
+          <h2 style="font-size:17px;margin:0">⏳ Enviados Matches (Likes que enviaste)</h2>
+          <p class="muted" style="font-size:12.5px;margin-top:3px">Ya les diste Like a estos perfiles (por eso ya no salen en tu baraja de Swipe). En cuanto ellos te den Like de vuelta, aparecerán automáticamente en <b>Matches</b>.</p>
         </div>
         ${sentList.length ? `<ul class="rl" style="display:grid;gap:12px">
           ${sentList.map(uidKey => {
@@ -5447,10 +5544,10 @@ function vMatch(){
       <div class="empty">
         ${I('flame',36)}
         <b style="color:var(--fg);font-size:16px">¡Ya revisaste todos los perfiles disponibles en el Swipe!</b>
-        <span>${sentList.length ? `Tienes <b>${sentList.length} perfil(es)</b> en la pestaña <b>⏳ Posibles</b> a los que ya les diste Like. Si quieres volver a verlos en la baraja o sincronizar con la nube, usa los botones de abajo:` : 'Sincroniza con la nube o reinicia tu baraja para volver a ver perfiles.'}</span>
+        <span>${sentList.length ? `Tienes <b>${sentList.length} perfil(es)</b> en la pestaña <b>⏳ Enviados</b> a los que ya les diste Like. Si quieres volver a verlos en la baraja o sincronizar con la nube, usa los botones de abajo:` : 'Sincroniza con la nube o reinicia tu baraja para volver a ver perfiles.'}</span>
         <div class="line" style="justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap">
           ${reqList.length ? `<button type="button" class="btn sm" style="background:#10b981;border-color:transparent;color:#fff" data-a="matchtab" data-k="likes">💚 Ver quienes te dieron Like (${reqList.length})</button>` : ''}
-          ${sentList.length ? `<button type="button" class="btn sm ghost" data-a="matchtab" data-k="sent">⏳ Ver Posibles Matches (${sentList.length})</button>` : ''}
+          ${sentList.length ? `<button type="button" class="btn sm ghost" data-a="matchtab" data-k="sent">⏳ Ver Intereses enviados (${sentList.length})</button>` : ''}
           <button type="button" class="btn sm" data-a="mrst">🔄 Reiniciar baraja de Swipe</button>
         </div>
       </div>
@@ -5600,7 +5697,7 @@ async function decide(y, isSuper=false){
       save();
       openMatchCelebrationModal(k);
     } else {
-      S.note = `💚 Le enviaste Like a @${u.a} (guardado en la pestaña "⏳ Posibles"). Cuando también te dé Like, harán Match.`;
+      S.note = `💚 Le enviaste Like a @${u.a} (guardado en la pestaña "⏳ Enviados"). Cuando también te dé Like, harán Match.`;
       setTimeout(()=>{ if(S.note && S.note.startsWith('💚')){ S.note=''; render(); } }, 4500);
     }
   }else{
@@ -5773,7 +5870,7 @@ function vChat(t){
       const isImg = !!(body.img || body.url);
       const imgSrc = body.img || body.url;
       const mediaHtml = isImg ?
-        `<img src="${imgSrc}" class="chat-photo-img" alt="Captura">` :
+        `<span class="m">Adjunto antiguo no disponible en esta versión.</span>` :
         `<div class="chat-art-scene">${scene(body.c || 'Gameplay', body.i || 280, hash(key))}</div>`;
       
       c=`<div class="chat-img-box ${bl?'blurred':''}">
@@ -5798,15 +5895,15 @@ function vChat(t){
         <b>${esc(thrName(t))}</b>
         <small>${esc(sub)}</small>
       </div>
-      <button class="cb" data-a="note" data-k="Silenciado. No recibirás avisos de este chat." aria-label="Silenciar" title="Silenciar">${I('bell',18)}</button>
-      <button class="cb" data-a="note" data-k="Reporte enviado. Gracias." aria-label="Reportar" title="Reportar">${I('flag',18)}</button>
+      <button class="cb" data-a="mutethread" aria-pressed="${isThreadMuted(t)}" aria-label="Silenciar avisos en este navegador" title="${isThreadMuted(t)?'Activar avisos en este navegador':'Silenciar avisos en este navegador'}">${I('bell',18)}</button>
+      <button class="cb" data-a="reportchat" aria-label="Reportar" title="Reportar">${I('flag',18)}</button>
       <button class="cb danger" data-a="${dm?'tblock':'tleave'}" aria-label="${dm?'Bloquear':'Salir del grupo'}" title="${dm?'Bloquear':'Salir del grupo'}">${I(dm?'ban':'logout',18)}</button>
     </header>
     ${S.note?`<div class="status" role="status">${esc(S.note)}</div>`:''}
     ${pend?`<div class="accept"><span>${esc(thrName(t))} aún no tiene conexión contigo.</span><button class="btn sm" data-a="accept">Aceptar</button></div>`:''}
     <ul class="msgs" id="ms">${rows || `<li class="empty" style="margin:auto;padding:24px">${I('chat',28)}<b style="color:var(--fg)">Conversación con @${esc(thrName(t))}</b><span>Escribe el primer mensaje aquí abajo para saludar y coordinar partida.</span></li>`}</ul>
     <form class="compose" id="f-msg">
-      <button type="button" class="cb" data-a="att" disabled aria-label="Adjuntos todavía no disponibles" title="${u.ok?'Adjuntar imagen':`Se desbloquea con 5 mensajes de cada lado (llevan ${Math.min(u.mine,5)} y ${Math.min(u.theirs,5)})`}">${I(u.ok&&!pend?'img':'lock',18)}</button>
+      <button type="button" class="cb" data-a="att" disabled aria-label="Adjuntos todavía no disponibles" title="Adjuntos todavía no disponibles">${I(u.ok&&!pend?'img':'lock',18)}</button>
       <input id="ci" maxlength="1000" placeholder="Escribe un mensaje..." autocomplete="off" ${pend?'disabled':''}>
       <button class="cb send" aria-label="Enviar" ${pend?'disabled':''}>${I('send',17)}</button>
     </form>
@@ -5836,6 +5933,12 @@ function newGroupModal(){
 // Nunca transportar mensajes privados en profiles.platforms.
 let dmSyncBusy = false;
 const dmSending = new Set();
+function isThreadMuted(t){return !!DB.mutedThreads?.[sess]?.[t.u];}
+function toggleThreadMute(t){
+  DB.mutedThreads=DB.mutedThreads||{};
+  const prefs=DB.mutedThreads[sess]||(DB.mutedThreads[sess]={});
+  prefs[t.u]=!prefs[t.u];save();S.note=prefs[t.u]?'Avisos silenciados en este navegador.':'Avisos activados en este navegador.';render();
+}
 function mergeDirectMessage(row, owner){
   if(blockedUsers.has(row.from_id)||blockedUsers.has(row.to_id))return;
   if(owner !== sess || (row.from_id !== owner && row.to_id !== owner)) return;
@@ -5860,7 +5963,7 @@ function mergeDirectMessage(row, owner){
   t.msgIds.push(row.id);
   t.m.push([row.from_id === owner ? 'me' : partner, row.body, row.id, Date.parse(row.created_at)]);
   t.m.sort((a,b) => (a[3] || 0) - (b[3] || 0));
-  if(row.from_id !== owner && S.thr !== t.id) t.un = (t.un || 0) + 1;
+  if(row.from_id !== owner && S.thr !== t.id && !isThreadMuted(t)) t.un = (t.un || 0) + 1;
   persistThr(t);
 }
 async function syncDirectMessages(owner){
@@ -5884,7 +5987,6 @@ async function syncDirectMessages(owner){
     if(owner !== sess) return;
     S.note = 'No se pudieron actualizar los mensajes. Pulsa Actualizar para reintentar.';
     return false;
-    console.error('Error al leer mensajes:', error.code || error.message);
   }finally{dmSyncBusy=false;}
   return true;
 }
@@ -5929,7 +6031,7 @@ async function addMsg(t,w,body){
   }
 }
 
-function persistThr(t){const i=DB.threads.findIndex(x=>x.id===t.id);const c={...t};if(i<0)DB.threads.push(c);else DB.threads[i]=c;save()}
+function persistThr(t){const i=DB.threads.findIndex(x=>x.id===t.id&&x.owner===t.owner);const c={...t};if(i<0)DB.threads.push(c);else DB.threads[i]=c;save()}
 
 const REPLIES=[
   '¡Jaja va, me apunto!',
@@ -6186,8 +6288,8 @@ window.saveEditProfileNow = function(ev){ if(ev) ev.preventDefault(); saveEditPr
 async function saveEditProfile(){
   const m={...me()};
   const alias = $('#ep-a')?.value.trim();
-  if(!alias || alias.length < 3){
-    $('#ep-e').textContent = 'El alias debe tener al menos 3 caracteres.';
+  if(!alias || alias.length < 3 || alias.length > 24){
+    $('#ep-e').textContent = 'El alias debe tener de 3 a 24 caracteres.';
     return;
   }
   if(!editDraft.pl.length){
@@ -6210,11 +6312,10 @@ async function saveEditProfile(){
   m.fav = editDraft.fav;
   m.steamId = ($('#ep-steam')?.value ?? editDraft.steamId ?? m.steamId ?? '').trim();
   m.xboxTag = ($('#ep-xbox')?.value ?? editDraft.xboxTag ?? m.xboxTag ?? '').trim();
-  if(m.steamId || m.xboxTag){
-    m.gamerStats = generateSmartGamerStats(m, m.gamerStats);
-  }
+  m.gamerStats=null;
 
   if(!await sbUpsertProfile(m)){const err=$('#ep-e')||$('#modal');if(err){const p=document.createElement('p');p.className='err';p.textContent=S.note;err.append(p);}return;}
+  if(sess!==m.id)return;
   const idx = DB.accounts.findIndex(a=>a.id===m.id);
   if(idx >= 0) DB.accounts[idx] = m;
   U[m.id] = m;
@@ -6235,7 +6336,7 @@ function openNotifsModal(){
         ${I('bell',20)}
         <div>
           <h2 style="font-size:18px;margin:0">Historial de Notificaciones</h2>
-          <small class="muted">Registro permanente de actividad, likes, historias y matches</small>
+          <small class="muted">Avisos disponibles en este navegador</small>
         </div>
       </div>
       <button class="cb" data-a="x" aria-label="Cerrar">${I('x',18)}</button>
@@ -6566,7 +6667,7 @@ function vSettings(){
       </div>
       <div class="line" style="gap:10px">
         <button class="btn" data-a="editprofile" style="flex:1">${I('gear',16)} Abrir editor de perfil</button>
-        <button class="btn ghost danger" data-a="logout">${I('logout',16)} Cerrar sesión</button>
+        <button class="btn ghost" data-a="blocked">Personas bloqueadas</button><button class="btn ghost danger" data-a="logout">${I('logout',16)} Cerrar sesión</button>
       </div>
     </div>
 
@@ -6643,6 +6744,7 @@ function route(){
 }
 
 function render(){
+  if(typeof cloudRenderPending!=='undefined')cloudRenderPending=false;
   if(cleanup){cleanup();cleanup=null}
   const y=scrollY;
   const auth=!me();
@@ -6676,6 +6778,7 @@ function render(){
   if(r==='match')hookMatch();
   if(r==='mensajes')hookMsgs();
   paintToggle();
+  paintSyncStatus();
   persistRouteState();
   if(cur === null){
     const savedY = Number(sessionStorage.getItem('cp5_scroll_' + r) || 0);
@@ -6796,13 +6899,7 @@ document.addEventListener('click',async e=>{
    case 'openfollowers':openConnectionsModal(k, 'followers');break;
    case 'openfollowing':openConnectionsModal(k, 'following');break;
    case 'conntab':openConnectionsModal(k, el.dataset.tab || 'followers');break;
-   case 'syncmsgs':{
-     S.note = '🔄 Sincronizando mensajes y matches con Supabase...';
-     render();
-     syncFromSupabase(false);
-     setTimeout(()=>{ if(S.note && S.note.startsWith('🔄')){ S.note=''; render(); } }, 2200);
-     break;
-   }
+   case 'syncmsgs':{await refreshLiveState();S.note=syncStatus.state==='error'?'No se pudo actualizar. Reintenta.':'Mensajes actualizados.';requestCloudRender();break;}
    case 'follow':{
      if(!await setInterest(k,!hasLiked(sess,k)))break;
      save();
@@ -6814,7 +6911,7 @@ document.addEventListener('click',async e=>{
    case 'matchtab':{
      S.matchTab=k;
      S.note='';
-     syncFromSupabase(false);
+     refreshLiveState();
      render();
      break;
    }
@@ -6849,12 +6946,7 @@ document.addEventListener('click',async e=>{
      render();
      break;
    }
-   case 'syncmatch':{
-     S.note='🔄 Sincronizando Likes y Matches con Supabase...';
-     render();
-     syncFromSupabase(true);
-     break;
-   }
+   case 'syncmatch':{await refreshLiveState();requestCloudRender();break;}
    case 'dm':openDM(k);break;
    case 'up':openUpload(k==='rev'?'rev':'post');break;
    case 'utab':upTab=k;paintUpload();break;
@@ -6866,6 +6958,10 @@ document.addEventListener('click',async e=>{
    case 'thr':{const t=THR().find(x=>x.id===k);S.thr=k;S.note='';if(t)t.un=0;render();break}
    case 'tback':S.thr=null;S.note='';render();break;
    case 'note':S.note=k;render();break;
+   case 'mutethread':{const t=THR().find(x=>x.id===S.thr);if(t)toggleThreadMute(t);break;}
+   case 'blocked':openBlockedContacts();break;
+   case 'unblock':{try{await unblockContact(k);openBlockedContacts();}catch(err){showFailure(err)}break;}
+   case 'refreshlive':refreshLiveState();break;
    case 'reportchat':{const t=THR().find(x=>x.id===S.thr);if(t&&await sbInsertReport(t.u,'Reporte de conversación')){S.note='Reporte guardado.';render();}break;}
    case 'tblock':{const t=THR().find(x=>x.id===S.thr);if(t)try{await blockContact(t.u)}catch(err){showFailure(err)}break;}
    case 'tleave':{const t=THR().find(x=>x.id===S.thr);_thr=_thr.filter(x=>x!==t);DB.threads=DB.threads.filter(x=>x.id!==S.thr);save();S.thr=null;S.note='';render();break}
@@ -7469,13 +7565,15 @@ sess=null;
 render();
 resolveOfficialCovers();
 syncFromSupabase(false);
-setInterval(() => {
-  if(sess && !document.hidden && !$('#modal')?.innerHTML && (S.route === 'mensajes' || S.route === 'match')){
-    syncFromSupabase(false);
-  }
-}, 5000);
+setInterval(()=>{if(!document.hidden){refreshLiveState();flushCloudRender();}},4000);
+setInterval(()=>{if(sess&&!document.hidden)syncFromSupabase(false);},30000);
+window.addEventListener('focus',()=>{refreshLiveState();flushCloudRender();});
+window.addEventListener('online',()=>{refreshLiveState();syncFromSupabase(false);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLiveState();flushCloudRender();}});
+document.addEventListener('focusout',()=>setTimeout(flushCloudRender,0));
 </script>
 
 </body></html>
+
 
 
