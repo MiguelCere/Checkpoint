@@ -3,18 +3,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Checkpoint — Tu Red Social de Videojuegos</title>
 <meta name="description" content="Bitácora de videojuegos, reseñas con calificación de banda sonora, feed visual y Match Gamer para encontrar escuadrón.">
-<meta name="theme-color" content="#0a0a0c">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Checkpoint Social">
 <meta property="og:title" content="Checkpoint — Tu Red Social de Videojuegos">
 <meta property="og:description" content="Registra tus juegos favoritos, califica jugabilidad y OST, comparte capturas y haz Match con otros jugadores.">
-<meta property="og:image" content="/og-checkpoint.png">
+<meta property="og:image" content="https://miguelcere.github.io/Checkpoint/og-checkpoint.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://miguelcere.github.io/Checkpoint/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Checkpoint — Tu Red Social de Videojuegos">
 <meta name="twitter:description" content="Bitácora de videojuegos, comunidad y Match Gamer.">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0a0c'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%238b5cf6' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M22 32.5 29.5 40 43 25' fill='none' stroke='%23f4f4f5' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="alternate icon" type="image/png" href="/favicon.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' aria-hidden='true'%3E%3Cdefs%3E%3ClinearGradient id='cpg' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23ffb800'/%3E%3Cstop offset='.55' stop-color='%23ff5e3a'/%3E%3Cstop offset='1' stop-color='%23ff2d78'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23cpg)'/%3E%3Cpath d='M32 12 52 32 32 52 12 32Z' fill='none' stroke='%23fff' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M24 32.5 30 38.5 41 26.5' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="alternate icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0c;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
 /* ─── FONDO DIFUMINADO ADAPTABLE A LA PORTADA DEL PERFIL (ESTILO APPLE MUSIC / PS5) ─── */
 .bd {
@@ -95,37 +99,36 @@
 </head><body>
 <div id="top-loader" class="top-loader" hidden></div>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 /* Layout: auth a pantalla completa → app con sidebar, feed + riel derecho, perfil con cuadrícula de fotos y chat dividido en dos paneles. Bordes: blanco fino. */
 :root{
-  --bg:#0a0a0c; --surface:#131316; --surface2:#1b1b20; --line:rgba(255,255,255,.1);
-  --edge:rgba(255,255,255,.3); --edge2:rgba(255,255,255,.75);
-  --fg:#f4f4f5; --muted:#a1a1aa; --accent:#8b5cf6; --accent2:#e879f9; --accent-soft:rgba(139,92,246,.18);
-  --glass:rgba(22,22,26,.6); --nav:rgba(20,20,24,.68); --ok:#34d399; --bad:#f87171;
-  --xbox:#34d399; --psn:#38bdf8; --nsw:#f87171; --pc:#c4b5fd;
-  --font-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif; --font-display:"Sora","Manrope",system-ui,sans-serif;
+  --bg:#000000; --surface:#101012; --surface2:#1c1c1e; --line:rgba(255,255,255,.08);
+  --edge:rgba(255,255,255,.13); --edge2:rgba(255,255,255,.32);
+  --fg:#f5f5f7; --muted:#98989d; --accent:#0a84ff; --accent2:#ff375f; --accent-soft:rgba(10,132,255,.18);
+  --glass:rgba(28,28,30,.62); --nav:rgba(24,24,26,.72); --ok:#30d158; --bad:#ff453a;
+  --xbox:#30d158; --psn:#64d2ff; --nsw:#ff453a; --pc:#ffd60a;
+  --font-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",sans-serif; --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --grain:.05; color-scheme:dark;
 }
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
-  --bg:#f5f4f1; --surface:#ffffff; --surface2:#efede9; --line:rgba(28,25,23,.1);
-  --edge:rgba(28,25,23,.26); --edge2:rgba(28,25,23,.75);
-  --fg:#1c1917; --muted:#6b6560; --accent:#7c3aed; --accent2:#c026d3; --accent-soft:rgba(124,58,237,.12);
-  --glass:rgba(255,255,255,.7); --nav:rgba(255,255,255,.75); --ok:#15803d; --bad:#dc2626;
-  --xbox:#15803d; --psn:#0369a1; --nsw:#dc2626; --pc:#6d28d9; --grain:.07; color-scheme:light}}
+  --bg:#fafafa; --surface:#ffffff; --surface2:#f2f2f7; --line:rgba(0,0,0,.07);
+  --edge:rgba(0,0,0,.12); --edge2:rgba(0,0,0,.32);
+  --fg:#1d1d1f; --muted:#6e6e73; --accent:#0071e3; --accent2:#e3134f; --accent-soft:rgba(0,113,227,.12);
+  --glass:rgba(255,255,255,.72); --nav:rgba(246,246,248,.8); --ok:#248a3d; --bad:#d70015;
+  --xbox:#248a3d; --psn:#0066cc; --nsw:#d70015; --pc:#b25000; --grain:.07; color-scheme:light}}
 :root[data-theme="light"]{
-  --bg:#f5f4f1; --surface:#ffffff; --surface2:#efede9; --line:rgba(28,25,23,.1);
-  --edge:rgba(28,25,23,.26); --edge2:rgba(28,25,23,.75);
-  --fg:#1c1917; --muted:#6b6560; --accent:#7c3aed; --accent2:#c026d3; --accent-soft:rgba(124,58,237,.12);
-  --glass:rgba(255,255,255,.7); --nav:rgba(255,255,255,.75); --ok:#15803d; --bad:#dc2626;
-  --xbox:#15803d; --psn:#0369a1; --nsw:#dc2626; --pc:#6d28d9; --grain:.07; color-scheme:light}
+  --bg:#fafafa; --surface:#ffffff; --surface2:#f2f2f7; --line:rgba(0,0,0,.07);
+  --edge:rgba(0,0,0,.12); --edge2:rgba(0,0,0,.32);
+  --fg:#1d1d1f; --muted:#6e6e73; --accent:#0071e3; --accent2:#e3134f; --accent-soft:rgba(0,113,227,.12);
+  --glass:rgba(255,255,255,.72); --nav:rgba(246,246,248,.8); --ok:#248a3d; --bad:#d70015;
+  --xbox:#248a3d; --psn:#0066cc; --nsw:#d70015; --pc:#b25000; --grain:.07; color-scheme:light}
 :root[data-theme="dark"]{
-  --bg:#0a0a0c; --surface:#131316; --surface2:#1b1b20; --line:rgba(255,255,255,.1);
-  --edge:rgba(255,255,255,.3); --edge2:rgba(255,255,255,.75);
-  --fg:#f4f4f5; --muted:#a1a1aa; --accent:#8b5cf6; --accent2:#e879f9; --accent-soft:rgba(139,92,246,.18);
-  --glass:rgba(22,22,26,.6); --nav:rgba(20,20,24,.68); --ok:#34d399; --bad:#f87171;
-  --xbox:#34d399; --psn:#38bdf8; --nsw:#f87171; --pc:#c4b5fd; --grain:.05; color-scheme:dark}
+  --bg:#000000; --surface:#101012; --surface2:#1c1c1e; --line:rgba(255,255,255,.08);
+  --edge:rgba(255,255,255,.13); --edge2:rgba(255,255,255,.32);
+  --fg:#f5f5f7; --muted:#98989d; --accent:#0a84ff; --accent2:#ff375f; --accent-soft:rgba(10,132,255,.18);
+  --glass:rgba(28,28,30,.62); --nav:rgba(24,24,26,.72); --ok:#30d158; --bad:#ff453a;
+  --xbox:#30d158; --psn:#64d2ff; --nsw:#ff453a; --pc:#ffd60a; --grain:.05; color-scheme:dark}
 
 *{box-sizing:border-box}
 html,body{min-height:100%}
@@ -210,8 +213,8 @@ body.is-auth .side,body.is-auth .pillwrap,body.is-auth .msgpill{display:none!imp
 
 /* auth */
 .auth{min-height:100vh;display:grid}
-.auth-art{position:relative;overflow:hidden;padding:28px max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;justify-content:space-between;gap:28px;color:#fff;background:#0b0710}
-.auth-art .bg{position:absolute;inset:-8%;animation:drift 30s ease-in-out infinite;background:radial-gradient(55% 50% at 70% 25%,hsl(275 85% 58% / .8),transparent 70%),radial-gradient(45% 45% at 15% 80%,hsl(335 78% 50% / .55),transparent 70%),radial-gradient(50% 50% at 90% 90%,hsl(215 72% 45% / .55),transparent 70%)}
+.auth-art{position:relative;overflow:hidden;padding:28px max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;justify-content:space-between;gap:28px;color:#fff;background:#070707}
+.auth-art .bg{position:absolute;inset:-8%;animation:drift 30s ease-in-out infinite;background:radial-gradient(55% 50% at 72% 22%,hsl(40 100% 52% / .55),transparent 70%),radial-gradient(50% 50% at 18% 78%,hsl(342 100% 56% / .5),transparent 70%),radial-gradient(48% 48% at 92% 88%,hsl(14 100% 56% / .5),transparent 70%)}
 .auth-art .dm{position:absolute;right:-12%;top:12%;width:70%;aspect-ratio:1;transform:rotate(45deg);border:1px solid rgba(255,255,255,.3);border-radius:8%}
 .auth-art .dm::after{content:"";position:absolute;inset:14%;border:1px solid rgba(255,255,255,.2);border-radius:8%}
 .auth-art>*{position:relative}
@@ -230,7 +233,7 @@ body.is-auth .side,body.is-auth .pillwrap,body.is-auth .msgpill{display:none!imp
 
 /* perfil */
 .view{position:relative;isolation:isolate}
-.bd{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#0b0710}
+.bd{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#070707}
 .bd .art{position:absolute;inset:-6%;animation:drift 30s ease-in-out infinite;background:
   radial-gradient(55% 50% at 66% 28%,hsl(var(--h) 85% 58% / .8),transparent 70%),
   radial-gradient(42% 42% at 18% 70%,hsl(calc(var(--h) + 60) 78% 48% / .55),transparent 70%),
@@ -935,9 +938,9 @@ footer a{text-decoration:underline}
   border: 1px solid rgba(56, 189, 248, 0.35);
 }
 .msg-tag-grupo {
-  background: rgba(168, 85, 247, 0.15);
+  background: rgba(255, 55, 95, 0.12);
   color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.35);
+  border: 1px solid rgba(255, 55, 95, 0.35);
 }
 .mseg-4 {
   display: grid;
@@ -1378,7 +1381,7 @@ footer a{text-decoration:underline}
   margin-top: 8px;
   padding: 5px 12px;
   border-radius: 99px;
-  background: rgba(139, 92, 246, 0.85);
+  background: rgba(10, 132, 255, 0.9);
   color: #fff;
   font-size: 11.5px;
   font-weight: 700;
@@ -1860,6 +1863,76 @@ footer a{text-decoration:underline}
   min-height: 110px;
 }
 </style>
+<style>
+/* ═══ Diseño 2026 · "Instagram en una ventana de Mac" ═══
+   Colores del sistema de Apple, tipografía SF, degradado cálido de historias,
+   barra lateral translúcida con los tres botones de ventana de macOS. */
+:root{--grain:0;--story:linear-gradient(45deg,#ffb800 0%,#ff5e3a 52%,#ff2d78 100%);--r:14px;--r-sm:10px;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.08)}
+:root[data-theme="dark"],:root:not([data-theme="light"]){--shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 30px rgba(0,0,0,.45)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.07)}}
+::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+body{letter-spacing:-.003em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body::after{display:none}
+h1,h2,h3{letter-spacing:-.022em;font-weight:700}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Botones: rectángulo redondeado tipo macOS, responden al pasar y al pulsar */
+.btn{border-radius:var(--r-sm);font-weight:600;letter-spacing:-.005em;min-height:40px;transition:filter .15s,transform .12s,background .15s,border-color .15s}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:scale(.97)}
+/* El botón secundario toma el color de su texto: gris suave en fondos claros, cristal blanco sobre portadas oscuras */
+.btn.ghost{background:color-mix(in srgb,currentColor 10%,transparent);border-color:color-mix(in srgb,currentColor 8%,transparent)}
+.btn.ghost:hover{background:color-mix(in srgb,currentColor 17%,transparent);border-color:color-mix(in srgb,currentColor 12%,transparent)}
+.hero .cta .btn.ghost{backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4)}
+.btn.sm{min-height:32px;border-radius:8px}
+.chp{border-radius:var(--r-sm);background:var(--surface2);border-color:transparent;transition:background .15s,transform .12s}
+.chp:hover{background:color-mix(in srgb,var(--fg) 10%,var(--surface2));border-color:transparent}
+.chp:active{transform:scale(.97)}
+.chp[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Campos estilo macOS */
+.fld input,.fld select,.fld textarea{border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--line);transition:border-color .15s,box-shadow .15s,background .15s}
+.fld input:hover,.fld select:hover,.fld textarea:hover{border-color:var(--edge)}
+.fld input:focus,.fld select:focus,.fld textarea:focus{background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+
+/* Tarjetas y publicaciones: líneas finas como Instagram, esquinas de Mac */
+.card{border-radius:var(--r);border-color:var(--line);box-shadow:var(--shadow)}
+.post .pic{background:var(--surface2)}
+@media (hover:hover){.post .pic img{transition:transform .5s cubic-bezier(.2,.7,.2,1)}.post .pic:hover img{transform:scale(1.025)}}
+.post-acts-bar button{transition:transform .12s,color .15s}
+.post-acts-bar button:active{transform:scale(.88)}
+.post-acts-bar button.liked{color:var(--accent2)}
+
+/* Anillo de historias con el degradado cálido de la marca */
+.ring.ig{background:var(--story)}
+.ring.ig.seen{background:var(--edge)}
+
+/* Barra lateral = ventana de Mac: translúcida, con los tres botones de ventana */
+@media (min-width:768px){
+  .side{padding-top:46px;background:var(--nav);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);border-right:1px solid var(--line)}
+  .side::before{content:"";position:absolute;top:16px;left:calc(50% - 24px);width:12px;height:12px;border-radius:99px;background:#ff5f57;box-shadow:18px 0 0 #febc2e,36px 0 0 #28c840,inset 0 0 0 .5px rgba(0,0,0,.18);pointer-events:none}
+  .nb{border-radius:12px}
+  .nb[aria-current="page"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .nb.add{background:var(--fg);color:var(--bg)}
+  .msgpill{border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--line)}
+}
+.nb .dot,.msgpill .dot{background:var(--accent2)}
+.pill{border-color:var(--line);box-shadow:var(--shadow)}
+.pill .nb[aria-current="page"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+
+/* Pantalla de entrada: como una ventana de Mac sobre un fondo cálido */
+.auth-art h1{letter-spacing:-.035em}
+@media (min-width:900px){
+  .auth{background:var(--bg)}
+  .auth-form{background:var(--surface);border-left:1px solid var(--line)}
+}
+/* Mensajes en el celular: título arriba y botones en una fila debajo */
+@media (max-width:600px){.mhd{flex-wrap:wrap;row-gap:12px}.mhd-actions{display:flex!important;flex-direction:row!important;width:100%}}
+/* Casilla de Términos y enlaces pequeños: más fáciles de tocar en el celular */
+#su-t{width:22px!important;height:22px!important;flex:none}
+.auth-card button[data-a="doc"],.auth-card button[data-a="atab"]{padding:6px 2px;margin:-6px 0}
+</style>
 
 <aside class="side" id="side" aria-label="Navegación principal"></aside>
 <button class="tt" id="tt" data-a="theme" aria-label="Cambiar tema"></button>
@@ -1917,6 +1990,8 @@ const ICONS={
 };
 const I=(n,s=20)=>`<svg class="ic" width="${s}" height="${s}" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||ICONS.sparkle}</svg>`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Solo acepta imágenes reales: JPEG/PNG/WebP en base64 o enlaces https limpios. Cualquier otra cosa se descarta.
+const okImg=u=>{const s=String(u||'');return /^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+|https:\/\/[^"'<>\s()\\]+)$/.test(s)?s:null};
 
 /* ─────────── MOTOR DE SEGURIDAD (10 PUNTOS DE AUDITORÍA) ─────────── */
 // Punto 2 & 3: Variables de entorno y gestión de secretos (nunca exponer service_role ni llaves privadas en cliente)
@@ -2291,7 +2366,7 @@ for(const account of DB.accounts||[]){delete account.salt;delete account.hash;}
 let storeFull=false;
 function save(){
   try{
-    localStorage.setItem(DBK,JSON.stringify(DB));
+    localStorage.setItem(DBK,JSON.stringify(DB,(k,v)=>(k==='img'&&typeof v==='string'&&v.startsWith('data:')&&v.length>4000)?undefined:v));
     if(sess && U[sess]){
       localStorage.setItem(SESK, JSON.stringify({id: sess, iat: Date.now(), exp: sessExp || (Date.now() + ENV_CONFIG.SESSION_TTL_MS), profile: U[sess]}));
     }
@@ -2396,7 +2471,7 @@ async function loadSocialState(){
     const {data,error}=await sbClient.from('profiles').select('*').in('id',ids.slice(i,i+100));
     if(error)throw error;
     if(sess!==owner||epoch!==socialEpoch)return false;
-    for(const r of data||[])U[r.id]={id:r.id,a:r.alias||'Jugador',city:r.city||'',lang:r.lang||'',sch:r.schedule||'',pl:(r.platforms||[]).filter(x=>!String(x).includes(':')),fav:r.fav_games||[],cur:r.current_game,avatarImg:r.avatar_url,h:r.hue||270};
+    for(const r of data||[])U[r.id]={id:r.id,a:r.alias||'Jugador',city:r.city||'',lang:r.lang||'',sch:r.schedule||'',pl:(r.platforms||[]).filter(x=>!String(x).includes(':')),fav:r.fav_games||[],cur:r.current_game,avatarImg:okImg(r.avatar_url),h:r.hue||270};
   }
   if(sess!==owner||epoch!==socialEpoch)return false;
   socialRows=rows;socialOwner=owner;
@@ -2601,7 +2676,7 @@ function scene(c,h,seed=1){const id=nid(),A=`hsl(${h} 45% 14%)`,B=`hsl(${h} 40% 
  else b=`<rect x="60" y="60" width="280" height="260" rx="8" fill="hsl(${h} 50% 8%)" stroke="#2a2a33" stroke-width="6"/><rect x="74" y="74" width="252" height="232" fill="hsl(${(h+40)%360} 60% 14%)"/><circle cx="270" cy="130" r="32" fill="${W}" fill-opacity=".9"/><circle cx="284" cy="122" r="28" fill="hsl(${(h+40)%360} 60% 14%)"/>${[0,1,2,3,4,5,6].map(()=>`<circle cx="${90+r(220)}" cy="${90+r(120)}" r="${1+r(2)}" fill="#fff"/>`).join('')}<path d="M200 74v232M74 190h252" stroke="#2a2a33" stroke-width="5"/><rect x="40" y="320" width="320" height="16" rx="3" fill="hsl(${h} 25% 12%)"/><rect y="336" width="400" height="164" fill="hsl(${h} 30% 6%)"/><path d="M110 296h56v34a28 28 0 0 1-56 0z" fill="#ece7df"/><path d="M166 304h12a12 12 0 0 1 0 24h-12" fill="none" stroke="#ece7df" stroke-width="5"/><path d="M128 280c-8-14 8-18 0-32M148 280c-8-14 8-18 0-32" stroke="#fff" stroke-opacity=".5" stroke-width="3" fill="none"/><rect x="230" y="380" width="130" height="60" rx="30" fill="#17171d" stroke="#2a2a33" stroke-width="3"/><circle cx="262" cy="410" r="12" fill="#0b0b0f"/><circle cx="328" cy="410" r="12" fill="#0b0b0f"/>`;
  return `<svg class="scene" viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${esc(c)}">${defs}<rect width="400" height="500" fill="url(#${id}a)"/>${b}</svg>`}
 const hash=s=>[...String(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
-const pimg=p=>p.img?`<img src="${p.img}" alt="Foto de ${esc(p.c)}" loading="lazy">`:scene(p.c,p.h,hash(p.id));
+const pimg=p=>p.img?`<img src="${esc(p.img)}" alt="Foto de ${esc(p.c)}" loading="lazy">`:scene(p.c,p.h,hash(p.id));
 
 /* ─────────── componentes ─────────── */
 const stars=v=>`<span class="stars" role="img" aria-label="${v} de 5 estrellas">${[1,2,3,4,5].map(i=>`<i style="--f:${v>=i?100:v>=i-.5?50:0}%"></i>`).join('')}</span>`;
@@ -2610,11 +2685,11 @@ const plat=p=>`<span class="plat p-${p}">${PL[p]}</span>`;
 const av=(k,s=40,on=false)=>{
   const u=U[k]||{h:260,a:'?'};
   if(u.avatarImg){
-    return `<span class="av${on?' on':''}" style="--h:${u.h};width:${s}px;height:${s}px;padding:0;overflow:hidden"><img src="${u.avatarImg}" alt="${esc(u.a)}" style="width:100%;height:100%;object-fit:cover;border-radius:99px;display:block"></span>`;
+    return `<span class="av${on?' on':''}" style="--h:${u.h};width:${s}px;height:${s}px;padding:0;overflow:hidden"><img src="${esc(u.avatarImg)}" alt="${esc(u.a)}" style="width:100%;height:100%;object-fit:cover;border-radius:99px;display:block"></span>`;
   }
   return `<span class="av${on?' on':''}" style="--h:${u.h};width:${s}px;height:${s}px;font-size:${s*.4}px" aria-hidden="true">${esc((u.a||'?')[0].toUpperCase())}</span>`;
 };
-const Logo=s=>`<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8 56 32 32 56 8 32Z" fill="none" stroke="#8b5cf6" stroke-width="6" stroke-linejoin="round"/><path d="M22 32.5 29.5 40 43 25" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const Logo=s=>`<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="cpg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ffb800"/><stop offset=".55" stop-color="#ff5e3a"/><stop offset="1" stop-color="#ff2d78"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#cpg)"/><path d="M32 12 52 32 32 52 12 32Z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><path d="M24 32.5 30 38.5 41 26.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ago=n=>n;
 
 /* ─────────── tema ─────────── */
@@ -2679,7 +2754,7 @@ const ROUTEK = 'cp5-last-route';
 let savedNav = {};
 try { savedNav = JSON.parse(localStorage.getItem(ROUTEK) || '{}') || {}; } catch(e) {}
 let S={
-  authTab:'signup',step:1,draft:{t:true},err:'',fails:0,until:0,
+  authTab:'signup',step:1,draft:{t:false},err:'',fails:0,until:0,
   route: (sess && savedNav.route && savedNav.route !== 'auth') ? savedNav.route : (sess ? 'inicio' : 'auth'),
   targetUser: savedNav.targetUser || null,
   msgTab: savedNav.msgTab || 'todos',
@@ -2756,11 +2831,11 @@ function formSignup1(){const d=S.draft;return `<form id="f-su1" class="auth-card
  <label class="fld">Tu alias de jugador (Gamertag)<input id="su-a" value="${esc(d.a||'')}" maxlength="24" autocomplete="username" placeholder="Ej. LoboGamer_99"><small>De 3 a 24 caracteres (letras, números, punto, guion o guion bajo).</small></label>
  <label class="fld">Correo electrónico<input id="su-e" type="email" value="${esc(d.e||'')}" autocomplete="email" placeholder="tu@correo.com"></label>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-   <label class="fld">Contraseña<input id="su-p" type="password" value="${esc(d.p||'')}" autocomplete="new-password" placeholder="Mín. 6 caracteres"></label>
-   <label class="fld">Confirmar<input id="su-p2" type="password" value="${esc(d.p||'')}" autocomplete="new-password" placeholder="Repite contraseña"></label>
+   <label class="fld">Contraseña<input id="su-p" type="password" minlength="8" autocomplete="new-password" placeholder="Mín. 8 caracteres"></label>
+   <label class="fld">Confirmar<input id="su-p2" type="password" minlength="8" autocomplete="new-password" placeholder="Repite contraseña"></label>
  </div>
- <label class="fld">Fecha de nacimiento<input id="su-b" type="date" value="${esc(d.b||'2000-01-15')}"><small>Checkpoint es para mayores de 18 años.</small></label>
- <label class="line" style="gap:10px;font-size:13px;align-items:flex-start"><input id="su-t" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:var(--accent)" ${d.t!==false?'checked':''}><span>Acepto los <button type="button" data-a="doc" data-k="t" style="text-decoration:underline">Términos</button> y el <button type="button" data-a="doc" data-k="p" style="text-decoration:underline">Aviso de Privacidad</button>.</span></label>
+ <label class="fld">Fecha de nacimiento<input id="su-b" type="date" value="${esc(d.b||'')}" max="${new Date(Date.now()-18*31557600000).toISOString().slice(0,10)}"><small>Checkpoint es para mayores de 18 años.</small></label>
+ <label class="line" style="gap:10px;font-size:13px;align-items:flex-start"><input id="su-t" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:var(--accent)" ${d.t===true?'checked':''}><span>Acepto los <button type="button" data-a="doc" data-k="t" style="text-decoration:underline">Términos</button> y el <button type="button" data-a="doc" data-k="p" style="text-decoration:underline">Aviso de Privacidad</button>.</span></label>
  ${errBox()}<button class="btn">Continuar a mi perfil →</button>
  <p class="muted" style="font-size:13px;text-align:center">¿Ya creaste tu cuenta antes? <button type="button" data-a="atab" data-k="login" style="text-decoration:underline;color:var(--fg)">Inicia sesión</button></p>
 </form>`}
@@ -2784,13 +2859,14 @@ async function doSignup1(){
   S.draft={...S.draft,a:rawA,e,b,t,p};S.err='';
   if(!/^[A-Za-z0-9_.-]{3,24}$/.test(rawA))S.err='El alias debe tener de 3 a 24 caracteres (letras, números, punto, guion o guion bajo).';
   else if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))S.err='Escribe un correo electrónico válido.';
-  else if(p.length<6)S.err='La contraseña debe tener al menos 6 caracteres.';
+  else if(p.length<8)S.err='La contraseña debe tener al menos 8 caracteres.';
   else if(p!==p2)S.err='Las contraseñas no coinciden.';
   else if(!b)S.err='Indica tu fecha de nacimiento.';
   else{const age=(Date.now()-new Date(b).getTime())/31557600000;if(!(age>=18&&age<120))S.err='Debes tener 18 años o más para crear una cuenta.'}
   if(!S.err&&!t)S.err='Debes aceptar los Términos y el Aviso de Privacidad.';
   if(!S.err&&(DB.accounts.some(x=>x.a.toLowerCase()===rawA.toLowerCase())||Object.values(SEED).some(x=>x.a.toLowerCase()===rawA.toLowerCase())))S.err='Ese alias ya está en uso. Elige otro distinto.';
   if(!S.err&&DB.accounts.some(x=>x.e===e))S.err='Ya existe una cuenta registrada con ese correo.';
+  if(!S.err&&sbClient){try{const {data:ex}=await sbClient.from('profiles').select('id').ilike('alias',rawA.replace(/[\\%_]/g,'\\$&')).limit(1);if(ex&&ex.length)S.err='Ese alias ya está en uso. Elige otro distinto.';}catch(err){}}
   if(!S.err){
     S.draft.p=p;
     S.step=2;
@@ -2830,7 +2906,7 @@ async function doSignup2(){
         }
       });
       if(error){S.busy=false;S.err=error.message;return render();}
-      if(!data?.session){S.busy=false;S.draft={t:true};S.step=1;S.err='Revisa tu correo para confirmar la cuenta y después inicia sesión.';return render();}
+      if(!data?.session){S.busy=false;S.draft={t:false};S.step=1;S.err='Revisa tu correo para confirmar la cuenta y después inicia sesión.';return render();}
       if(data?.user?.id){
         newId = data.user.id;
       }
@@ -2855,7 +2931,7 @@ async function doSignup2(){
   DB.accounts.push(acc);U[acc.id]=acc;save();
   const profileSaved=await sbUpsertProfile(acc);
   if(!profileSaved)cloudNote='Cuenta creada, pero el perfil no se guardó. Completa el perfil al iniciar sesión.';
-  S.busy=false;S.draft={t:true};S.step=1;S.err='';
+  S.busy=false;S.draft={t:false};S.step=1;S.err='';
   startSession(acc.id);
   S.note=cloudNote;
   S.route='perfil';
@@ -2893,8 +2969,8 @@ async function doLogin(){
             langFull: langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
             mic: prof?.mic || 'Con micrófono',
             h: prof?.hue ?? localMatch?.h ?? 270,
-            avatarImg: prof?.avatar_url || localMatch?.avatarImg || null,
-            bannerImg: prof?.banner_url || localMatch?.bannerImg || null,
+            avatarImg: okImg(prof?.avatar_url) || localMatch?.avatarImg || null,
+            bannerImg: okImg(prof?.banner_url) || localMatch?.bannerImg || null,
             badges: ['Cloud','Gamer'],
             act: 25, fol: 1, fans: 3,
             cur: prof?.current_game || localMatch?.cur || 'hk',
@@ -3024,7 +3100,7 @@ async function syncCommunity(){
  const owner=await requireCloud();
  const [likes,comments]=await Promise.all([
  readAll(()=>sbClient.from('post_likes').select('item_id,user_id').order('item_id').order('user_id')),
- readAll(()=>sbClient.from('post_comments').select('id,item_id,user_id,body').order('id'))]);
+ sbClient.from('post_comments').select('id,item_id,user_id,body,created_at').order('created_at',{ascending:false}).limit(1000).then(r=>{if(r.error)throw r.error;return (r.data||[]).reverse();})]);
  if(sess!==owner)return;
  DB.likes={};DB.likeCounts={};DB.comments={};
  for(const r of likes){DB.likeCounts[r.item_id]=(DB.likeCounts[r.item_id]||0)+1;if(r.user_id===owner)DB.likes[r.item_id]=1;}
@@ -3278,8 +3354,8 @@ async function loadCloudContent(showToast = false){
           langFull: langVal==='Bilingüe'?'Español / Inglés':langVal==='Inglés'?'English':'Español (Latam)',
           mic: row.mic || 'Con micrófono',
           h: row.hue ?? 270,
-          avatarImg: row.avatar_url || U[row.id]?.avatarImg || null,
-          bannerImg: row.banner_url || U[row.id]?.bannerImg || null,
+          avatarImg: okImg(row.avatar_url) || U[row.id]?.avatarImg || null,
+          bannerImg: okImg(row.banner_url) || U[row.id]?.bannerImg || null,
           badges: ['Cloud','Gamer'],
           act: 30,
           fol: U[row.id]?.fol || 1,
@@ -3335,7 +3411,9 @@ async function loadCloudContent(showToast = false){
     const cloudPosts = postsRes?.data;
     if(Array.isArray(cloudPosts)){
       cloudPosts.forEach(row => {
-        if(!DB.posts.some(p => String(p.id) === String(row.id))){
+        const prevP = DB.posts.find(p => String(p.id) === String(row.id));
+        if(prevP){ if(!prevP.img) prevP.img = okImg(row.image_url); }
+        else{
           DB.posts.push({
             id: String(row.id),
             u: row.user_id,
@@ -3343,7 +3421,7 @@ async function loadCloudContent(showToast = false){
             t: row.caption || '',
             d: 'Reciente',
             l: 1,
-            img: row.image_url || null,
+            img: okImg(row.image_url),
             ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
             h: U[row.user_id]?.h || 265
           });
@@ -3377,7 +3455,9 @@ async function loadCloudContent(showToast = false){
       cloudStories.forEach(row => {
         const storyTs = row.created_at ? new Date(row.created_at).getTime() : Date.now();
         if((Date.now() - storyTs) >= STORY_TTL_MS) return;
-        if(!DB.stories.some(st => String(st.id) === String(row.id))){
+        const prevS = DB.stories.find(st => String(st.id) === String(row.id));
+        if(prevS){ if(!prevS.img) prevS.img = okImg(row.image_url); }
+        else{
           DB.stories.push({
             id: String(row.id),
             u: row.user_id,
@@ -3385,7 +3465,7 @@ async function loadCloudContent(showToast = false){
             g: G[row.game_key] ? row.game_key : 'hk',
             txt: row.caption || 'Jugando en Checkpoint 🔥',
             ago: formatStoryTimeLeft(storyTs),
-            img: row.image_url || null,
+            img: okImg(row.image_url),
             ts: storyTs
           });
         }
@@ -4061,7 +4141,7 @@ function hookProfile(){
     up();
     cleanup=()=>removeEventListener('scroll',on);
   }
-  $('.art-w').forEach(w=>{
+  $$('.art-w').forEach(w=>{
     w.style.cssText='position:absolute;inset:0;width:100%;height:100%;overflow:hidden';
   });
 }
@@ -4195,7 +4275,7 @@ function openEditPostOrReviewModal(id){
         </label>
         <div class="fld">Cambiar imagen <small>(Opcional: toca si deseas reemplazar la foto actual)</small>
           <label class="drop" id="epost-drop" style="aspect-ratio:4/5;max-height:220px;cursor:pointer">
-            ${p.img ? `<img src="${p.img}" alt="Foto actual">` : `<span>${I('img',26)}<br>Toca para cambiar foto</span>`}
+            ${p.img ? `<img src="${esc(p.img)}" alt="Foto actual">` : `<span>${I('img',26)}<br>Toca para cambiar foto</span>`}
             <input id="epost-f" class="sr" type="file" accept="image/jpeg,image/png,image/webp">
           </label>
         </div>
@@ -4667,7 +4747,7 @@ function openStory(k){
 
         <!-- Contenido visual de la historia a pantalla completa dentro de la tarjeta -->
         <div class="story-media" style="position:relative">
-          <div class="art-bg">${st.img ? `<img src="${st.img}" alt="Historia" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">` : art(st.g)}</div>
+          <div class="art-bg">${st.img ? `<img src="${esc(st.img)}" alt="Historia" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">` : art(st.g)}</div>
           <div class="story-caption" style="background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);width:100%">
             <span class="badge" style="background:var(--accent);color:#fff;border:0;margin-bottom:6px">🎮 ${esc(G[st.g]?.t||'Videojuego')}</span>
             <div style="font-weight:600">${esc(st.txt)}</div>
@@ -4787,7 +4867,7 @@ function vHome(){
         <li class="story" style="position:relative">
           <button type="button" data-a="story" data-k="${st.id}" style="display:block;width:100%" aria-label="Ver mi historia">
             <div class="ring ig" style="width:64px;height:64px;margin:0 auto 4px;border-radius:99px;overflow:hidden">
-              ${st.img ? `<img src="${st.img}" alt="Mi historia" style="width:56px;height:56px;border-radius:99px;object-fit:cover;border:2px solid var(--bg)">` : av(sess, 56, true)}
+              ${st.img ? `<img src="${esc(st.img)}" alt="Mi historia" style="width:56px;height:56px;border-radius:99px;object-fit:cover;border:2px solid var(--bg)">` : av(sess, 56, true)}
             </div>
             <b style="color:var(--accent)">Tu historia${myStories.length > 1 ? ' ' + (idx + 1) : ''}</b>
           </button>
@@ -5056,7 +5136,7 @@ function paintGlobalSearchResults(){
     return;
   }
   box.innerHTML = `
-    <div class="card" style="padding:16px;margin-bottom:24px;border-color:rgba(139,92,246,0.45);background:var(--surface2)">
+    <div class="card" style="padding:16px;margin-bottom:24px;border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:var(--surface2)">
       <div class="line" style="justify-content:space-between;margin-bottom:12px">
         <div>
           <span class="eyebrow" style="color:var(--accent)">🌍 RESULTADOS DEL CATÁLOGO MUNDIAL EN VIVO</span>
@@ -5498,7 +5578,7 @@ function vMatch(){
         ${matchList.length ? `<ul class="rl" style="display:grid;gap:12px">
           ${matchList.map(uidKey => {
             const u = U[uidKey] || {a:uidKey, city:'Comunidad', cur:'hk', pl:['pc']};
-            return `<li class="card" style="padding:14px;background:var(--surface2);border:1px solid rgba(139,92,246,0.35);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            return `<li class="card" style="padding:14px;background:var(--surface2);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               ${av(uidKey, 46, true)}
               <div style="flex:1;min-width:150px">
                 <button type="button" class="user-link" data-a="user" data-k="${uidKey}"><b style="font-size:15px">@${esc(u.a)}</b></button>
@@ -6160,7 +6240,7 @@ function paintEditProfileModal(){
     `:''}
     <div style="position:relative;z-index:2;display:flex;align-items:center;gap:14px;width:100%;padding-right:72px;text-shadow:0 2px 8px rgba(0,0,0,0.85)">
       <div style="position:relative">
-        ${d.avatarImg?`<img src="${d.avatarImg}" alt="Avatar" style="width:58px;height:58px;border-radius:99px;border:3px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">`:`<span class="av" style="--h:${d.h};width:58px;height:58px;font-size:24px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5)">${esc((d.a||'?')[0].toUpperCase())}</span>`}
+        ${d.avatarImg?`<img src="${esc(d.avatarImg)}" alt="Avatar" style="width:58px;height:58px;border-radius:99px;border:3px solid #fff;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,0.5)">`:`<span class="av" style="--h:${d.h};width:58px;height:58px;font-size:24px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.5)">${esc((d.a||'?')[0].toUpperCase())}</span>`}
       </div>
       <div style="flex:1;min-width:0">
         <b style="font-size:18px;display:block;color:#fff">${esc(d.a)}</b>
@@ -6347,7 +6427,7 @@ function openNotifsModal(){
         const u = U[n.u] || {a: n.u, city:'Comunidad'};
         const icon = n.t === 'match' ? `<span style="color:#f59e0b">${I('flame',16)}</span>` :
                      n.t === 'like' ? `<span style="color:#f87171">${I('heart',16)}</span>` :
-                     n.t === 'story' ? `<span style="color:#e879f9">${I('sparkle',16)}</span>` :
+                     n.t === 'story' ? `<span style="color:var(--accent2)">${I('sparkle',16)}</span>` :
                      `<span style="color:var(--accent)">${I('chat',16)}</span>`;
         return `<div class="card" style="padding:12px 14px;background:var(--surface2);display:flex;align-items:center;gap:12px">
           ${av(n.u, 42, true)}
