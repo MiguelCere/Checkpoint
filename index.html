@@ -1929,6 +1929,14 @@ h1,h2,h3{letter-spacing:-.022em;font-weight:700}
 }
 /* Mensajes en el celular: título arriba y botones en una fila debajo */
 @media (max-width:600px){.mhd{flex-wrap:wrap;row-gap:12px}.mhd-actions{display:flex!important;flex-direction:row!important;width:100%}}
+/* Chat abierto en el celular: sin barra inferior encima de la caja de mensaje */
+@media (max-width:767px){
+  body.is-mensajes:has(.mapp.show-chat) .pillwrap{display:none}
+  .mapp.show-chat{height:calc(100dvh - 56px);min-height:0;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+}
+/* Botón para borrar mi comentario */
+.cm-del{display:inline-grid;place-items:center;width:28px;height:28px;margin-left:6px;vertical-align:middle;border-radius:8px;color:var(--muted);transition:background .15s,color .15s}
+.cm-del:hover{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
 /* Casilla de Términos y enlaces pequeños: más fáciles de tocar en el celular */
 #su-t{width:22px!important;height:22px!important;flex:none}
 .auth-card button[data-a="doc"],.auth-card button[data-a="atab"]{padding:6px 2px;margin:-6px 0}
@@ -4154,7 +4162,7 @@ function openReviewModal(id){
   const g = G[r.g] || {t: r.g, y: 2024, h: 265, dev: 'Estudio', genre: 'Videojuego'};
   const liked = !!DB.likes[id];
   const saved = !!DB.saved[id];
-  const nLikes = Math.round(r.s * 8) + (liked ? 1 : 0);
+  const nLikes = DB.likeCounts[r.id] || 0;
   const cm = DB.comments[id] || [];
 
   modal(`
@@ -4238,6 +4246,7 @@ function openReviewModal(id){
               <div style="padding:10px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--edge);font-size:13.5px">
                 <button type="button" class="user-link" data-a="user" data-k="${c.u}"><b>${esc(U[c.u]?.a || 'Tú')}</b></button>
                 <span class="muted" style="margin-left:6px">${esc(c.t)}</span>
+                ${c.u===sess&&c.id?`<button type="button" class="cm-del" data-a="delcm" data-k="${esc(c.id)}" data-p="${esc(r.id)}" aria-label="Eliminar mi comentario" title="Eliminar">${I('trash',14)}</button>`:''}
               </div>
             `).join('')}
           </div>
@@ -4356,7 +4365,7 @@ function openPost(id){
       </div>
       <div class="cm">
         <p><a href="#u-${p.u}" data-a="user" data-k="${p.u}"><b>${esc(u.a)}</b></a> ${esc(p.t)}</p>
-        ${cm.map(c=>`<p><a href="#u-${c.u}" data-a="user" data-k="${c.u}"><b>${esc(U[c.u]?.a||'Tú')}</b></a> <span class="muted">${esc(c.t)}</span></p>`).join('')}
+        ${cm.map(c=>`<p><a href="#u-${c.u}" data-a="user" data-k="${c.u}"><b>${esc(U[c.u]?.a||'Tú')}</b></a> <span class="muted">${esc(c.t)}</span>${c.u===sess&&c.id?`<button type="button" class="cm-del" data-a="delcm" data-k="${esc(c.id)}" data-p="${esc(p.id)}" aria-label="Eliminar mi comentario" title="Eliminar">${I('trash',14)}</button>`:''}</p>`).join('')}
       </div>
       <div class="ctl">
         <div class="line" style="justify-content:space-between;width:100%">
@@ -4435,7 +4444,7 @@ function cropFile(file){return new Promise((res,rej)=>{if(!/^image\/(jpeg|png|we
 function postCard(x){
   if(x.g){
     const r=x,u=U[r.u]||{a:r.u,city:'Comunidad'},liked=!!DB.likes[r.id],saved=!!DB.saved[r.id];
-    const nLikes=Math.round(r.s*8)+(liked?1:0);
+    const nLikes=DB.likeCounts[r.id]||0;
     return `<article class="card post" id="post-${r.id}">
       <div class="hd">
         <span class="ring ig" style="width:40px;height:40px;padding:2px;flex:none">${av(r.u,32,true)}</span>
@@ -4497,7 +4506,7 @@ function postCard(x){
     <div class="post-likes-txt"><b>${nLikes} me gusta</b></div>
     <p class="post-caption-txt"><a href="#u-${p.u}" data-a="user" data-k="${p.u}"><b>${esc(u.a)}</b></a> <span class="muted">${esc(p.t)}</span> <span style="opacity:.6;font-size:12px">#${esc(p.c)} #Checkpoint #Gaming</span></p>
     ${cm.length?`<div class="post-cm-preview">${cm.slice(-2).map(c=>`<div><a href="#u-${c.u}" data-a="user" data-k="${c.u}"><b>${esc(U[c.u]?.a||'Tú')}</b></a> <span>${esc(c.t)}</span></div>`).join('')}</div>`:''}
-    <div style="padding:0 12px"><button type="button" data-a="post" data-k="${p.id}" class="muted" style="font-size:12.5px">${cm.length>2?`Ver los ${cm.length+2} comentarios`:'Ver comentarios y ampliar foto'}</button></div>
+    <div style="padding:0 12px"><button type="button" data-a="post" data-k="${p.id}" class="muted" style="font-size:12.5px">${cm.length>2?`Ver los ${cm.length} comentarios`:'Ver comentarios y ampliar foto'}</button></div>
     <form class="feed-inline-cm" data-k="${p.id}"><input placeholder="Añade un comentario..." maxlength="200" autocomplete="off"><button type="submit">Publicar</button></form>
   </article>`;
 }
@@ -6669,7 +6678,7 @@ async function saveUserStory(){
   };
 
   DB.stories = DB.stories || [];
-  if(!await sbInsertStory(newStory)){S.note='No se publicó la historia. Tu borrador se conserva.';return;}
+  if(!await sbInsertStory(newStory)){S.note='No se publicó la historia. Tu borrador se conserva.';render();return;}
   DB.stories.unshift(newStory);
   save();
 
@@ -6860,6 +6869,10 @@ function render(){
   paintToggle();
   paintSyncStatus();
   persistRouteState();
+  if(S.note && S.note !== window.__lastNote){
+    window.__lastNote = S.note; clearTimeout(window.__noteTimer);
+    window.__noteTimer = setTimeout(()=>{ if(S.note === window.__lastNote){ S.note=''; window.__lastNote=''; render(); } }, 6000);
+  }
   if(cur === null){
     const savedY = Number(sessionStorage.getItem('cp5_scroll_' + r) || 0);
     if(savedY > 0) setTimeout(() => window.scrollTo(0, savedY), 30);
@@ -7136,6 +7149,21 @@ document.addEventListener('click',async e=>{
      }
      break;
    }
+   case 'delcm':{
+     const itemId = el.dataset.p;
+     if(!isUuid(k) || !confirm('¿Eliminar este comentario? No se puede deshacer.')) break;
+     try{
+       const owner = await requireCloud();
+       const {data, error} = await sbClient.from('post_comments').delete().eq('id', k).eq('user_id', owner).select('id');
+       if(error || !data?.length) throw error || new Error('No se eliminó el comentario.');
+       await syncCommunity(); save();
+       S.note = '🗑️ Comentario eliminado.';
+     }catch(e){ showFailure(e); }
+     const wasRev = !!$('.rev-detail-modal'), wasPost = !!$('.pm');
+     render();
+     if(wasRev) openReviewModal(itemId); else if(wasPost) openPost(itemId);
+     break;
+   }
    case 'reportmodal':{
      modal(`<div class="hd">
          <div class="line" style="gap:8px;color:var(--bad)">${I('flag',20)}<h2 style="color:var(--bad);margin:0">Reportar publicación</h2></div>
@@ -7187,8 +7215,12 @@ document.addEventListener('click',async e=>{
      break;
    }
    case 'copylink':{
-     try{navigator.clipboard?.writeText(window.location.href)}catch(e){}
-     S.note='Enlace copiado al portapapeles';closeModal();render();setTimeout(()=>{S.note='';render()},2500);break;
+      const postUrl=location.origin+location.pathname+'#post='+encodeURIComponent(k||'');
+      closeModal();
+      Promise.resolve().then(()=>navigator.clipboard.writeText(postUrl))
+        .then(()=>{S.note='🔗 Enlace de la publicación copiado.'},()=>{S.note='No se pudo copiar automáticamente. Enlace: '+postUrl})
+        .finally(()=>{render();setTimeout(()=>{S.note='';render()},4000)});
+      break;
    }
    case 'reportpost':{
      const reason = el.dataset.r || 'Revisión general';
@@ -7411,9 +7443,17 @@ document.addEventListener('click',async e=>{
    }
    case 'newlist':openCreateListModal();break;
     case 'dellist':{
+      if(!confirm('¿Eliminar esta lista? No se puede deshacer.')) break;
+      if(isUuid(k)){
+        // Antes la orden se creaba pero nunca se enviaba, y la lista volvía a aparecer.
+        try{
+          const owner = await requireCloud();
+          const {data, error} = await sbClient.from('user_lists').delete().eq('id', k).eq('user_id', owner).select('id');
+          if(error || !data?.length) throw error || new Error('No se eliminó la lista.');
+        }catch(e){ showFailure(e); break; }
+      }
       DB.lists = (DB.lists || []).filter(x => String(x.id) !== String(k));
       save();
-      if(sbClient && isUuid(k)){ try{ sbClient.from('user_lists').delete().eq('id', k).eq('user_id', sess); }catch(e){} }
       closeModal();
       S.note = '🗑️ Lista eliminada de tu perfil.';
       render();
@@ -7559,9 +7599,11 @@ document.addEventListener('submit',async e=>{
   }
   if(f==='f-custom-game'){
     const rawgVal = $('#cg-rawg')?.value.trim() || '';
-    if(rawgVal !== DB.rawgKey){ DB.rawgKey = rawgVal; save(); }
+    const rawgChanged = rawgVal !== DB.rawgKey;
+    if(rawgChanged){ DB.rawgKey = rawgVal; save(); }
     const tVal = $('#cg-t')?.value.trim();
-    if(!tVal){ closeModal(); S.note = '🔑 Configuración del Catálogo Mundial RAWG guardada.'; render(); return; }
+    if(!tVal && rawgChanged){ closeModal(); S.note = '🔑 Configuración del Catálogo Mundial RAWG guardada.'; render(); return; }
+    if(!tVal){ $('#cg-t')?.focus(); S.note = 'Escribe el nombre del videojuego para agregarlo.'; render(); return; }
     const gk = 'cg_' + uid();
     const yr = Number($('#cg-y')?.value) || 2024;
     const dev = $('#cg-dev')?.value.trim() || 'Estudio Oficial';
@@ -7638,7 +7680,7 @@ document.addEventListener('submit',async e=>{
   if(f==='f-rv'){if(!checkRateLimit('post'))return;const t=sanitizeInput($('#rv-t').value,600);if(t.length<3){$('#up-e').textContent='Escribe unas palabras sobre el juego.';return}const rv={id:'v'+uid(),u:sess,g:$('#rv-g').value,s:+$('#rv-s').value,o:+$('#rv-o').value,p:PL[upCat]?upCat:'pc',d:'ahora',t,ts:Date.now()};if(!await sbInsertReview(rv)){$('#up-e').textContent='No se publicó. Tu borrador sigue aquí.';return;}DB.reviews.unshift(rv);save();closeModal();S.ptab='reviews';S.route='perfil';render();return}
   if(f==='f-cm'){if(!checkRateLimit('comment'))return;const id=e.target.dataset.k,v=sanitizeInput($('#cm-i').value,200);if(!v)return;if(!await addComment(id,v))return;render();openPost(id);return}
   if(f==='f-grp'){const n=$('#g-n').value.trim().slice(0,40),ms=$$('input[name="gm"]:checked').map(x=>x.value);const er=$('#g-e');if(!n){er.textContent='Ponle un nombre al grupo.';return}if(ms.length<1){er.textContent='Elige al menos 1 jugador de tus matches.';return}const t={id:'g'+uid(),type:'group',name:n,h:Math.floor(Math.random()*360),members:ms,known:1,un:0,owner:sess,m:[['me','Creé el grupo '+n]]};_thr.unshift(t);persistThr(t);closeModal();S.thr=t.id;S.msgTab='grupos';S.route='mensajes';render();return}
-  if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),v=sanitizeInput(inp.value,1000);if(!v)return;const owner=sess,threadId=t?.id;const ok=await addMsg(t,'me',v);if(ok && sess===owner && S.thr===threadId && $('#ci')?.value===v)$('#ci').value='';$('#ci')?.focus()}
+  if(f==='f-msg'){if(!checkRateLimit('msg'))return;const t=THR().find(x=>x.id===S.thr),inp=$('#ci'),raw=inp.value,v=sanitizeInput(raw,1000);if(!v)return;const owner=sess,threadId=t?.id;const ok=await addMsg(t,'me',v);if(ok && sess===owner && S.thr===threadId && $('#ci')?.value===raw)$('#ci').value='';$('#ci')?.focus()}
 });
 // La caché local no autoriza una sesión. Supabase la restaura al sincronizar.
 sess=null;
@@ -7647,6 +7689,7 @@ resolveOfficialCovers();
 syncFromSupabase(false);
 setInterval(()=>{if(!document.hidden){refreshLiveState();flushCloudRender();}},4000);
 setInterval(()=>{if(sess&&!document.hidden)syncFromSupabase(false);},30000);
+;(function openSharedPost(){const m=location.hash.match(/^#post=([A-Za-z0-9_-]+)$/);if(!m)return;let tries=0;const t=setInterval(()=>{tries++;if(sess&&DB.posts.some(p=>String(p.id)===m[1])){clearInterval(t);history.replaceState(null,'',location.pathname+location.search);openPost(m[1]);}else if(tries>60)clearInterval(t)},500)})();
 window.addEventListener('focus',()=>{refreshLiveState();flushCloudRender();});
 window.addEventListener('online',()=>{refreshLiveState();syncFromSupabase(false);});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLiveState();flushCloudRender();}});
